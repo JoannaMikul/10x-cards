@@ -1,94 +1,139 @@
-# 10x Astro Starter
+# 10x-cards
 
-A modern, opinionated starter template for building fast, accessible, and AI-friendly web applications.
+10x-cards is a web app that lets IT professionals quickly create and review flashcards for tech and language learning, using AI or manual input, with smart tracking and spaced repetition.
 
-## Tech Stack
+[![version](https://img.shields.io/badge/version-0.0.1-blue.svg)](#)
+[![node](https://img.shields.io/badge/node-22.17.0-339933?logo=node.js)](#)
+[![status](https://img.shields.io/badge/status-MVP_in_progress-yellow.svg)](#)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-- [Astro](https://astro.build/) v5.5.5 - Modern web framework for building fast, content-focused websites
-- [React](https://react.dev/) v19.0.0 - UI library for building interactive components
-- [TypeScript](https://www.typescriptlang.org/) v5 - Type-safe JavaScript
-- [Tailwind CSS](https://tailwindcss.com/) v4.0.17 - Utility-first CSS framework
+## Table of contents
 
-## Prerequisites
+- [10x-cards](#10x-cards)
+  - [Table of contents](#table-of-contents)
+  - [Project description](#project-description)
+  - [Tech stack](#tech-stack)
+  - [Getting started locally](#getting-started-locally)
+  - [Available scripts](#available-scripts)
+  - [Project scope](#project-scope)
+  - [Project status](#project-status)
+  - [License](#license)
 
-- Node.js v22.14.0 (as specified in `.nvmrc`)
-- npm (comes with Node.js)
+## Project description
 
-## Getting Started
+**10x-cards** is a web application designed to help IT professionals quickly create high-quality flashcards for learning technologies and foreign languages.
+
+It offers two ways to create flashcards:
+
+- AI Generation – automatically generates cards from pasted text.
+
+- Manual Addition – lets users create individual cards manually.
+
+Each flashcard is reviewed, edited, and saved with metadata (author, source, dates, categories, tags) and integrated with a spaced repetition system.
+
+The app uses email/password authentication with RLS restrictions in Supabase. It limits generation requests (max 5 per user per hour) and validates flashcard content. KPIs are tracked on a separate dashboard.
+
+## Tech stack
+
+**✨ Frontend**: Astro 5 • React 19 • TypeScript 5 • Tailwind CSS 4 • Shadcn/ui
+
+**🗄️ Backend**: Supabase (PostgreSQL, Auth, RLS)
+
+**🤖 AI**: OpenRouter (multi-model access, budget controls)
+
+**🚀 CI/CD & Hosting**: GitHub Actions • DigitalOcean (Docker)
+
+**🧰 Tooling** : ESLint • 9 Prettier (Astro plugin) • Husky • lint-staged
+
+## Getting started locally
+
+Get up and running in a couple of minutes:
 
 1. Clone the repository:
 
-```bash
-git clone https://github.com/przeprogramowani/10x-astro-starter.git
-cd 10x-astro-starter
-```
+   ```bash
+   git clone https://github.com/JoannaMikul/10x-cards
+   ```
 
-2. Install dependencies:
+2. Use the project's Node version
 
-```bash
-npm install
-```
+   The required Node version is defined in `.nvmrc`. Currently it's **22.17.0**.
 
-3. Run the development server:
+   ```bash
+   nvm use
+   ```
 
-```bash
-npm run dev
-```
+3. Install dependencies
 
-4. Build for production:
+   ```bash
+   npm install
+   ```
 
-```bash
-npm run build
-```
+4. Configure environment variables
 
-## Available Scripts
+   Create a **.env** file in the project root with:
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint issues
+   ```env
+   OPENROUTER_API_KEY=your_openrouter_api_key
+   SUPABASE_URL=your_supabase_project_url
+   SUPABASE_ANON_KEY=your_supabase_anon_key
+   ```
 
-## Project Structure
+5. Start the dev server
 
-```md
-.
-├── src/
-│   ├── layouts/    # Astro layouts
-│   ├── pages/      # Astro pages
-│   │   └── api/    # API endpoints
-│   ├── components/ # UI components (Astro & React)
-│   └── assets/     # Static assets
-├── public/         # Public assets
-```
+   Go to `http://localhost:3000` in your browser to see the application running.
 
-## AI Development Support
+   ```bash
+   npm run dev
+   ```
 
-This project is configured with AI development tools to enhance the development experience, providing guidelines for:
+6. Build and preview:
 
-- Project structure
-- Coding practices
-- Frontend development
-- Styling with Tailwind
-- Accessibility best practices
-- Astro and React guidelines
+   ```bash
+   npm run build
+   npm run preview
+   ```
 
-### Cursor IDE
+- 💡 Notes:
+  - Without valid `OPENROUTER_API_KEY` and Supabase credentials, the app starts, but AI and authenticated features are disabled.
+  - Tailwind 4 and Astro are already configured—no extra setup needed.
 
-The project includes AI rules in `.cursor/rules/` directory that help Cursor IDE understand the project structure and provide better code suggestions.
+## Available scripts
 
-### GitHub Copilot
+- **`npm run dev`**: Start the development server
+- **`npm run build`**: Build the production bundle
+- **`npm run preview`**: Preview the production build locally
+- **`npm run astro`**: Run Astro CLI directly
+- **`npm run lint`**: Lint the codebase
+- **`npm run lint:fix`**: Lint and attempt to fix issues
+- **`npm run format`**: Format files with Prettier
 
-AI instructions for GitHub Copilot are available in `.github/copilot-instructions.md`
+## Project scope
 
-### Windsurf
+In scope for the MVP (per PRD):
 
-The `.windsurfrules` file contains AI configuration for Windsurf.
+- Implementing automatic flashcard generation using AI based on user-provided text.
+- Providing a review flow for AI-generated suggestions with quick edit, accept, or discard options before saving.
+- Enabling manual creation of flashcards from scratch.
+- Developing a module for browsing and organizing flashcards with search, filters, categories, and tags.
+- Implementing a spaced-repetition system to surface the right cards at the right time.
+- Setting up user registration and authentication to keep collections private and secure.
+- Creating a built-in Help section that explains how to create and practice flashcards.
+- Building a simple dashboard that displays statistics on AI suggestion acceptance and the number of AI-generated flashcards.
 
-## Contributing
+Out of scope for the MVP (per PRD):
 
-Please follow the AI guidelines and coding practices defined in the AI configuration files when contributing to this project.
+- No custom spaced repetition algorithm (an existing module is used).
+- No file imports other than plain text.
+- No sharing of flashcard sets between users.
+- No integrations with external educational platforms.
+- No mobile apps.
+- No timers or time limits in the review process.
+
+## Project status
+
+The project is in the MVP stage and is currently being developed.
 
 ## License
 
-MIT
+This project is open‑source under the MIT License. See the LICENSE file for details.
