@@ -3,6 +3,7 @@ description:
 globs: *.tsx
 alwaysApply: false
 ---
+
 ### Guidelines for React
 
 - Use functional components with hooks instead of class components
