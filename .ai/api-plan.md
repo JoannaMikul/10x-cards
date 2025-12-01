@@ -89,7 +89,43 @@
 
 ### Tags
 
-Endpoints mirror categories; additional validation `name` length ≤ 64.
+#### GET /api/tags
+
+- **Description:** Public tag listing used for filters and metadata chips. Mirrors the categories endpoint with the extra invariant `name ≤ 64` enforced at validation level to match the DB constraint.
+- **Query params:**
+  - `search` (optional string) – trimmed, case-insensitive `ILIKE` on `name` and `slug`, 1..200 characters.
+  - `limit` (optional int) – defaults to `20`, bounded to `1..100`; backend fetches `limit + 1` rows to detect `has_more`.
+  - `cursor` (optional string) – Base64-encoded positive `id` of the last record. Invalid Base64 or `id ≤ 0` → `400 invalid_query`.
+  - `sort` (optional enum `name|created_at`) – defaults to `name`. Queries always apply a secondary `order("id","asc")` to keep pagination deterministic.
+- **Sample response:**
+
+```json
+{
+  "data": [
+    {
+      "id": 3,
+      "name": "docker",
+      "slug": "docker",
+      "description": "Containers and OCI images",
+      "created_at": "2025-11-01T08:00:00.000Z",
+      "updated_at": "2025-11-01T08:00:00.000Z"
+    }
+  ],
+  "page": { "next_cursor": "Mw==", "has_more": true }
+}
+```
+
+- **Success codes:** `200 OK`.
+- **Errors:**
+
+| Status | `error.code`       | Notes                                                                                   |
+| ------ | ------------------ | --------------------------------------------------------------------------------------- |
+| 400    | `invalid_query`    | Zod validation failure, empty `search`, malformed cursor, limit outside range           |
+| 500    | `db_error`         | PostgREST/PostgreSQL failure; response includes `{ code, message }` from Supabase       |
+| 500    | `unexpected_error` | Runtime issues (missing Supabase client, cursor decoding crash, other unexpected error) |
+
+- **Observability:** Handler logs every 4xx/5xx via `recordTagsEvent` (`scope: "api/tags"`, `userId = DEFAULT_USER_ID`).
+- **Mocks:** Contract fixtures (200/400/500) live in `src/lib/mocks/tags.api.mocks.ts`.
 
 ### Sources
 
