@@ -14,7 +14,6 @@
 - `generation_error_logs` → `generation_error_logs` (admin diagnostics).
 - `review_events` → `review_events`.
 - `review_stats` → `review_stats`.
-- `help_articles` → configurable knowledge-base table (assumed `help_articles`).
 - `analytics_kpi` → materialized/admin views combining `flashcards`, `generation_candidates`, `review_events`.
 
 ## 2. Endpoints
@@ -306,33 +305,6 @@ Endpoints mirror categories; additional validation `name` length ≤ 64.
 
 - **Errors:** `403 forbidden`.
 
-### Help Content
-
-#### GET /api/help
-
-- Returns structured onboarding/help content, optionally localized via `?lang=pl`.
-- Response includes sections with markdown/HTML sanitized server-side, wrapped in `PaginatedResponse<HelpArticleDTO>`.
-
-```json
-{
-  "data": [
-    {
-      "id": 1,
-      "slug": "start",
-      "title": "...",
-      "content": "...",
-      "language": "pl",
-      "updated_at": "..."
-    }
-  ],
-  "page": { "next_cursor": null, "has_more": false }
-}
-```
-
-#### PATCH /api/admin/help/:id (admin)
-
-- Allows updating help entries without redeploy; validates HTML sanitization.
-
 ### User Roles (admin)
 
 #### GET /api/admin/user-roles
@@ -358,7 +330,7 @@ Endpoints mirror categories; additional validation `name` length ≤ 64.
 - **Rate Limiting:**
   - Global: e.g., 60 req/min per IP via Astro middleware.
   - Per-user custom: `POST /api/generations` uses stored proc to enforce single active job + 5/hour threshold, returning `429`.
-- **Audit Logging:** Sensitive mutations (`user_roles`, `help`, admin analytics) log actor, timestamp, payload hash to `generation_error_logs` or separate audit channel.
+- **Audit Logging:** Sensitive mutations (`user_roles`, admin analytics) log actor, timestamp, payload hash to `generation_error_logs` or separate audit channel.
 
 ## 4. Validation and Business Logic
 
@@ -381,9 +353,7 @@ Endpoints mirror categories; additional validation `name` length ≤ 64.
   - `outcome` enum `review_outcome`.
   - Non-negative integers for response time and intervals.
   - `review_stats` maintained by DB triggers; API only exposes R/O aggregates except admin overrides.
-- **Help Content:**
-  - Markdown sanitized against XSS.
-  - Localization enforced via `lang` fallback.
+
 - **User Roles/Admin Endpoints:**
   - Only admins may mutate; attempts by non-admin receive `403`.
   - Validation ensures `role='admin'`.

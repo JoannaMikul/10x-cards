@@ -16,9 +16,8 @@ Profesjonaliści uczący się nowych zagadnień teoretycznych i językowych rezy
 4. Ręczne zarządzanie fiszkami: formularz dodawania fiszek od podstaw z tymi samymi limitami i walidacją, możliwość edycji i usuwania już zapisanych kart.
 5. Lista fiszek: widok tabelaryczny/kafelkowy z paginacją, wyszukiwaniem, filtrowaniem po kategoriach i tagach, prezentacją metadanych, możliwością szybkiej edycji w modalach oraz integracją przycisku rozpoczęcia sesji powtórek.
 6. Integracja modułu powtórek: wywołanie gotowego algorytmu spaced repetition z listy fiszek, przekazanie wymaganych danych, obsługa wyników sesji oraz zachowanie stanu kart po powrocie.
-7. Panel pomocy: sekcja objaśniająca proces tworzenia, edycji, usuwania fiszek oraz sposób działania powtórek i limitów generowania.
-8. Dashboard KPI: osobny widok raportujący odsetek zaakceptowanych fiszek AI i udział AI w tworzeniu fiszek na użytkownika oraz inne podstawowe miary aktywności.
-9. Testy i jakość: zestaw testów funkcjonalnych E2E i integracyjnych pokrywających główne scenariusze oraz wdrożenie standardowych praktyk bezpieczeństwa (walidacja, autoryzacja, sanitacja wejścia, obsługa błędów, logowanie).
+7. Dashboard KPI: osobny widok raportujący odsetek zaakceptowanych fiszek AI i udział AI w tworzeniu fiszek na użytkownika oraz inne podstawowe miary aktywności.
+8. Testy i jakość: zestaw testów funkcjonalnych E2E i integracyjnych pokrywających główne scenariusze oraz wdrożenie standardowych praktyk bezpieczeństwa (walidacja, autoryzacja, sanitacja wejścia, obsługa błędów, logowanie).
 
 ## 4. Granice produktu
 
@@ -128,15 +127,6 @@ Kryteria akceptacji:
 - Dashboard prezentuje co najmniej odsetek zaakceptowanych fiszek AI oraz udział fiszek tworzonych przez AI względem manualnych.
 - Dane są odświeżane w ustalonym interwale i pochodzą z wiarygodnych logów aplikacyjnych.
 - Eksport lub migawka danych do dalszej analizy jest dostępna w formie CSV lub JSON.
-
-ID: US-011
-Tytuł: Sekcja pomocy i onboarding
-Opis: Jako nowy użytkownik chcę łatwo znaleźć instrukcje tworzenia, edycji, usuwania fiszek oraz działania powtórek, aby szybko rozpocząć korzystanie z aplikacji.
-Kryteria akceptacji:
-
-- Sekcja pomocy opisuje krok po kroku proces generowania, recenzji, limitów żądań oraz ręcznej edycji.
-- Link do pomocy jest dostępny z głównego menu i kontekstowo przy formularzach.
-- Aktualizacje treści pomocy można publikować bez wdrażania nowej wersji aplikacji (np. poprzez CMS lub pliki konfiguracyjne w bazie).
 
 ## 6. Metryki sukcesu
 

@@ -330,25 +330,6 @@ export interface AnalyticsKpiResponse {
   totals: AnalyticsTotalsDTO;
   trend: AnalyticsTrendPointDTO[];
 }
-
-/** Help Content *************************************************************
- * Tymczasowy DTO dla treści help, dopóki tabela `help_articles` nie zostanie
- * dodana do `Database`. Struktura bazuje na wymaganiach PRD i powinna zostać
- * przepięta na faktyczne typy Supabase, gdy tylko się pojawią.
- */
-export interface HelpArticleDTO {
-  id: number;
-  slug: string;
-  title: string;
-  content: string;
-  language: string;
-  updated_at: IsoDateString;
-}
-
-export type HelpContentListResponse = PaginatedResponse<HelpArticleDTO>;
-
-export type UpdateHelpArticleCommand = Partial<Pick<HelpArticleDTO, "title" | "content" | "language">>;
-
 /** User Roles ***************************************************************/
 type UserRoleRow = Tables<"user_roles">;
 type UserRoleInsert = TablesInsert<"user_roles">;

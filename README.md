@@ -118,7 +118,6 @@ In scope for the MVP (per PRD):
 - Developing a module for browsing and organizing flashcards with search, filters, categories, and tags.
 - Implementing a spaced-repetition system to surface the right cards at the right time.
 - Setting up user registration and authentication to keep collections private and secure.
-- Creating a built-in Help section that explains how to create and practice flashcards.
 - Building a simple dashboard that displays statistics on AI suggestion acceptance and the number of AI-generated flashcards.
 
 Out of scope for the MVP (per PRD):
