@@ -178,8 +178,15 @@ Endpoints mirror categories; additional validation `name` length ≤ 64.
 
 #### POST /api/generations
 
-- **Description:** Starts AI generation job; enforces 1 active request + 5/hour limit per user.
-- **Request:**
+- **Description:** Starts an AI-backed generation job for the authenticated user. Backend enforces at most one active (`pending`/`running`) job per user and applies
+  the DB trigger limit of **5 requests / hour**. The server re-sanitizes text (normalize line endings, remove control chars, collapse whitespace) before persisting or
+  hashing it.
+- **Headers:** `Content-Type: application/json`, `Authorization: Bearer <jwt>` (required once auth wiring is finished; currently mocked by `DEFAULT_USER_ID`).
+- **Body fields:**
+  - `model` _(string, required)_ – e.g. `openrouter/gpt-4.1-mini`.
+  - `sanitized_input_text` _(string, required)_ – must land between **1000** and **10000** characters **after** the server’s sanitation pass.
+  - `temperature` _(number, optional)_ – range `[0, 2]`, rounded to 2 decimal places on insert.
+- **Request example:**
 
 ```json
 {
@@ -189,14 +196,44 @@ Endpoints mirror categories; additional validation `name` length ≤ 64.
 }
 ```
 
-- **Server Logic:** Sanitizes input, computes length/hash, inserts row with `status='pending'`, enqueues worker job.
-- **Response:** `202 Accepted` with payload:
+- **Server Logic:** Validate JSON via Zod, sanitize text, guard final length, perform optimistic SELECT for active jobs, insert row with `status = 'pending'`, let
+  worker observe new record.
+- **Success response:** `202 Accepted`
 
 ```json
-{ "id": "uuid", "status": "pending", "enqueued_at": "..." }
+{
+  "id": "a3de7fac-7d1b-4c21-a987-6a087d8b37a5",
+  "status": "pending",
+  "enqueued_at": "2025-11-30T12:34:56.000Z"
+}
 ```
 
-- **Errors:** `400 length_out_of_range`, `409 active_request_exists`, `429 hourly_quota_reached`, `401 unauthorized`.
+- **Error contract:** All errors follow `ApiErrorResponse`.
+
+| Status | `error.code`            | Trigger                                                                 |
+| ------ | ----------------------- | ----------------------------------------------------------------------- |
+| 400    | `invalid_payload`       | Invalid JSON / schema validation failure                                |
+| 400    | `length_out_of_range`   | Text after sanitation shorter than 1000 or longer than 10000 characters |
+| 401    | `unauthorized`          | Missing/invalid Supabase JWT (future state)                             |
+| 409    | `active_request_exists` | Optimistic SELECT or unique index (`status in (pending,running)`)       |
+| 429    | `hourly_quota_reached`  | Supabase trigger `generation_rate_limit_exceeded`                       |
+| 500    | `db_error`              | Misc. Postgres/PostgREST issue during insert                            |
+| 500    | `unexpected_error`      | Non-PostgREST runtime error                                             |
+
+- **Example error:**
+
+```json
+{
+  "error": {
+    "code": "active_request_exists",
+    "message": "An active generation request is already in progress."
+  }
+}
+```
+
+- **Observability:** Endpoint emits structured console events (see `recordGenerationEvent` in `src/pages/api/generations.ts`) and writes hashes/lengths to
+  `generation_error_logs` for 409/429/500 scenarios.
+- **Mocks:** Ready-to-use contract examples (202/400/409/429/500) live in `src/lib/mocks/generations.api.mocks.ts`.
 
 #### GET /api/generations
 
