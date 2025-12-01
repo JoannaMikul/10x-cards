@@ -15,6 +15,16 @@ export const GENERATION_ERROR_CODES = {
 
 export type GenerationErrorCode = (typeof GENERATION_ERROR_CODES)[keyof typeof GENERATION_ERROR_CODES];
 
+export const CATEGORY_ERROR_CODES = {
+  INVALID_QUERY: "invalid_query",
+  UNAUTHORIZED: "unauthorized",
+  RATE_LIMIT_EXCEEDED: "rate_limit_exceeded",
+  DB_ERROR: "db_error",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type CategoryErrorCode = (typeof CATEGORY_ERROR_CODES)[keyof typeof CATEGORY_ERROR_CODES];
+
 export interface HttpErrorDescriptor<TCode extends string = string> {
   status: number;
   body: ApiErrorResponse<TCode>;

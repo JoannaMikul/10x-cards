@@ -29,9 +29,13 @@
 
 #### GET /api/categories
 
-- **Description:** List categories for filters and metadata chips.
-- **Query:** `search` (case-insensitive), `limit` (default 20, max 100), `cursor` (encoded `id`), `sort` (`name|created_at`).
-- **Response:**
+- **Description:** Public list of categories for filters/metadata chips. Until Supabase Auth is wired in, the handler logs events with `DEFAULT_USER_ID` but does not require a JWT.
+- **Query params:**
+  - `search` (optional string) – trimmed, case-insensitive `ILIKE` over `name` and `slug`, max 200 chars.
+  - `limit` (optional int) – defaults to `20`, bounded to `1..100`; backend fetches `limit + 1` items to determine `has_more`.
+  - `cursor` (optional string) – Base64-encoded `id` of the last record from the previous page. Invalid Base64 / non-positive IDs return `400 invalid_query`.
+  - `sort` (optional enum `name|created_at`) – defaults to `name`. All queries also sort by `id ASC` to keep pagination deterministic.
+- **Response example:**
 
 ```json
 {
@@ -40,20 +44,29 @@
       "id": 12,
       "name": "Networking",
       "slug": "networking",
-      "description": "...",
+      "description": "Layered protocols overview",
       "color": "#3366FF",
-      "created_at": "...",
-      "updated_at": "..."
+      "created_at": "2025-10-30T10:00:00.000Z",
+      "updated_at": "2025-11-01T11:00:00.000Z"
     }
   ],
-  "page": { "next_cursor": "12", "has_more": true }
+  "page": { "next_cursor": "MTI=", "has_more": true }
 }
 ```
 
 - **Success Codes:** `200 OK`.
-- **Errors:** `401 unauthorized`, `429 too_many_requests`.
+- **Errors:**
 
-#### POST /api/categories (admin)
+| Status | `error.code`       | Notes                                                                                        |
+| ------ | ------------------ | -------------------------------------------------------------------------------------------- |
+| 400    | `invalid_query`    | Schema validation failures, malformed cursor, limits outside range, empty search, etc.       |
+| 500    | `db_error`         | PostgREST/PG failures; response includes `{ code, message }` from Supabase                   |
+| 500    | `unexpected_error` | Non-DB issues (cursor decoding crash, missing Supabase client, unexpected runtime exception) |
+
+- **Observability:** Every 4xx/5xx routes through `recordCategoriesEvent`, which logs JSON to stdout (`scope: "api/categories"`, `userId = DEFAULT_USER_ID`) for future ingestion. Rate limiting/auth are planned but not yet enforced.
+- **Mocks:** Contract fixtures (200/400/500) live at `src/lib/mocks/categories.api.mocks.ts`.
+
+#### POST /api/categories (admin – planned)
 
 - **Request:**
 
