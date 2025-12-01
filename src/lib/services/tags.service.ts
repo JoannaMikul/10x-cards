@@ -2,6 +2,7 @@ import type { Tables } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
 import type { TagDTO } from "../../types";
 import type { TagsQuery } from "../validation/tags.schema.ts";
+import { escapeIlikePattern } from "../utils/search.ts";
 
 type TagRow = Tables<"tags">;
 type TagSelect = Pick<TagRow, "id" | "name" | "slug" | "description" | "created_at" | "updated_at">;
@@ -58,8 +59,4 @@ function mapTagRowToDto(row: TagSelect): TagDTO {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
-}
-
-function escapeIlikePattern(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_").replace(/,/g, "\\,");
 }

@@ -131,8 +131,45 @@
 
 #### GET /api/sources
 
-- Provides filters for flashcards; supports `kind`, `search`, pagination.
-- Validates `url` scheme on create/update (`POST/PATCH /api/sources`).
+- **Description:** Public listing of content sources (books, articles, courses, URLs, others) used as flashcard metadata. Mirrors the contract of `/api/categories` and `/api/tags`.
+- **Query params:**
+  - `kind` – optional source-type filter; enum `{book,article,course,url,other,documentation,notes}`.
+  - `search` – optional trimmed string (1..200 chars); case-insensitive `ILIKE` against `name` and `slug` with escaped patterns.
+  - `limit` – default `20`, allowed `1..100`; backend fetches `limit + 1` rows to compute `has_more`.
+  - `cursor` – optional Base64-encoded positive `id` of the previous page’s last item; invalid Base64 or `id ≤ 0` ⇒ `400 invalid_query`.
+  - `sort` – default `name`; allowed `{name, created_at}` with an extra `id ASC` for deterministic ordering.
+- **Pagination:** cursor-based on `id`; `next_cursor` encoded as Base64; no cursor ⇒ first page.
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": 2,
+      "name": "Effective TypeScript",
+      "slug": "effective-typescript",
+      "description": "Practical guide",
+      "kind": "book",
+      "url": "https://example.com/books/effective-typescript",
+      "created_at": "2025-11-30T10:00:00.000Z",
+      "updated_at": "2025-11-30T10:00:00.000Z"
+    }
+  ],
+  "page": { "next_cursor": "Mg==", "has_more": true }
+}
+```
+
+- **Success codes:** `200 OK`.
+- **Errors:**
+
+| Status | `error.code`       | Notes                                                                                              |
+| ------ | ------------------ | -------------------------------------------------------------------------------------------------- |
+| 400    | `invalid_query`    | Zod validation failure, empty `search`, invalid `kind/sort`, limit outside range, malformed cursor |
+| 500    | `db_error`         | PostgREST/PostgreSQL failure; response includes `{ code, message }` from Supabase                  |
+| 500    | `unexpected_error` | Missing Supabase client or other runtime failures (cursor decoding, etc.)                          |
+
+- **Observability:** `recordSourcesEvent({ scope: "api/sources", userId: DEFAULT_USER_ID })` logs every 4xx/5xx payload.
+- **Mocks:** `src/lib/mocks/sources.api.mocks.ts` (200 first page, 200 filtered page with cursor, 400 invalid cursor, 500 db error).
 
 ### Flashcards
 

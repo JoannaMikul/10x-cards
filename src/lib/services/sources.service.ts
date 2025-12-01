@@ -1,26 +1,33 @@
 import type { Tables } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { CategoryDTO } from "../../types";
-import type { CategoriesQuery } from "../validation/categories.schema.ts";
+import type { SourceDTO } from "../../types";
+import type { SourcesQuery } from "../validation/sources.schema.ts";
 import { escapeIlikePattern } from "../utils/search.ts";
 
-type CategoryRow = Tables<"categories">;
-type CategorySelect = Pick<CategoryRow, "id" | "name" | "slug" | "description" | "color" | "created_at" | "updated_at">;
+type SourceRow = Tables<"sources">;
+type SourceSelect = Pick<
+  SourceRow,
+  "id" | "name" | "slug" | "description" | "kind" | "url" | "created_at" | "updated_at"
+>;
 
-const CATEGORY_COLUMNS = "id, name, slug, description, color, created_at, updated_at";
+const SOURCE_COLUMNS = "id, name, slug, description, kind, url, created_at, updated_at";
 
-export interface ListCategoriesResult {
-  items: CategoryDTO[];
+export interface ListSourcesResult {
+  items: SourceDTO[];
   hasMore: boolean;
   nextCursorId: number | null;
 }
 
-export async function listCategories(supabase: SupabaseClient, query: CategoriesQuery): Promise<ListCategoriesResult> {
+export async function listSources(supabase: SupabaseClient, query: SourcesQuery): Promise<ListSourcesResult> {
   let builder = supabase
-    .from("categories")
-    .select(CATEGORY_COLUMNS)
+    .from("sources")
+    .select(SOURCE_COLUMNS)
     .order(query.sort, { ascending: true })
     .order("id", { ascending: true });
+
+  if (query.kind) {
+    builder = builder.eq("kind", query.kind);
+  }
 
   if (query.search) {
     const pattern = `%${escapeIlikePattern(query.search)}%`;
@@ -44,19 +51,20 @@ export async function listCategories(supabase: SupabaseClient, query: Categories
   const nextCursorId = hasMore && lastVisibleRow ? lastVisibleRow.id : null;
 
   return {
-    items: limitedRows.map(mapCategoryRowToDto),
+    items: limitedRows.map(mapSourceRowToDto),
     hasMore,
     nextCursorId,
   };
 }
 
-function mapCategoryRowToDto(row: CategorySelect): CategoryDTO {
+function mapSourceRowToDto(row: SourceSelect): SourceDTO {
   return {
     id: row.id,
     name: row.name,
     slug: row.slug,
     description: row.description,
-    color: row.color,
+    kind: row.kind,
+    url: row.url,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
