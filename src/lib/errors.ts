@@ -45,6 +45,20 @@ export const SOURCE_ERROR_CODES = {
 
 export type SourceErrorCode = (typeof SOURCE_ERROR_CODES)[keyof typeof SOURCE_ERROR_CODES];
 
+export const FLASHCARD_ERROR_CODES = {
+  INVALID_BODY: "invalid_body",
+  UNAUTHORIZED: "unauthorized",
+  CATEGORY_NOT_FOUND: "category_not_found",
+  SOURCE_NOT_FOUND: "source_not_found",
+  TAG_NOT_FOUND: "tag_not_found",
+  DUPLICATE_FLASHCARD: "duplicate_flashcard",
+  UNPROCESSABLE_ENTITY: "unprocessable_entity",
+  DB_ERROR: "db_error",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type FlashcardErrorCode = (typeof FLASHCARD_ERROR_CODES)[keyof typeof FLASHCARD_ERROR_CODES];
+
 export interface HttpErrorDescriptor<TCode extends string = string> {
   status: number;
   body: ApiErrorResponse<TCode>;
@@ -66,6 +80,7 @@ export function buildErrorResponse<TCode extends string>(
 
 const ACTIVE_GENERATION_INDEX = "generations_active_per_user_unique";
 const RATE_LIMIT_SIGNATURE = "generation_rate_limit_exceeded";
+const FLASHCARD_FINGERPRINT_INDEX = "flashcards_owner_fingerprint_unique";
 
 /**
  * Maps PostgREST or plain PostgreSQL errors to structured responses returned by the
@@ -97,4 +112,28 @@ export function mapGenerationDbError(error: PostgrestError): HttpErrorDescriptor
 
 function matchesSignature(error: PostgrestError, signature: string): boolean {
   return [error.message, error.details, error.hint].some((value) => value?.includes(signature));
+}
+
+export function mapFlashcardDbError(error: PostgrestError): HttpErrorDescriptor<FlashcardErrorCode> {
+  if (error.code === "23505" && matchesSignature(error, FLASHCARD_FINGERPRINT_INDEX)) {
+    return buildErrorResponse(
+      409,
+      FLASHCARD_ERROR_CODES.DUPLICATE_FLASHCARD,
+      "A flashcard with the same front and back already exists."
+    );
+  }
+
+  if (error.code === "23503") {
+    return buildErrorResponse(
+      422,
+      FLASHCARD_ERROR_CODES.UNPROCESSABLE_ENTITY,
+      "Referenced entities are invalid or no longer exist."
+    );
+  }
+
+  return buildErrorResponse(
+    500,
+    FLASHCARD_ERROR_CODES.DB_ERROR,
+    "A database error occurred while creating the flashcard."
+  );
 }

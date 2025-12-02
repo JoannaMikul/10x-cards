@@ -3,7 +3,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
 
 import type { Enums } from "../../db/database.types.ts";
-import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
+import { DEFAULT_USER_ID, supabaseClient, supabaseServiceClient } from "../../db/supabase.client.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
 import {
   GENERATION_ERROR_CODES,
@@ -28,7 +28,7 @@ const ACTIVE_STATUSES: readonly Enums<"generation_status">[] = ["pending", "runn
 
 export const POST: APIRoute = async (context) => {
   const { locals, request } = context;
-  const supabase = locals.supabase ?? supabaseClient;
+  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
 
   if (!supabase) {
     const descriptor = buildErrorResponse(

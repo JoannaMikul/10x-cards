@@ -216,7 +216,10 @@
 
 #### POST /api/flashcards
 
-- **Description:** Creates a manual or AI-backed flashcard for the authenticated user, enforcing length limits, uniqueness, and ownership via RLS.
+- **Description:** Creates a manual or AI‑backed flashcard for the authenticated user. The backend enforces field length limits, reference (FK) correctness, uniqueness via `front_back_fingerprint`, and RLS (`owner_id = auth.uid()`).
+- **Headers:**
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <jwt>` (required; in development the endpoint may operate with `DEFAULT_USER_ID` until full Auth is wired)
 - **Request:**
 
 ```json
@@ -231,8 +234,32 @@
 }
 ```
 
-- **Validation:** `front ≤200 chars`, `back ≤500`, `origin ∈ card_origin`, duplicate fingerprint rejected (`409 duplicate_flashcard`), FK existence, RLS ensures `owner_id = auth.uid`.
-- **Response:** `201 Created` with record.
+- **Validation:**
+  - `front` — string, trimmed, length 1..200
+  - `back` — string, trimmed, length 1..500
+  - `origin` — enum: `ai-full | ai-edited | manual`
+  - `category_id`, `content_source_id` — optional positive integers
+  - `tag_ids` — optional array of positive integers, max 50, unique values
+  - `metadata` — arbitrary JSON
+  - Reference validation: ensure existence of `category_id`, `content_source_id`, and all `tag_ids`; missing → `404` with an appropriate code
+  - Uniqueness: `(owner_id, front_back_fingerprint)` → conflict returned as `409 duplicate_flashcard`
+- **Success:** `201 Created` with full `FlashcardDTO` record (including `tags`).
+- **Errors:**
+
+| Status | `error.code`           | Notes                                                                    |
+| ------ | ---------------------- | ------------------------------------------------------------------------ |
+| 400    | `invalid_body`         | Invalid JSON / Zod schema validation error                               |
+| 401    | `unauthorized`         | Missing/invalid JWT (target state); in dev `DEFAULT_USER_ID` may be used |
+| 404    | `category_not_found`   | The specified category does not exist                                    |
+| 404    | `source_not_found`     | The specified content source does not exist                              |
+| 404    | `tag_not_found`        | One or more tags do not exist                                            |
+| 409    | `duplicate_flashcard`  | Collision on `front_back_fingerprint`                                    |
+| 422    | `unprocessable_entity` | CHECK/FK violations surfaced from the DB                                 |
+| 500    | `db_error`             | PostgREST/PostgreSQL failure (includes `{ code, message }`)              |
+| 500    | `unexpected_error`     | Other unexpected runtime errors                                          |
+
+- **Observability:** Every 4xx/5xx is logged as a structured JSON event via `recordFlashcardsEvent` (`scope: "api/flashcards"`, `userId = DEFAULT_USER_ID` in dev).
+- **Mocks:** Contract examples live in `src/lib/mocks/flashcards.api.mocks.ts` (scenarios: 201, 400, 401, 404, 409, 422, 500).
 
 #### GET /api/flashcards/:id
 
