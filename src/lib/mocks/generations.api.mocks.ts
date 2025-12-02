@@ -2,7 +2,7 @@ import type { Enums } from "../../db/database.types.ts";
 import type { ApiErrorResponse, CreateGenerationCommand } from "../../types";
 import type { GenerationErrorCode } from "../errors";
 
-type HttpMethod = "GET" | "POST";
+type HttpMethod = "GET" | "POST" | "PATCH";
 type CandidateStatusKey = Enums<"candidate_status">;
 
 interface StartGenerationAcceptedMock {
@@ -32,6 +32,15 @@ interface GenerationDetailMock {
   };
 }
 
+interface UpdateGenerationMock {
+  generation: {
+    id: string;
+    status: "cancelled";
+    completed_at: string;
+    updated_at: string;
+  };
+}
+
 interface GenerationApiMockRequest {
   headers?: Record<string, string>;
   body?: Partial<CreateGenerationCommand> | Record<string, unknown>;
@@ -44,7 +53,11 @@ export interface GenerationApiMock {
   path: string;
   status: number;
   request?: GenerationApiMockRequest;
-  response: StartGenerationAcceptedMock | GenerationDetailMock | ApiErrorResponse<GenerationErrorCode>;
+  response:
+    | StartGenerationAcceptedMock
+    | GenerationDetailMock
+    | UpdateGenerationMock
+    | ApiErrorResponse<GenerationErrorCode>;
 }
 
 const VALID_INPUT_TEXT = "x".repeat(1000);
@@ -226,6 +239,110 @@ export const generationApiMocks: GenerationApiMock[] = [
       error: {
         code: "db_error",
         message: "A database error occurred while retrieving the generation.",
+      },
+    },
+  },
+  {
+    description: "200 OK – generation successfully cancelled",
+    method: "PATCH",
+    path: `/api/generations/${SAMPLE_GENERATION_ID}`,
+    status: 200,
+    request: {
+      headers: { "Content-Type": "application/json" },
+      params: { id: SAMPLE_GENERATION_ID },
+      body: { status: "cancelled" },
+    },
+    response: {
+      generation: {
+        id: SAMPLE_GENERATION_ID,
+        status: "cancelled",
+        completed_at: "2025-12-01T12:05:30.000Z",
+        updated_at: "2025-12-01T12:05:30.000Z",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – malformed generation id",
+    method: "PATCH",
+    path: "/api/generations/not-a-uuid",
+    status: 400,
+    request: {
+      headers: { "Content-Type": "application/json" },
+      params: { id: "not-a-uuid" },
+      body: { status: "cancelled" },
+    },
+    response: {
+      error: {
+        code: "invalid_params",
+        message: "Invalid generation id",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid request body",
+    method: "PATCH",
+    path: `/api/generations/${SAMPLE_GENERATION_ID}`,
+    status: 400,
+    request: {
+      headers: { "Content-Type": "application/json" },
+      params: { id: SAMPLE_GENERATION_ID },
+      body: { status: "invalid" },
+    },
+    response: {
+      error: {
+        code: "invalid_payload",
+        message: "Status must be 'cancelled'",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – generation does not exist or belongs to different user",
+    method: "PATCH",
+    path: `/api/generations/${SAMPLE_GENERATION_ID}`,
+    status: 404,
+    request: {
+      headers: { "Content-Type": "application/json" },
+      params: { id: SAMPLE_GENERATION_ID },
+      body: { status: "cancelled" },
+    },
+    response: {
+      error: {
+        code: "generation_not_found",
+        message: "Generation could not be found.",
+      },
+    },
+  },
+  {
+    description: "409 Conflict – generation cannot be cancelled as it is not in active state",
+    method: "PATCH",
+    path: `/api/generations/${SAMPLE_GENERATION_ID}`,
+    status: 409,
+    request: {
+      headers: { "Content-Type": "application/json" },
+      params: { id: SAMPLE_GENERATION_ID },
+      body: { status: "cancelled" },
+    },
+    response: {
+      error: {
+        code: "invalid_transition",
+        message: "Generation cannot be cancelled as it is not in an active state.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database failure during cancellation",
+    method: "PATCH",
+    path: `/api/generations/${SAMPLE_GENERATION_ID}`,
+    status: 500,
+    request: {
+      headers: { "Content-Type": "application/json" },
+      params: { id: SAMPLE_GENERATION_ID },
+      body: { status: "cancelled" },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while cancelling the generation.",
       },
     },
   },

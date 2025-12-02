@@ -401,10 +401,54 @@
 
 #### PATCH /api/generations/:id
 
-- Allows client-side cancel while `status ∈ ('pending','running')`.
-- **Request:** `{ "status": "cancelled" }`.
-- **Response:** `200 OK`.
-- **Errors:** `409 invalid_transition`.
+- **Description:** Allows client-side cancellation of active AI generation jobs. Only transitions from `status ∈ ('pending','running')` to `'cancelled'` are permitted. Uses atomic database operations to prevent race conditions.
+- **Headers:**
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <jwt>` (required once auth wiring is finished; currently mocked by `DEFAULT_USER_ID`)
+- **Request:**
+
+```json
+{ "status": "cancelled" }
+```
+
+- **Success response:** `200 OK`
+
+```json
+{
+  "generation": {
+    "id": "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
+    "status": "cancelled",
+    "completed_at": "2025-12-01T12:05:30.000Z",
+    "updated_at": "2025-12-01T12:05:30.000Z"
+  }
+}
+```
+
+- **Error contract:** All errors follow `ApiErrorResponse`.
+
+| Status | `error.code`         | Trigger                                                                 |
+| ------ | -------------------- | ----------------------------------------------------------------------- |
+| 400    | `invalid_params`     | Non-UUID path param                                                     |
+| 400    | `invalid_payload`    | Invalid JSON / schema validation failure (only `status: "cancelled"` allowed) |
+| 401    | `unauthorized`       | Missing/invalid Supabase JWT (future state)                             |
+| 404    | `generation_not_found` | Record missing or belongs to a different user                          |
+| 409    | `invalid_transition` | Generation status is not `pending` or `running`                         |
+| 500    | `db_error`           | Postgres/PostgREST failure during atomic update                        |
+| 500    | `unexpected_error`   | Non-PostgREST runtime error                                             |
+
+- **Example error:**
+
+```json
+{
+  "error": {
+    "code": "invalid_transition",
+    "message": "Generation cannot be cancelled as it is not in an active state."
+  }
+}
+```
+
+- **Observability:** Emits structured console events via `recordGenerationDetailEvent` (`scope: "api/generations/:id"`, `userId = DEFAULT_USER_ID` in dev). Logs hash/length metadata via `logGenerationError` for server-side faults.
+- **Mocks:** Contract examples (200/400/404/409/500) live in `src/lib/mocks/generations.api.mocks.ts`.
 
 ### Generation Candidates
 
@@ -535,9 +579,10 @@
   - `origin` validated against enum (`card_origin`).
 - **Generations:**
 - `sanitized_input_text` sanitized; server enforces char length 1000–10000 and calculates SHA-256.
-  - Status transitions limited to `pending/running -> cancelled/failed/succeeded`.
+  - Status transitions limited to `pending/running -> cancelled/failed/succeeded`; PATCH endpoint validates transitions and returns `409 invalid_transition` for invalid attempts.
   - Only one active per user; request blocked if trigger raises exception, surfaced as `409`.
   - Worker updates `prompt_tokens`, `completed_at`, writes `generation_error_logs` on failure.
+  - PATCH `/api/generations/:id` allows atomic cancellation with race condition protection.
 - **Generation Candidates:**
   - `front/back` same limits as flashcards.
   - Status flow `proposed -> edited -> {accepted,rejected}`.

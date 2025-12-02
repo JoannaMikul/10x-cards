@@ -358,3 +358,173 @@
      - 404 not_found,
      - 500 unexpected_error.
    - Uaktualnij `.ai/api-plan.md` sekcję `GET /api/generations/:id` przykładową odpowiedzią 200.
+
+## API Endpoint Implementation Plan: PATCH /api/generations/:id
+
+### 1. Przegląd punktu końcowego
+
+- Cel: Idempotentne anulowanie trwającej generacji AI przez użytkownika.
+- Dozwolone przejście: `status ∈ {'pending','running'} → 'cancelled'`.
+- Niedozwolone przejścia (np. z `succeeded`/`failed`/`cancelled`) zwracają `409 invalid_transition`.
+- Autoryzacja: tylko właściciel rekordu (RLS); brak ujawniania istnienia cudzych rekordów (404).
+
+### 2. Szczegóły żądania
+
+- Metoda HTTP: PATCH
+- Struktura URL: `/api/generations/:id`
+- Parametry:
+  - Wymagane (params):
+    - `id: uuid` – identyfikator generacji
+  - Opcjonalne (query): brak
+- Nagłówki:
+  - `Content-Type: application/json`
+  - `Accept: application/json`
+  - `Authorization: Bearer <jwt>` (docelowo); w dev dopuszczalny fallback.
+- Request Body (strict):
+  - Wymagane:
+    - `status: "cancelled"`
+  - Brak innych pól (odrzucone przez `.strict()`).
+- Przykład body:
+
+```json
+{ "status": "cancelled" }
+```
+
+### 3. Wykorzystywane typy
+
+- Z `src/types.ts`:
+  - `UpdateGenerationCommand` – `{ status: "cancelled" }`
+  - `GenerationDTO` – pełny kształt encji (na potrzeby logowania błędów; nie zwracamy pełnego obiektu)
+- Nowe DTO (lokalne dla endpointu):
+  - `UpdateGenerationResponse`:
+    - `generation`: minimalna projekcja:
+      - `id: string`
+      - `status: "cancelled"`
+      - `completed_at: string`
+      - `updated_at: string`
+- Walidacja (Zod) – rozszerzenia w `src/lib/validation/generations.schema.ts`:
+  - `updateGenerationParamsSchema = getGenerationParamsSchema` (UUID)
+  - `updateGenerationSchema = z.object({ status: z.literal("cancelled") }).strict()`
+  - `export type UpdateGenerationInput = z.infer<typeof updateGenerationSchema>`
+- Kody błędów – rozszerz `GENERATION_ERROR_CODES` w `src/lib/errors.ts`:
+  - `INVALID_TRANSITION: "invalid_transition"`
+
+### 4. Szczegóły odpowiedzi
+
+- 200 OK:
+  - Body:
+    ```json
+    {
+      "generation": {
+        "id": "uuid",
+        "status": "cancelled",
+        "completed_at": "2025-12-01T12:05:30.000Z",
+        "updated_at": "2025-12-01T12:05:30.000Z"
+      }
+    }
+    ```
+- Błędy:
+  - 400 Bad Request – `invalid_payload` (zły JSON/ciało) lub `invalid_params` (nie-UUID)
+  - 401 Unauthorized – `unauthorized`
+  - 404 Not Found – `generation_not_found` (brak lub nie należy do użytkownika)
+  - 409 Conflict – `invalid_transition` (status nie jest `pending` ani `running`)
+  - 500 Internal Server Error – `db_error`/`unexpected_error`
+
+### 5. Przepływ danych
+
+1. Walidacja wejścia
+   - Parsuj JSON (bezpiecznie) → błąd → 400 `invalid_payload`.
+   - Zwaliduj `params.id` (UUID) → błąd → 400 `invalid_params`.
+   - Zwaliduj body Zod (`status: "cancelled"`) `.strict()`.
+2. Klient i użytkownik
+   - Klient Supabase: `const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;`
+   - Użytkownik: docelowo z sesji/JWT; w dev `DEFAULT_USER_ID`.
+3. Odczyt rekordu (wstępna weryfikacja i do logowania awarii)
+   - `getGenerationById(supabase, userId, id)`:
+     - Brak → 404 `generation_not_found`.
+4. Weryfikacja przejścia stanu
+   - Jeżeli `status ∉ {'pending','running'}` → 409 `invalid_transition`.
+5. Aktualizacja atomowa (ochrona przed wyścigiem)
+   - `update generations set status='cancelled', completed_at=now(), updated_at=now() where id=:id and user_id=:user and status in ('pending','running') returning id,status,completed_at,updated_at`
+   - Brak zaktualizowanych wierszy:
+     - (Rzadkie okno wyścigu) Ponowny SELECT:
+       - Jeśli rekord istnieje, ale status końcowy → 409 `invalid_transition`.
+       - Inaczej → 404.
+6. Odpowiedź
+   - 200 OK z minimalną projekcją `generation`.
+7. Observability
+   - Zarejestruj zdarzenie `[api/generations/:id]` z `outcome: "cancelled"` lub kodem błędu.
+   - Dla 500: `logGenerationError` z `source_text_hash` i `source_text_length` (o ile były dostępne z kroku 3).
+
+### 6. Względy bezpieczeństwa
+
+- Autoryzacja i RLS:
+  - Operacje ograniczone do właściciela (`user_id = auth.uid()`); dodatkowo filtrowanie w zapytaniach `.eq("user_id", userId)`.
+- Poufność:
+  - Brak ujawniania pełnego `sanitized_input_text`; w logach tylko hash i długość.
+- Rezyliencja na wyścigi:
+  - Warunkowa aktualizacja z `status in ('pending','running')` zapewnia prawidłowość nawet przy równoległych zmianach przez worker.
+- Modele błędów:
+  - 404 zamiast 403 dla nieswoich rekordów (brak wycieku informacji).
+
+### 7. Obsługa błędów
+
+- 400:
+  - `invalid_payload` – nieprawidłowe JSON/body (Zod).
+  - `invalid_params` – nie-UUID `id`.
+- 401:
+  - `unauthorized` – brak/niepoprawna sesja (stan docelowy).
+- 404:
+  - `generation_not_found` – rekord nie istnieje lub nie należy do użytkownika.
+- 409:
+  - `invalid_transition` – przejście spoza `pending/running`.
+- 500:
+  - `db_error` – błąd PostgREST/PG.
+  - `unexpected_error` – inne wyjątki runtime.
+- Logowanie do `generation_error_logs`:
+  - Tylko dla 500 – z polami: `user_id`, `model`, `error_code`, `error_message`, `source_text_hash`, `source_text_length` (jeśli znane).
+
+### 8. Rozważania dotyczące wydajności
+
+- Jedna aktualizacja warunkowa + opcjonalny ponowny SELECT w rzadkim oknie wyścigu.
+- Indeksy: BTREE po `status` i PK zapewniają tani plan; brak dodatkowych joinów.
+- Minimalna projekcja kolumn w odpowiedzi (4 pola).
+
+### 9. Etapy wdrożenia
+
+1. Walidacja
+   - `src/lib/validation/generations.schema.ts`:
+     - Dodaj:
+       ```ts
+       export const updateGenerationSchema = z.object({ status: z.literal("cancelled") }).strict();
+       export type UpdateGenerationInput = z.infer<typeof updateGenerationSchema>;
+       // params: reuse getGenerationParamsSchema
+       ```
+2. Kody błędów
+   - `src/lib/errors.ts`:
+     - Dodaj `INVALID_TRANSITION: "invalid_transition"` do `GENERATION_ERROR_CODES`.
+     - (Opcjonalnie) helper `buildInvalidTransitionResponse()`.
+3. Serwis
+   - `src/lib/services/generations.service.ts`:
+     - Dodaj:
+       - `cancelGenerationIfActive(supabase, userId, id): Promise<{ id:string; status:'cancelled'; completed_at:string; updated_at:string } | null>` – realizuje warunkowy UPDATE z `status in ('pending','running')` i `returning`.
+4. Endpoint
+   - `src/pages/api/generations/[id].ts`:
+     - `export const PATCH: APIRoute = async ({ locals, params, request }) => { ... }`
+     - Kroki:
+       1. Klient Supabase (fallback jak w GET/POST).
+       2. Parsowanie JSON (bezpieczne) i walidacja Zod (params + body).
+       3. `const gen = await getGenerationById(...); if (!gen) → 404`.
+       4. Jeśli `gen.status ∉ {'pending','running'}` → 409 `invalid_transition`.
+       5. `const updated = await cancelGenerationIfActive(...);`
+          - Jeśli `!updated` → ponowny SELECT → 409 lub 404.
+       6. Zwróć 200 `{ generation: updated }`.
+       7. `catch`:
+          - Jeżeli PG – 500 `db_error` (z mapowaniem).
+          - Inaczej – 500 `unexpected_error`.
+          - Spróbuj `logGenerationError(...)` wykorzystując `gen` do hash/length, jeśli dostępne.
+     - Telemetria:
+       - `recordGenerationDetailEvent({ scope: "api/generations/:id", outcome: "cancelled" | <code>, status, userId, generationId, details })`.
+5. Mocks i dokumentacja
+   - `src/lib/mocks/generations.api.mocks.ts` – dodaj przypadki: 200 (anulowanie), 400, 404, 409, 500.
+   - `.ai/api-plan.md` – utrzymaj sekcję PATCH w zgodzie z kontraktem.

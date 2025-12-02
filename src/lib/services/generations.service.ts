@@ -168,3 +168,37 @@ function buildEmptyStatusCounters(): CandidateStatusCounters {
     return acc;
   }, {} as CandidateStatusCounters);
 }
+
+/**
+ * Atomically cancels a generation if it's in an active state (pending or running).
+ * Returns the updated generation record with minimal fields if successful,
+ * or null if the generation was not in an active state or doesn't exist.
+ */
+export async function cancelGenerationIfActive(
+  supabase: SupabaseClient,
+  userId: string,
+  generationId: string
+): Promise<Pick<GenerationRecord, "id" | "status" | "completed_at" | "updated_at"> | null> {
+  const { data, error } = await supabase
+    .from("generations")
+    .update({
+      status: "cancelled" as const,
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", generationId)
+    .eq("user_id", userId)
+    .in("status", ["pending", "running"])
+    .select("id, status, completed_at, updated_at")
+    .single();
+
+  if (error) {
+    // Check if no rows were affected (generation not found or not in active state)
+    if (error.code === "PGRST116") {
+      return null;
+    }
+    throw error;
+  }
+
+  return data ?? null;
+}

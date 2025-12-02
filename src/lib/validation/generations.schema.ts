@@ -50,3 +50,20 @@ export const getGenerationParamsSchema = z.object({
 });
 
 export type GetGenerationParams = z.infer<typeof getGenerationParamsSchema>;
+
+/**
+ * Validates the payload required to cancel an active generation.
+ * Only allows status transition to 'cancelled'.
+ */
+export const updateGenerationSchema = z
+  .object({
+    status: z.literal("cancelled", {
+      invalid_type_error: "Status must be 'cancelled'",
+      required_error: "Status is required",
+    }),
+  })
+  .strict({
+    message: "Only status field is allowed",
+  });
+
+export type UpdateGenerationInput = z.infer<typeof updateGenerationSchema>;

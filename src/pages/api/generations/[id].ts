@@ -11,12 +11,13 @@ import {
 } from "../../../lib/errors.ts";
 import { logGenerationError } from "../../../lib/services/error-logs.service.ts";
 import {
+  cancelGenerationIfActive,
   getCandidatesStatuses,
   getGenerationById,
   type GenerationCandidatesSummary,
   type GenerationRecord,
 } from "../../../lib/services/generations.service.ts";
-import { getGenerationParamsSchema } from "../../../lib/validation/generations.schema.ts";
+import { getGenerationParamsSchema, updateGenerationSchema } from "../../../lib/validation/generations.schema.ts";
 
 export const prerender = false;
 
@@ -42,6 +43,10 @@ type GenerationResponseShape = Pick<
 interface GetGenerationResponse {
   generation: GenerationResponseShape;
   candidates_summary: GenerationCandidatesSummary;
+}
+
+interface UpdateGenerationResponse {
+  generation: Pick<GenerationRecord, "id" | "status" | "completed_at" | "updated_at">;
 }
 
 export const GET: APIRoute = async ({ locals, params }) => {
@@ -103,6 +108,163 @@ export const GET: APIRoute = async ({ locals, params }) => {
 
     recordGenerationDetailEvent({
       outcome: "retrieved",
+      status: 200,
+      userId,
+      generationId: id,
+      model: generation.model,
+      sourceHash: generation.sanitized_input_sha256 ?? undefined,
+      sourceLength: generation.sanitized_input_length ?? undefined,
+    });
+
+    return jsonResponse(200, response);
+  } catch (error) {
+    return handleGenerationFailure(supabase, {
+      error,
+      userId,
+      generationId: id,
+      generation,
+    });
+  }
+};
+
+export const PATCH: APIRoute = async ({ locals, params, request }) => {
+  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
+
+  if (!supabase) {
+    const descriptor = buildErrorResponse(
+      500,
+      GENERATION_ERROR_CODES.UNEXPECTED_ERROR,
+      "Supabase client is not available in the current context."
+    );
+    recordGenerationDetailEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const paramsValidationResult = getGenerationParamsSchema.safeParse({ id: params?.id });
+  if (!paramsValidationResult.success) {
+    const descriptor = buildErrorResponse(
+      400,
+      GENERATION_ERROR_CODES.INVALID_PARAMS,
+      paramsValidationResult.error.issues.map((issue) => issue.message).join("; ") || "Invalid generation id."
+    );
+    recordGenerationDetailEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      details: { reason: "invalid_params" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const { id } = paramsValidationResult.data;
+  const userId = DEFAULT_USER_ID;
+
+  let requestBody: unknown;
+  try {
+    requestBody = await request.json();
+  } catch {
+    const descriptor = buildErrorResponse(400, GENERATION_ERROR_CODES.INVALID_PAYLOAD, "Invalid JSON payload.");
+    recordGenerationDetailEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      userId,
+      generationId: id,
+      details: { reason: "invalid_json" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const bodyValidationResult = updateGenerationSchema.safeParse(requestBody);
+  if (!bodyValidationResult.success) {
+    const descriptor = buildErrorResponse(
+      400,
+      GENERATION_ERROR_CODES.INVALID_PAYLOAD,
+      bodyValidationResult.error.issues.map((issue) => issue.message).join("; ") || "Invalid request body."
+    );
+    recordGenerationDetailEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      userId,
+      generationId: id,
+      details: { reason: "invalid_body" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  let generation: GenerationRecord | null = null;
+
+  try {
+    generation = await getGenerationById(supabase, userId, id);
+
+    if (!generation) {
+      const descriptor = buildErrorResponse(404, GENERATION_ERROR_CODES.NOT_FOUND, "Generation could not be found.");
+      recordGenerationDetailEvent({
+        outcome: descriptor.body.error.code,
+        status: descriptor.status,
+        userId,
+        generationId: id,
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    if (generation.status !== "pending" && generation.status !== "running") {
+      const descriptor = buildErrorResponse(
+        409,
+        GENERATION_ERROR_CODES.INVALID_TRANSITION,
+        "Generation cannot be cancelled as it is not in an active state."
+      );
+      recordGenerationDetailEvent({
+        outcome: descriptor.body.error.code,
+        status: descriptor.status,
+        userId,
+        generationId: id,
+        model: generation.model,
+        details: { current_status: generation.status },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    const updatedGeneration = await cancelGenerationIfActive(supabase, userId, id);
+
+    if (!updatedGeneration) {
+      const currentGeneration = await getGenerationById(supabase, userId, id);
+
+      if (!currentGeneration) {
+        const descriptor = buildErrorResponse(404, GENERATION_ERROR_CODES.NOT_FOUND, "Generation could not be found.");
+        recordGenerationDetailEvent({
+          outcome: descriptor.body.error.code,
+          status: descriptor.status,
+          userId,
+          generationId: id,
+        });
+        return jsonResponse(descriptor.status, descriptor.body);
+      }
+
+      const descriptor = buildErrorResponse(
+        409,
+        GENERATION_ERROR_CODES.INVALID_TRANSITION,
+        "Generation status changed during cancellation attempt."
+      );
+      recordGenerationDetailEvent({
+        outcome: descriptor.body.error.code,
+        status: descriptor.status,
+        userId,
+        generationId: id,
+        model: currentGeneration.model,
+        details: { final_status: currentGeneration.status },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    const response: UpdateGenerationResponse = {
+      generation: updatedGeneration,
+    };
+
+    recordGenerationDetailEvent({
+      outcome: "cancelled",
       status: 200,
       userId,
       generationId: id,
@@ -245,7 +407,7 @@ function isPostgrestError(error: unknown): error is PostgrestError {
   return typeof (error as Record<string, unknown>).code === "string";
 }
 
-type GenerationDetailEventOutcome = GenerationErrorCode | "retrieved";
+type GenerationDetailEventOutcome = GenerationErrorCode | "retrieved" | "cancelled";
 
 interface GenerationDetailEventPayload {
   outcome: GenerationDetailEventOutcome;

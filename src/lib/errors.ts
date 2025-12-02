@@ -11,6 +11,7 @@ export const GENERATION_ERROR_CODES = {
   ACTIVE_REQUEST_EXISTS: "active_request_exists",
   HOURLY_QUOTA_REACHED: "hourly_quota_reached",
   NOT_FOUND: "generation_not_found",
+  INVALID_TRANSITION: "invalid_transition",
   DB_ERROR: "db_error",
   UNEXPECTED_ERROR: "unexpected_error",
 } as const;
