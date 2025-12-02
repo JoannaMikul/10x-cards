@@ -6,9 +6,11 @@ import type { ApiErrorResponse } from "../types";
 export const GENERATION_ERROR_CODES = {
   LENGTH_OUT_OF_RANGE: "length_out_of_range",
   INVALID_PAYLOAD: "invalid_payload",
+  INVALID_PARAMS: "invalid_params",
   UNAUTHORIZED: "unauthorized",
   ACTIVE_REQUEST_EXISTS: "active_request_exists",
   HOURLY_QUOTA_REACHED: "hourly_quota_reached",
+  NOT_FOUND: "generation_not_found",
   DB_ERROR: "db_error",
   UNEXPECTED_ERROR: "unexpected_error",
 } as const;

@@ -39,3 +39,14 @@ export const createGenerationSchema = z.object({
 });
 
 export type CreateGenerationInput = z.infer<typeof createGenerationSchema>;
+
+export const getGenerationParamsSchema = z.object({
+  id: z
+    .string({
+      required_error: "Generation id is required",
+      invalid_type_error: "Generation id must be a string",
+    })
+    .uuid("Invalid generation id"),
+});
+
+export type GetGenerationParams = z.infer<typeof getGenerationParamsSchema>;

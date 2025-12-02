@@ -191,3 +191,170 @@
 - Astro API route z `POST`, `prerender=false`, Zod, użycie `context.locals.supabase`.
 - Brak importu `supabaseClient` bezpośrednio w handlerze (zgodnie z zasadami backend).
 - Logika w `src/lib/services/*`, a nie w handlerze.
+
+## API Endpoint Implementation Plan: GET /api/generations/:id
+
+### 1. Przegląd punktu końcowego
+
+- Cel: Pobranie statusu pojedynczej generacji AI wraz z metadanymi czasu, zużyciem tokenów oraz zwięzłym podsumowaniem kandydatów (liczności per status).
+- Charakter: Odczyt tylko dla właściciela generacji (RLS), dane wrażliwe (pełny tekst wejściowy) nie są ujawniane.
+- Autoryzacja: Wymagana – użytkownik musi być zalogowany (RLS). W środowisku dev dopuszczalny fallback `DEFAULT_USER_ID`.
+
+### 2. Szczegóły żądania
+
+- Metoda HTTP: GET
+- Struktura URL: `/api/generations/:id`
+- Parametry:
+  - Wymagane (params):
+    - `id: uuid` – identyfikator generacji
+  - Opcjonalne (query): brak
+- Nagłówki:
+  - `Accept: application/json`
+  - `Authorization: Bearer <jwt>` (docelowo); w dev możliwy fallback.
+- Body: brak
+
+### 3. Wykorzystywane typy
+
+- Z `src/types.ts`:
+  - `GenerationDTO` – pełny kształt encji (do wewnętrznego użycia; nie zwracamy wszystkich pól)
+- Nowe DTO (lokalne dla endpointu):
+  - `GetGenerationResponse`:
+    - `generation`: ograniczona projekcja pól:
+      - `id`, `model`, `status`, `temperature`, `prompt_tokens`, `sanitized_input_length`,
+      - `started_at`, `completed_at`, `created_at`, `updated_at`,
+      - `error_code`, `error_message`
+    - `candidates_summary`:
+      - `total: number`
+      - `by_status: { proposed: number; edited: number; accepted: number; rejected: number }`
+  - `GetGenerationParams`:
+    - `id: string` (UUID)
+- Kody błędów: rozszerzenie `GENERATION_ERROR_CODES` o:
+  - `NOT_FOUND: "generation_not_found"`
+  - `INVALID_PARAMS: "invalid_params"`
+
+### 4. Szczegóły odpowiedzi
+
+- 200 OK:
+  - Body:
+    ```json
+    {
+      "generation": {
+        "id": "uuid",
+        "model": "openrouter/gpt-4.1-mini",
+        "status": "running",
+        "temperature": 0.7,
+        "prompt_tokens": 1234,
+        "sanitized_input_length": 4321,
+        "started_at": "2025-12-01T12:00:00.000Z",
+        "completed_at": null,
+        "created_at": "2025-12-01T11:59:00.000Z",
+        "updated_at": "2025-12-01T12:01:00.000Z",
+        "error_code": null,
+        "error_message": null
+      },
+      "candidates_summary": {
+        "total": 8,
+        "by_status": {
+          "proposed": 6,
+          "edited": 1,
+          "accepted": 1,
+          "rejected": 0
+        }
+      }
+    }
+    ```
+- Błędy:
+  - 400 Bad Request – `invalid_params` (np. `id` nie jest UUID)
+  - 401 Unauthorized – `unauthorized` (brak/nieprawidłowa sesja/JWT)
+  - 404 Not Found – `generation_not_found` (brak rekordu dla użytkownika)
+  - 500 Internal Server Error – `db_error`/`unexpected_error`
+
+### 5. Przepływ danych
+
+1. Walidacja parametrów
+   - Odczytaj `params.id` i zweryfikuj UUID (Zod).
+   - Nieprawidłowe `id` → 400 `invalid_params`.
+2. Klient Supabase
+   - Pobierz klienta z `locals.supabase`. Dla dev fallback: `supabaseServiceClient ?? locals.supabase ?? supabaseClient` (spójnie z POST).
+3. Ustalenie użytkownika
+   - Docelowo: `locals.supabase.auth.getUser()`/sesja.
+   - Dev: `userId = DEFAULT_USER_ID`.
+4. Pobranie generacji (projekcja pól)
+   - `from("generations").select("id, user_id, model, status, temperature, prompt_tokens, sanitized_input_length, sanitized_input_sha256, started_at, completed_at, created_at, updated_at, error_code, error_message")`
+   - Filtry: `.eq("id", id).eq("user_id", userId).maybeSingle()`
+   - Brak danych → 404 `generation_not_found`.
+5. Podsumowanie kandydatów
+   - `from("generation_candidates").select("status").eq("generation_id", id).eq("owner_id", userId)`
+   - Złóż agregację po stronie aplikacji do `by_status` i `total`.
+6. Odpowiedź 200
+   - Zwróć `generation` (bez `sanitized_input_text` ani SHA) oraz `candidates_summary`.
+7. Rejestrowanie 500 (opcjonalnie)
+   - Jeśli błąd wystąpi po pobraniu generacji, zapisz wpis w `generation_error_logs` używając `sanitized_input_sha256` i `sanitized_input_length`.
+
+### 6. Względy bezpieczeństwa
+
+- RLS: selekcje ograniczone do właściciela. Nawet przy kliencie service-role dodatkowo filtrujemy `.eq("user_id", userId)`/`.eq("owner_id", userId)` aby uniknąć wycieku danych.
+- Prywatność: nie zwracamy pola `sanitized_input_text` ani surowego hash-a; tylko `sanitized_input_length` i statusy/kody błędów.
+- Autoryzacja: bez ważnej sesji/JWT – 401.
+- Nagłówki: `Content-Type: application/json` na odpowiedzi, brak danych wrażliwych w logach.
+
+### 7. Obsługa błędów
+
+- 400 `invalid_params`: nieprawidłowy UUID.
+- 401 `unauthorized`: brak sesji/JWT (po wdrożeniu auth).
+- 404 `generation_not_found`: rekord nie istnieje lub nie należy do użytkownika.
+- 500:
+  - `db_error`: błąd PostgREST/PostgreSQL (mapowanie generyczne).
+  - `unexpected_error`: inny wyjątek runtime.
+- Logowanie:
+  - Dla 500 – jeśli znamy rekord generacji: `logGenerationError(supabase, { user_id, model, error_code, error_message, source_text_hash: sanitized_input_sha256, source_text_length: sanitized_input_length })`.
+  - W przeciwnym wypadku – tylko log aplikacyjny (bez PII).
+
+### 8. Rozważania dotyczące wydajności
+
+- Pojedynczy SELECT po generacji + jeden SELECT po kandydatach; indeksy (`generations_user_created_idx`, `generation_candidates_generation_status_idx`) pokrywają przypadek.
+- Minimalna projekcja kolumn – brak transferu długich pól tekstowych.
+- Agregacja kandydatów po stronie aplikacji (mała kardynalność statusów) – tani koszt.
+
+### 9. Etapy wdrożenia
+
+1. Walidacja parametrów
+   - Rozszerz `src/lib/validation/generations.schema.ts`:
+     ```ts
+     export const getGenerationParamsSchema = z.object({ id: z.string().uuid("Invalid generation id") });
+     export type GetGenerationParams = z.infer<typeof getGenerationParamsSchema>;
+     ```
+2. Kody błędów
+   - Rozszerz `src/lib/errors.ts` (sekcja `GENERATION_ERROR_CODES`) o:
+     - `NOT_FOUND: "generation_not_found"`
+     - `INVALID_PARAMS: "invalid_params"`
+   - Dodać helper `buildNotFoundGenerationResponse()` (opcjonalnie) lub użyć `buildErrorResponse(404, GENERATION_ERROR_CODES.NOT_FOUND, "...")`.
+3. Serwisy
+   - Rozszerz `src/lib/services/generations.service.ts`:
+     - `getGenerationById(supabase, userId, id)` – pobiera rekord z projekcją oraz pola do logowania (hash/length).
+     - `getCandidatesStatuses(supabase, userId, generationId)` – zwraca tablicę `status` i agreguje do `{ total, by_status }`.
+4. Endpoint
+   - Utwórz `src/pages/api/generations/[id].ts`:
+     - `export const prerender = false;`
+     - `export const GET: APIRoute = async (context) => { ... }`
+     - Kroki:
+       1. Validacja `params.id` (Zod) → 400 przy błędzie.
+       2. Klient Supabase: `const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;`
+       3. Ustalenie `userId` (dev: `DEFAULT_USER_ID`).
+       4. `const gen = await getGenerationById(...)` → 404 jeśli brak.
+       5. `const summary = await getCandidatesStatuses(...)`.
+       6. `return jsonResponse(200, { generation: project(gen), candidates_summary: summary });`
+       7. `catch`:
+          - Jeśli PostgREST – 500 `db_error`.
+          - Inaczej – 500 `unexpected_error`.
+          - Jeśli `gen` istnieje – spróbuj `logGenerationError(...)`.
+     - Nagłówki: `Content-Type: application/json`.
+5. Telemetria i logi
+   - Dodać lokalny `recordGenerationEvent` (analogicznie do POST) ze `scope: "api/generations/:id"`, poziomy `info/error`.
+6. Mocks i dokumentacja
+   - Rozszerz `src/lib/mocks/generations.api.mocks.ts` o przypadki:
+     - 200 OK (zróżnicowane statusy kandydatów),
+     - 400 invalid_params,
+     - 404 not_found,
+     - 500 unexpected_error.
+   - Uaktualnij `.ai/api-plan.md` sekcję `GET /api/generations/:id` przykładową odpowiedzią 200.

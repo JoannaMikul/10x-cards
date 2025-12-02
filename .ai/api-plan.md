@@ -355,6 +355,49 @@
 #### GET /api/generations/:id
 
 - Returns status, timestamps, token usage, error fields, plus candidates summary.
+- **Request:** `GET /api/generations/{id}` where `id` is a UUID path param. Requires `Accept: application/json`.
+- **Response 200:**
+
+```json
+{
+  "generation": {
+    "id": "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
+    "model": "openrouter/gpt-4.1-mini",
+    "status": "running",
+    "temperature": 0.7,
+    "prompt_tokens": 1280,
+    "sanitized_input_length": 5600,
+    "started_at": "2025-12-01T12:00:00.000Z",
+    "completed_at": null,
+    "created_at": "2025-12-01T11:58:00.000Z",
+    "updated_at": "2025-12-01T12:00:30.000Z",
+    "error_code": null,
+    "error_message": null
+  },
+  "candidates_summary": {
+    "total": 8,
+    "by_status": {
+      "proposed": 6,
+      "edited": 1,
+      "accepted": 1,
+      "rejected": 0
+    }
+  }
+}
+```
+
+- **Errors:**
+
+| Status | `error.code`           | Trigger / note                                      |
+| ------ | ---------------------- | --------------------------------------------------- |
+| 400    | `invalid_params`       | Non-UUID path param                                 |
+| 401    | `unauthorized`         | Missing/invalid Supabase JWT (future)               |
+| 404    | `generation_not_found` | Record missing or belongs to a different user       |
+| 500    | `db_error`             | Postgres/PostgREST failure when reading generations |
+| 500    | `unexpected_error`     | Non-PostgREST runtime error                         |
+
+- **Observability:** Emits `[api/generations/:id]` console events (see `recordGenerationDetailEvent`) and logs hash/length metadata via `logGenerationError` for server-side faults.
+- **Mocks:** Contract examples (200/400/404/500) live in `src/lib/mocks/generations.api.mocks.ts`.
 
 #### PATCH /api/generations/:id
 
