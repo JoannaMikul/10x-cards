@@ -17,28 +17,16 @@ import {
   type GenerationCandidatesSummary,
   type GenerationRecord,
 } from "../../../lib/services/generations.service.ts";
+import {
+  projectGeneration,
+  type GenerationResponseShape,
+} from "../../../lib/services/generation-projection.service.ts";
 import { getGenerationParamsSchema, updateGenerationSchema } from "../../../lib/validation/generations.schema.ts";
 
 export const prerender = false;
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 const EVENT_SCOPE = "api/generations/:id";
-
-type GenerationResponseShape = Pick<
-  GenerationRecord,
-  | "id"
-  | "model"
-  | "status"
-  | "temperature"
-  | "prompt_tokens"
-  | "sanitized_input_length"
-  | "started_at"
-  | "completed_at"
-  | "created_at"
-  | "updated_at"
-  | "error_code"
-  | "error_message"
->;
 
 interface GetGenerationResponse {
   generation: GenerationResponseShape;
@@ -358,38 +346,6 @@ async function logDetailedGenerationError(
     source_text_hash: generation.sanitized_input_sha256,
     source_text_length: generation.sanitized_input_length,
   });
-}
-
-function projectGeneration(generation: GenerationRecord): GenerationResponseShape {
-  const {
-    id,
-    model,
-    status,
-    temperature,
-    prompt_tokens,
-    sanitized_input_length,
-    started_at,
-    completed_at,
-    created_at,
-    updated_at,
-    error_code,
-    error_message,
-  } = generation;
-
-  return {
-    id,
-    model,
-    status,
-    temperature,
-    prompt_tokens,
-    sanitized_input_length,
-    started_at,
-    completed_at,
-    created_at,
-    updated_at,
-    error_code,
-    error_message,
-  };
 }
 
 function jsonResponse(status: number, body: unknown): Response {

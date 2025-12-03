@@ -20,11 +20,92 @@ import {
   createGenerationSchema,
 } from "../../lib/validation/generations.schema.ts";
 import type { CreateGenerationCommand } from "../../types";
+import { projectGeneration } from "../../lib/services/generation-projection.service.ts";
 
 export const prerender = false;
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 const ACTIVE_STATUSES: readonly Enums<"generation_status">[] = ["pending", "running"];
+
+export const GET: APIRoute = async (context) => {
+  const { locals, url } = context;
+  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
+
+  if (!supabase) {
+    const descriptor = buildErrorResponse(
+      500,
+      GENERATION_ERROR_CODES.UNEXPECTED_ERROR,
+      "Supabase client is not available in the current context."
+    );
+    recordGenerationEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const userId = DEFAULT_USER_ID;
+  const limit = parseInt(url.searchParams.get("limit") || "10");
+
+  try {
+    const { data, error } = await supabase
+      .from("generations")
+      .select(`
+        id,
+        user_id,
+        model,
+        status,
+        temperature,
+        prompt_tokens,
+        sanitized_input_length,
+        sanitized_input_sha256,
+        sanitized_input_text,
+        started_at,
+        completed_at,
+        created_at,
+        updated_at,
+        error_code,
+        error_message
+      `)
+      .eq("user_id", userId)
+      .in("status", [...ACTIVE_STATUSES])
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      const descriptor = mapGenerationDbError(error);
+      recordGenerationEvent({
+        outcome: descriptor.body.error.code,
+        status: descriptor.status,
+        details: { db_code: error.code },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    const generations = data.map(projectGeneration);
+    recordGenerationEvent({
+      outcome: "retrieved",
+      status: 200,
+      userId,
+      details: { count: generations.length },
+    });
+
+    return jsonResponse(200, { generations });
+  } catch (error) {
+    const descriptor = buildErrorResponse(
+      500,
+      GENERATION_ERROR_CODES.UNEXPECTED_ERROR,
+      "Unexpected error while retrieving active generations."
+    );
+    recordGenerationEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      details: { reason: "unexpected_error" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+};
 
 export const POST: APIRoute = async (context) => {
   const { locals, request } = context;

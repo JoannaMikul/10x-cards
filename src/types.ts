@@ -211,7 +211,7 @@ export type GenerationListResponse = PaginatedResponse<GenerationDTO>;
 export interface CreateGenerationCommand {
   model: GenerationInsert["model"];
   sanitized_input_text: GenerationInsert["sanitized_input_text"];
-  temperature?: GenerationInsert["temperature"];
+  temperature?: number;
 }
 
 export interface UpdateGenerationCommand {
@@ -345,4 +345,36 @@ export type UserRoleListResponse = PaginatedResponse<UserRoleDTO>;
 export interface CreateUserRoleCommand {
   user_id: UserRoleInsert["user_id"];
   role: UserRoleInsert["role"];
+}
+
+/** Generation UI Types ********************************************************/
+
+/**
+ * Extended view model for the generation form that includes raw input text
+ * before sanitization and additional UI state.
+ */
+export interface CreateGenerationViewModel {
+  model: string;
+  sanitized_input_text: string;
+  temperature?: number;
+  raw_input_text?: string;
+}
+
+export type GenerationStatus = "pending" | "running" | "completed" | "cancelled" | "error";
+
+export interface CandidatesSummary {
+  total: number;
+  by_status: Record<Enums<"candidate_status">, number>;
+}
+
+export interface FormValidationState {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface GenerationPollingState {
+  id?: string;
+  status: GenerationStatus;
+  error?: ApiErrorResponse;
 }
