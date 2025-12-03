@@ -2,7 +2,13 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 import type { Tables } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { AcceptGenerationCandidateCommand, FlashcardDTO, GenerationCandidateDTO, TagDTO } from "../../types";
+import type {
+  AcceptGenerationCandidateCommand,
+  FlashcardDTO,
+  GenerationCandidateDTO,
+  TagDTO,
+  UpdateGenerationCandidateCommand,
+} from "../../types";
 import type { GenerationCandidatesQuery } from "../validation/generation-candidates.schema.ts";
 
 type GenerationCandidateRow = Tables<"generation_candidates">;
@@ -31,6 +37,9 @@ const CANDIDATE_COLUMNS =
 const FLASHCARD_COLUMNS =
   "id, front, back, origin, metadata, category_id, content_source_id, owner_id, created_at, updated_at, deleted_at";
 const ACCEPT_CANDIDATE_RPC = "accept_generation_candidate";
+const EDITABLE_CANDIDATE_STATUSES = ["proposed", "edited"] as const;
+
+type UpdateCandidatePayload = UpdateGenerationCandidateCommand & { updated_at: string };
 
 type UnsafeRpc = (
   fn: string,
@@ -83,6 +92,28 @@ export async function listGenerationCandidates(
     hasMore,
     nextCursorId,
   };
+}
+
+export async function updateCandidateForOwner(
+  supabase: SupabaseClient,
+  userId: string,
+  candidateId: string,
+  payload: UpdateCandidatePayload
+): Promise<GenerationCandidateDTO | null> {
+  const { data, error } = await supabase
+    .from("generation_candidates")
+    .update(payload)
+    .eq("owner_id", userId)
+    .eq("id", candidateId)
+    .in("status", EDITABLE_CANDIDATE_STATUSES)
+    .select(CANDIDATE_COLUMNS)
+    .maybeSingle<GenerationCandidateProjection>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapCandidateToDto(data) : null;
 }
 
 function mapCandidateToDto(row: GenerationCandidateProjection): GenerationCandidateDTO {

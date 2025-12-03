@@ -1,6 +1,11 @@
 import { DEFAULT_USER_ID } from "../../db/supabase.client.ts";
 import type { CandidateAcceptErrorCode, CandidateErrorCode } from "../errors.ts";
-import type { ApiErrorResponse, FlashcardDTO, GenerationCandidateListResponse } from "../../types";
+import type {
+  ApiErrorResponse,
+  FlashcardDTO,
+  GenerationCandidateDTO,
+  GenerationCandidateListResponse,
+} from "../../types";
 
 export interface GenerationCandidatesApiMock {
   description: string;
@@ -268,6 +273,133 @@ export const acceptGenerationCandidateApiMocks: AcceptGenerationCandidateApiMock
       error: {
         code: "db_error",
         message: "A database error occurred while accepting the generation candidate.",
+      },
+    },
+  },
+];
+
+export interface UpdateGenerationCandidateApiMock {
+  description: string;
+  status: number;
+  request: {
+    method: "PATCH";
+    url: string;
+    headers?: Record<string, string>;
+    body?: Record<string, unknown>;
+  };
+  response: { candidate: GenerationCandidateDTO } | ApiErrorResponse<CandidateErrorCode>;
+}
+
+export const updateGenerationCandidateApiMocks: UpdateGenerationCandidateApiMock[] = [
+  {
+    description: "200 OK – front/back updated with implicit status change",
+    status: 200,
+    request: {
+      method: "PATCH",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+      headers: { "Content-Type": "application/json" },
+      body: {
+        front: "What is TCP three-way handshake?",
+        back: "SYN → SYN-ACK → ACK.",
+      },
+    },
+    response: {
+      candidate: {
+        id: "6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+        generation_id: "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
+        owner_id: DEFAULT_USER_ID,
+        front: "What is TCP three-way handshake?",
+        back: "SYN → SYN-ACK → ACK.",
+        front_back_fingerprint: "51b3022f1b8848fd9e430ad5a3dc1a2e",
+        status: "edited",
+        accepted_card_id: null,
+        suggested_category_id: 1,
+        suggested_tags: [2],
+        created_at: "2025-12-03T10:15:00.000Z",
+        updated_at: "2025-12-03T10:30:00.000Z",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid path parameter",
+    status: 400,
+    request: {
+      method: "PATCH",
+      url: "/api/generation-candidates/not-a-uuid",
+      headers: { "Content-Type": "application/json" },
+      body: { front: "Updated front" },
+    },
+    response: {
+      error: {
+        code: "invalid_params",
+        message: "Candidate id must be a valid UUID.",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – empty payload",
+    status: 400,
+    request: {
+      method: "PATCH",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+      headers: { "Content-Type": "application/json" },
+      body: {},
+    },
+    response: {
+      error: {
+        code: "invalid_body",
+        message: "At least one property must be provided to update the candidate.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – candidate missing or not editable",
+    status: 404,
+    request: {
+      method: "PATCH",
+      url: "/api/generation-candidates/11111111-2222-3333-4444-555555555555",
+      headers: { "Content-Type": "application/json" },
+      body: { front: "Updated front" },
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Generation candidate could not be found or cannot be updated.",
+      },
+    },
+  },
+  {
+    description: "409 Conflict – duplicate candidate fingerprint",
+    status: 409,
+    request: {
+      method: "PATCH",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+      headers: { "Content-Type": "application/json" },
+      body: {
+        front: "Duplicate content",
+        back: "Already existing back",
+      },
+    },
+    response: {
+      error: {
+        code: "duplicate_candidate",
+        message: "A generation candidate with the same front and back already exists.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database failure",
+    status: 500,
+    request: {
+      method: "PATCH",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+      headers: { "Content-Type": "application/json" },
+      body: { front: "Updated front" },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while processing generation candidates.",
       },
     },
   },

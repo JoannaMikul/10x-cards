@@ -150,6 +150,9 @@ const tagIdsSchema = z
   .optional();
 
 const ACCEPTABLE_ORIGINS = ["ai-full", "ai-edited"] as const;
+const EDITABLE_CANDIDATE_STATUS = "edited" as const;
+const MAX_FRONT_LENGTH = 200;
+const MAX_BACK_LENGTH = 500;
 
 export const getCandidateParamsSchema = z.object({
   id: z
@@ -175,3 +178,38 @@ export const acceptGenerationCandidateSchema = z.object({
 
 export type GetCandidateParamsSchema = z.infer<typeof getCandidateParamsSchema>;
 export type AcceptGenerationCandidateSchema = z.infer<typeof acceptGenerationCandidateSchema>;
+
+const candidateFrontSchema = z
+  .string({
+    invalid_type_error: "Front text must be a string.",
+  })
+  .trim()
+  .min(1, "Front text must contain at least 1 character.")
+  .max(MAX_FRONT_LENGTH, `Front text cannot exceed ${MAX_FRONT_LENGTH} characters.`);
+
+const candidateBackSchema = z
+  .string({
+    invalid_type_error: "Back text must be a string.",
+  })
+  .trim()
+  .min(1, "Back text must contain at least 1 character.")
+  .max(MAX_BACK_LENGTH, `Back text cannot exceed ${MAX_BACK_LENGTH} characters.`);
+
+export const updateGenerationCandidateSchema = z
+  .object({
+    front: candidateFrontSchema.optional(),
+    back: candidateBackSchema.optional(),
+    status: z
+      .literal(EDITABLE_CANDIDATE_STATUS, {
+        errorMap: () => ({
+          message: `Status must be set to "${EDITABLE_CANDIDATE_STATUS}".`,
+        }),
+      })
+      .optional(),
+  })
+  .strict()
+  .refine((payload) => payload.front !== undefined || payload.back !== undefined || payload.status !== undefined, {
+    message: "At least one property must be provided to update the candidate.",
+  });
+
+export type UpdateGenerationCandidateSchema = z.infer<typeof updateGenerationCandidateSchema>;

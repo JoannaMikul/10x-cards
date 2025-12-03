@@ -500,8 +500,58 @@
 
 #### PATCH /api/generation-candidates/:id
 
-- **Request:** `{ "front": "...", "back": "...", "status": "edited" }`.
-- Validates lengths, fingerprint uniqueness scoped to owner.
+- **Description:** Częściowo aktualizuje pojedynczego kandydata (`front`, `back`, `status`). Dozwolone jedynie rekordy w statusach `proposed` lub `edited`; inne statusy zwracają `404 not_found`.
+- **Headers:** `Content-Type: application/json`.
+- **Path params:** `id` (UUID) – kandydat należący do użytkownika.
+- **Request body (co najmniej jedno pole wymagane):**
+  - `front?: string (1..200, trim)` – nowa treść awersu.
+  - `back?: string (1..500, trim)` – nowa treść rewersu.
+  - `status?: "edited"` – jawne oznaczenie kandydatury jako edytowanej. Jeśli `front` lub `back` są obecne, a `status` pominięto, serwer automatycznie ustawia `"edited"`.
+- **Proces biznesowy:**
+  1. Walidacja `params` (`getCandidateParamsSchema`). Niepoprawny UUID → `400 invalid_params`.
+  2. Próba parsowania JSON (`parseJsonBody`). Błąd → `400 invalid_body`.
+  3. Walidacja payloadu (`updateGenerationCandidateSchema`). Reguły: min. jedno pole, limity znaków, `.strict()`.
+  4. Konstrukcja `UpdateGenerationCandidateCommand` + `updated_at = now()`. Implicit `status: "edited"` gdy zmienia się treść.
+  5. Wywołanie `updateCandidateForOwner`, które:
+     - aktualizuje rekord (`eq owner_id`, `eq id`, `status in ("proposed","edited")`),
+     - zwraca zaktualizowany `GenerationCandidateDTO`.
+  6. Brak dopasowania → `404 not_found`.
+  7. Naruszenie indeksu `generation_candidates_owner_fingerprint_unique` mapowane na `409 duplicate_candidate`.
+- **Response 200:**
+
+```json
+{
+  "candidate": {
+    "id": "6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+    "generation_id": "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
+    "owner_id": "49e6ead8-c0d5-4747-8b8b-e70d650263b7",
+    "front": "What is TCP three-way handshake?",
+    "back": "SYN → SYN-ACK → ACK.",
+    "front_back_fingerprint": "51b3022f1b8848fd9e430ad5a3dc1a2e",
+    "status": "edited",
+    "accepted_card_id": null,
+    "suggested_category_id": 1,
+    "suggested_tags": [2],
+    "created_at": "2025-12-03T10:15:00.000Z",
+    "updated_at": "2025-12-03T10:30:00.000Z"
+  }
+}
+```
+
+- **Errors:**
+
+| Status | `error.code`         | Notes                                                                                 |
+| ------ | -------------------- | ------------------------------------------------------------------------------------- |
+| 400    | `invalid_params`     | Path param nie-UUID                                                                   |
+| 400    | `invalid_body`       | Niepoprawny JSON, naruszenie limitów znaków, puste body                               |
+| 401    | `unauthorized`       | (future) brak JWT                                                                     |
+| 404    | `not_found`          | Kandydat nie istnieje, nie należy do użytkownika lub ma status `accepted/rejected`    |
+| 409    | `duplicate_candidate`| Naruszenie indeksu `generation_candidates_owner_fingerprint_unique`                   |
+| 500    | `db_error`           | PostgREST/Postgres error                                                              |
+| 500    | `unexpected_error`   | Brak klienta Supabase lub inny nienazwany wyjątek                                     |
+
+- **Observability:** Konsola `recordUpdateEvent` (`scope: "api/generation-candidates/:id"`), poziom zależny od statusu HTTP.
+- **Mocks:** Scenariusze 200/400/404/409/500 dostępne w `src/lib/mocks/generation-candidates.api.mocks.ts`.
 
 #### POST /api/generation-candidates/:id/accept
 

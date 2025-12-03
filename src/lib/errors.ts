@@ -64,8 +64,11 @@ export type FlashcardErrorCode = (typeof FLASHCARD_ERROR_CODES)[keyof typeof FLA
 
 export const CANDIDATE_ERROR_CODES = {
   INVALID_QUERY: "invalid_query",
+  INVALID_PARAMS: "invalid_params",
+  INVALID_BODY: "invalid_body",
   UNAUTHORIZED: "unauthorized",
   NOT_FOUND: "not_found",
+  DUPLICATE_CANDIDATE: "duplicate_candidate",
   DB_ERROR: "db_error",
   UNEXPECTED_ERROR: "unexpected_error",
 } as const;
@@ -107,6 +110,7 @@ export function buildErrorResponse<TCode extends string>(
 const ACTIVE_GENERATION_INDEX = "generations_active_per_user_unique";
 const RATE_LIMIT_SIGNATURE = "generation_rate_limit_exceeded";
 const FLASHCARD_FINGERPRINT_INDEX = "flashcards_owner_fingerprint_unique";
+const CANDIDATE_FINGERPRINT_INDEX = "generation_candidates_owner_fingerprint_unique";
 const ACCEPT_ALREADY_ACCEPTED_SIGNATURE = "candidate_already_accepted";
 
 /**
@@ -166,11 +170,18 @@ export function mapFlashcardDbError(error: PostgrestError): HttpErrorDescriptor<
 }
 
 export function mapCandidateDbError(error: PostgrestError): HttpErrorDescriptor<CandidateErrorCode> {
-  void error;
+  if (error.code === "23505" && matchesSignature(error, CANDIDATE_FINGERPRINT_INDEX)) {
+    return buildErrorResponse(
+      409,
+      CANDIDATE_ERROR_CODES.DUPLICATE_CANDIDATE,
+      "A generation candidate with the same front and back already exists."
+    );
+  }
+
   return buildErrorResponse(
     500,
     CANDIDATE_ERROR_CODES.DB_ERROR,
-    "A database error occurred while fetching generation candidates."
+    "A database error occurred while processing generation candidates."
   );
 }
 
