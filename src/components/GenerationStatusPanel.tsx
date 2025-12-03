@@ -57,11 +57,11 @@ export function GenerationStatusPanel({
         return <Clock className="h-5 w-5 text-yellow-500" />;
       case "running":
         return <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />;
-      case "completed":
+      case "succeeded":
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case "cancelled":
         return <XCircle className="h-5 w-5 text-gray-500" />;
-      case "error":
+      case "failed":
         return <XCircle className="h-5 w-5 text-red-500" />;
       default:
         return <AlertTriangle className="h-5 w-5 text-orange-500" />;

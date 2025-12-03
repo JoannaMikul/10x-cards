@@ -360,7 +360,7 @@ export interface CreateGenerationViewModel {
   raw_input_text?: string;
 }
 
-export type GenerationStatus = "pending" | "running" | "completed" | "cancelled" | "error";
+export type GenerationStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled";
 
 export interface CandidatesSummary {
   total: number;
