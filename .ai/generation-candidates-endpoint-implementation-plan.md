@@ -529,8 +529,8 @@ Odpowiedź 200:
 - Cel: oznaczyć kandydata jako `rejected` i zapisać znacznik czasu (wykorzystujemy `updated_at`).
 - Zakres: mutacja stanu kandydata. Operacja jest idempotentna dla statusu `rejected` (powtarzane wywołanie zwróci 200 z tym samym stanem). Przejście z `accepted` na `rejected` jest niedozwolone.
 - Reguły:
-  - Dozwolone przejścia: `proposed` → `rejected`, `edited` → `rejected`.
-  - Niedozwolone przejścia: `accepted` → `rejected` (zwraca konflikt przejścia), `rejected` → `rejected` (idempotentnie 200).
+  - Dozwolone przejścia: `proposed` → `rejected`, `edited` → `rejected`, `rejected` → `rejected` (idempotentnie 200).
+  - Niedozwolone przejścia: `accepted` → `rejected` (zwraca konflikt przejścia).
 
 ### 2. Szczegóły żądania
 

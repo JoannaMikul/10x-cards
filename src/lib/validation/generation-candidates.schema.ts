@@ -178,6 +178,8 @@ export const acceptGenerationCandidateSchema = z.object({
 
 export type GetCandidateParamsSchema = z.infer<typeof getCandidateParamsSchema>;
 export type AcceptGenerationCandidateSchema = z.infer<typeof acceptGenerationCandidateSchema>;
+export const rejectGenerationCandidateSchema = z.object({}).strict();
+export type RejectGenerationCandidateSchema = z.infer<typeof rejectGenerationCandidateSchema>;
 
 const candidateFrontSchema = z
   .string({

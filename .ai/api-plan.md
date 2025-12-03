@@ -500,23 +500,23 @@
 
 #### PATCH /api/generation-candidates/:id
 
-- **Description:** Częściowo aktualizuje pojedynczego kandydata (`front`, `back`, `status`). Dozwolone jedynie rekordy w statusach `proposed` lub `edited`; inne statusy zwracają `404 not_found`.
+- **Description:** Partially updates a single candidate (`front`, `back`, `status`). Only records in `proposed` or `edited` statuses are allowed; other statuses return `404 not_found`.
 - **Headers:** `Content-Type: application/json`.
-- **Path params:** `id` (UUID) – kandydat należący do użytkownika.
-- **Request body (co najmniej jedno pole wymagane):**
-  - `front?: string (1..200, trim)` – nowa treść awersu.
-  - `back?: string (1..500, trim)` – nowa treść rewersu.
-  - `status?: "edited"` – jawne oznaczenie kandydatury jako edytowanej. Jeśli `front` lub `back` są obecne, a `status` pominięto, serwer automatycznie ustawia `"edited"`.
-- **Proces biznesowy:**
-  1. Walidacja `params` (`getCandidateParamsSchema`). Niepoprawny UUID → `400 invalid_params`.
-  2. Próba parsowania JSON (`parseJsonBody`). Błąd → `400 invalid_body`.
-  3. Walidacja payloadu (`updateGenerationCandidateSchema`). Reguły: min. jedno pole, limity znaków, `.strict()`.
-  4. Konstrukcja `UpdateGenerationCandidateCommand` + `updated_at = now()`. Implicit `status: "edited"` gdy zmienia się treść.
-  5. Wywołanie `updateCandidateForOwner`, które:
-     - aktualizuje rekord (`eq owner_id`, `eq id`, `status in ("proposed","edited")`),
-     - zwraca zaktualizowany `GenerationCandidateDTO`.
-  6. Brak dopasowania → `404 not_found`.
-  7. Naruszenie indeksu `generation_candidates_owner_fingerprint_unique` mapowane na `409 duplicate_candidate`.
+- **Path params:** `id` (UUID) – candidate belonging to the user.
+- **Request body (at least one field required):**
+  - `front?: string (1..200, trim)` – new front content.
+  - `back?: string (1..500, trim)` – new back content.
+  - `status?: "edited"` – explicit marking of candidate as edited. If `front` or `back` are present and `status` is omitted, server automatically sets `"edited"`.
+- **Business process:**
+  1. Validate `params` (`getCandidateParamsSchema`). Invalid UUID → `400 invalid_params`.
+  2. Attempt JSON parsing (`parseJsonBody`). Error → `400 invalid_body`.
+  3. Validate payload (`updateGenerationCandidateSchema`). Rules: at least one field, character limits, `.strict()`.
+  4. Construct `UpdateGenerationCandidateCommand` + `updated_at = now()`. Implicit `status: "edited"` when content changes.
+  5. Call `updateCandidateForOwner`, which:
+     - updates record (`eq owner_id`, `eq id`, `status in ("proposed","edited")`),
+     - returns updated `GenerationCandidateDTO`.
+  6. No match → `404 not_found`.
+  7. Index violation `generation_candidates_owner_fingerprint_unique` mapped to `409 duplicate_candidate`.
 - **Response 200:**
 
 ```json
@@ -540,42 +540,42 @@
 
 - **Errors:**
 
-| Status | `error.code`         | Notes                                                                                 |
-| ------ | -------------------- | ------------------------------------------------------------------------------------- |
-| 400    | `invalid_params`     | Path param nie-UUID                                                                   |
-| 400    | `invalid_body`       | Niepoprawny JSON, naruszenie limitów znaków, puste body                               |
-| 401    | `unauthorized`       | (future) brak JWT                                                                     |
-| 404    | `not_found`          | Kandydat nie istnieje, nie należy do użytkownika lub ma status `accepted/rejected`    |
-| 409    | `duplicate_candidate`| Naruszenie indeksu `generation_candidates_owner_fingerprint_unique`                   |
-| 500    | `db_error`           | PostgREST/Postgres error                                                              |
-| 500    | `unexpected_error`   | Brak klienta Supabase lub inny nienazwany wyjątek                                     |
+| Status | `error.code`          | Notes                                                                                |
+| ------ | --------------------- | ------------------------------------------------------------------------------------ |
+| 400    | `invalid_params`      | Path param not UUID                                                                  |
+| 400    | `invalid_body`        | Invalid JSON, character limit violations, empty body                                 |
+| 401    | `unauthorized`        | (future) missing JWT                                                                 |
+| 404    | `not_found`           | Candidate does not exist, does not belong to user, or has `accepted/rejected` status |
+| 409    | `duplicate_candidate` | Violation of `generation_candidates_owner_fingerprint_unique` index                  |
+| 500    | `db_error`            | PostgREST/Postgres error                                                             |
+| 500    | `unexpected_error`    | Missing Supabase client or other unnamed exception                                   |
 
-- **Observability:** Konsola `recordUpdateEvent` (`scope: "api/generation-candidates/:id"`), poziom zależny od statusu HTTP.
-- **Mocks:** Scenariusze 200/400/404/409/500 dostępne w `src/lib/mocks/generation-candidates.api.mocks.ts`.
+- **Observability:** Console `recordUpdateEvent` (`scope: "api/generation-candidates/:id"`), level dependent on HTTP status.
+- **Mocks:** Scenarios 200/400/404/409/500 available in `src/lib/mocks/generation-candidates.api.mocks.ts`.
 
 #### POST /api/generation-candidates/:id/accept
 
-- **Description:** Finalizes a single AI candidate by atomically creating a `flashcards` row and updating the candidate (`status = accepted`, `accepted_card_id = new_card_id`). Operacja jest w całości wykonywana w funkcji SQL `accept_generation_candidate(...)` (transakcja w DB), co eliminuje ryzyko osieroconych rekordów.
-- **Headers:** `Content-Type: application/json`. Docelowo również `Authorization: Bearer <jwt>`; obecnie wykorzystywany jest `DEFAULT_USER_ID`.
-- **Path params:** `id` (UUID) – identyfikator kandydata przypisanego do użytkownika.
-- **Request body (opcjonalne nadpisania metadanych):**
-  - `category_id?: number` – pozytywne ID kategorii (domyślnie `candidate.suggested_category_id`).
-  - `tag_ids?: number[]` – tablica dodatnich, unikalnych ID tagów (maks. 50). Jeśli brak → używane są `candidate.suggested_tags` (po przefiltrowaniu do liczb).
-  - `content_source_id?: number` – pozytywne ID źródła (domyślnie `null`).
-  - `origin?: "ai-full" | "ai-edited"` – brak wartości → `"ai-edited"` dla kandydatów w statusie `edited`, w przeciwnym razie `"ai-full"`.
-  - Body musi być poprawnym JSONem; puste ciało traktowane jest jako `{}`.
-- **Proces biznesowy:**
-  1. Walidacja `params` (`getCandidateParamsSchema`) i `body` (`acceptGenerationCandidateSchema`). Błędy raportowane jako `400 invalid_body`.
-  2. Pobranie kandydata (`getCandidateForOwner`). Brak rekordu → `404 not_found`.
-  3. Wczesny konflikt: gdy `accepted_card_id` jest ustawione → `409 already_accepted`.
-  4. Pre-check odcisku (`hasFingerprintConflict`) w tabeli `flashcards` (`owner_id`, `front_back_fingerprint`, `deleted_at is null`). Gdy istnieje dopasowanie → `422 fingerprint_conflict`.
-  5. Zbudowanie końcowych metadanych (`origin`, `category_id`, `tag_ids`, `metadata.accepted_from_candidate_id`, `generation_id`, `candidate_fingerprint`).
-  6. Wywołanie RPC `accept_generation_candidate`, które w jednej transakcji:
-     - blokuje kandydata (`SELECT ... FOR UPDATE`),
-     - weryfikuje konflikt odcisku (drugi poziom zabezpieczenia, mapowany na `23505`),
-     - tworzy rekord w `flashcards` (wraz z tagami),
-     - ustawia `status = accepted`, `accepted_card_id`.
-  7. Po sukcesie RPC serwis dociąga pełny `FlashcardDTO` (wraz z tagami) i zwraca go jako payload `201`.
+- **Description:** Finalizes a single AI candidate by atomically creating a `flashcards` row and updating the candidate (`status = accepted`, `accepted_card_id = new_card_id`). Operation is entirely performed in SQL function `accept_generation_candidate(...)` (DB transaction), which eliminates the risk of orphaned records.
+- **Headers:** `Content-Type: application/json`. Eventually also `Authorization: Bearer <jwt>`; currently `DEFAULT_USER_ID` is used.
+- **Path params:** `id` (UUID) – identifier of candidate assigned to the user.
+- **Request body (optional metadata overrides):**
+  - `category_id?: number` – positive category ID (default `candidate.suggested_category_id`).
+  - `tag_ids?: number[]` – array of positive, unique tag IDs (max 50). If missing → `candidate.suggested_tags` are used (after filtering to numbers).
+  - `content_source_id?: number` – positive source ID (default `null`).
+  - `origin?: "ai-full" | "ai-edited"` – no value → `"ai-edited"` for candidates in `edited` status, otherwise `"ai-full"`.
+  - Body must be valid JSON; empty body treated as `{}`.
+- **Business process:**
+  1. Validate `params` (`getCandidateParamsSchema`) and `body` (`acceptGenerationCandidateSchema`). Errors reported as `400 invalid_body`.
+  2. Fetch candidate (`getCandidateForOwner`). No record → `404 not_found`.
+  3. Early conflict: when `accepted_card_id` is set → `409 already_accepted`.
+  4. Pre-check fingerprint (`hasFingerprintConflict`) in `flashcards` table (`owner_id`, `front_back_fingerprint`, `deleted_at is null`). When match exists → `422 fingerprint_conflict`.
+  5. Build final metadata (`origin`, `category_id`, `tag_ids`, `metadata.accepted_from_candidate_id`, `generation_id`, `candidate_fingerprint`).
+  6. Call RPC `accept_generation_candidate`, which in one transaction:
+     - locks candidate (`SELECT ... FOR UPDATE`),
+     - verifies fingerprint conflict (second security level, mapped to `23505`),
+     - creates `flashcards` record (with tags),
+     - sets `status = accepted`, `accepted_card_id`.
+  7. After RPC success, service fetches full `FlashcardDTO` (with tags) and returns it as `201` payload.
 - **Response 201:**
 
 ```json
@@ -603,23 +603,71 @@
 
 - **Errors:**
 
-| Status | `error.code`             | Opis                                                                                              |
-| ------ | ------------------------ | -------------------------------------------------------------------------------------------------- |
-| 400    | `invalid_body`           | Niepoprawny JSON lub błędy walidacji Zod (`category_id`, `tag_ids`, `origin`, itp.)                |
-| 401    | `unauthorized`           | Docelowo brak uwierzytelnienia (niezaimplementowane)                                              |
-| 404    | `not_found`              | Kandydat nie istnieje lub nie należy do użytkownika                                               |
-| 409    | `already_accepted`       | Kandydat posiada już `accepted_card_id` albo status `accepted`                                    |
-| 422    | `fingerprint_conflict`   | Istnieje aktywna fiszka użytkownika o tym samym odcisku (pre-check lub unikalność w transakcji)   |
-| 422    | `unprocessable_entity`   | Błąd FK/CHECK podczas tworzenia fiszki (np. kategoria/tag nie istnieje)                           |
-| 500    | `db_error`               | Błąd PostgREST/PG zwrócony przez funkcję RPC                                                       |
-| 500    | `unexpected_error`       | Inne nieoczekiwane wyjątki (brak klienta Supabase, brak odcisku kandydata itp.)                    |
+| Status | `error.code`           | Description                                                                                    |
+| ------ | ---------------------- | ---------------------------------------------------------------------------------------------- |
+| 400    | `invalid_body`         | Invalid JSON or Zod validation errors (`category_id`, `tag_ids`, `origin`, etc.)               |
+| 401    | `unauthorized`         | Eventually missing authentication (not implemented)                                            |
+| 404    | `not_found`            | Candidate does not exist or does not belong to user                                            |
+| 409    | `already_accepted`     | Candidate already has `accepted_card_id` or `accepted` status                                  |
+| 422    | `fingerprint_conflict` | Active flashcard of user with same fingerprint exists (pre-check or uniqueness in transaction) |
+| 422    | `unprocessable_entity` | FK/CHECK error during flashcard creation (e.g. category/tag does not exist)                    |
+| 500    | `db_error`             | PostgREST/PG error returned by RPC function                                                    |
+| 500    | `unexpected_error`     | Other unexpected exceptions (missing Supabase client, missing candidate fingerprint, etc.)     |
 
-- **Observability:** Endpoint loguje każde 4xx/5xx (oraz sukces 201) przez `recordAcceptEvent` (`scope: "api/generation-candidates/:id/accept"`, `userId = DEFAULT_USER_ID`) wraz z metadanymi (`candidateId`, `fingerprint`, `flashcardId`).
-- **Mocks:** Kontraktowe scenariusze (201, 400, 404, 409, 422 fingerprint, 422 FK, 500) dodane do `src/lib/mocks/generation-candidates.api.mocks.ts`.
+- **Observability:** Endpoint logs every 4xx/5xx (and success 201) via `recordAcceptEvent` (`scope: "api/generation-candidates/:id/accept"`, `userId = DEFAULT_USER_ID`) with metadata (`candidateId`, `fingerprint`, `flashcardId`).
+- **Mocks:** Contract scenarios (201, 400, 404, 409, 422 fingerprint, 422 FK, 500) added to `src/lib/mocks/generation-candidates.api.mocks.ts`.
 
 #### POST /api/generation-candidates/:id/reject
 
-- Sets status `rejected`, records timestamp.
+- **Description:** Rejects a single candidate (`status = rejected`, `updated_at = now()`). Operation is idempotent — repeated call on already rejected candidate returns `200 OK` with current state without database changes. Candidate in `accepted` status cannot be reverted.
+- **Headers:** (optional) `Content-Type: application/json`. Body must be empty (`{}`) or completely omitted.
+- **Path params:** `id` (UUID) – candidate belonging to the user.
+- **Body:** none (`RejectGenerationCandidateCommand = Record<string, never>`). Any field in body → `400 invalid_body`.
+- **Business process:**
+  1. Validate `params` (`getCandidateParamsSchema`); invalid UUID → `400 invalid_params`.
+  2. If `Content-Length > 0`, server attempts to parse JSON. Parse error or non-empty body → `400 invalid_body`.
+  3. Call `rejectCandidateForOwner`, which conditionally updates record (`eq owner_id`, `eq id`, `status ∈ {proposed, edited}`, `accepted_card_id IS NULL`). Success → `200 { candidate }`.
+  4. When update returns no record:
+     - `getCandidateForOwner` fetches current state.
+     - No record → `404 not_found`.
+     - `status = accepted` or `accepted_card_id != null` → `409 invalid_transition`.
+     - `status = rejected` → idempotent `200 OK` with current candidate.
+     - Any other status ⇒ treated as `404 not_found` (cannot reject).
+- **Response 200:**
+
+```json
+{
+  "candidate": {
+    "id": "6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+    "generation_id": "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
+    "owner_id": "49e6ead8-c0d5-4747-8b8b-e70d650263b7",
+    "front": "What is TCP three-way handshake?",
+    "back": "SYN → SYN-ACK → ACK.",
+    "front_back_fingerprint": "51b3022f1b8848fd9e430ad5a3dc1a2e",
+    "status": "rejected",
+    "accepted_card_id": null,
+    "suggested_category_id": 1,
+    "suggested_tags": [2],
+    "created_at": "2025-12-03T10:15:00.000Z",
+    "updated_at": "2025-12-03T11:00:00.000Z"
+  }
+}
+```
+
+- **Errors:**
+
+| Status | `error.code`         | Description                                                                                         |
+| ------ | -------------------- | --------------------------------------------------------------------------------------------------- |
+| 400    | `invalid_params`     | Path param not UUID                                                                                 |
+| 400    | `invalid_body`       | Invalid JSON or body contains fields other than allowed `{}`                                        |
+| 401    | `unauthorized`       | (future) missing JWT                                                                                |
+| 404    | `not_found`          | Candidate does not exist, does not belong to user, or has status outside `proposed/edited/rejected` |
+| 409    | `invalid_transition` | Transition from `accepted`/`accepted_card_id != null` to `rejected` is blocked                      |
+| 500    | `db_error`           | PostgREST/Postgres error during update                                                              |
+| 500    | `unexpected_error`   | Missing Supabase client, unexpected runtime exception                                               |
+
+- **Observability:** `recordRejectEvent` (`scope: "api/generation-candidates/:id/reject"`, `userId = DEFAULT_USER_ID`) logs all 4xx/5xx and successes (newly rejected or idempotent).
+- **Mocks:** Contract scenarios (200 newly rejected, 200 idempotent, 400 invalid_params, 400 invalid_body, 404 not_found, 409 invalid_transition, 500 db_error) should be maintained in `src/lib/mocks/generation-candidates.api.mocks.ts`.
 
 ### Generation Error Logs (admin)
 

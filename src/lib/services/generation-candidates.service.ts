@@ -40,6 +40,7 @@ const ACCEPT_CANDIDATE_RPC = "accept_generation_candidate";
 const EDITABLE_CANDIDATE_STATUSES = ["proposed", "edited"] as const;
 
 type UpdateCandidatePayload = UpdateGenerationCandidateCommand & { updated_at: string };
+type RejectCandidatePayload = Pick<GenerationCandidateRow, "status" | "updated_at">;
 
 type UnsafeRpc = (
   fn: string,
@@ -137,7 +138,7 @@ export async function getCandidateForOwner(
   supabase: SupabaseClient,
   userId: string,
   candidateId: string
-): Promise<GenerationCandidateProjection | null> {
+): Promise<GenerationCandidateDTO | null> {
   const { data, error } = await supabase
     .from("generation_candidates")
     .select(CANDIDATE_COLUMNS)
@@ -149,7 +150,34 @@ export async function getCandidateForOwner(
     throw error;
   }
 
-  return data ?? null;
+  return data ? mapCandidateToDto(data) : null;
+}
+
+export async function rejectCandidateForOwner(
+  supabase: SupabaseClient,
+  userId: string,
+  candidateId: string
+): Promise<GenerationCandidateDTO | null> {
+  const payload: RejectCandidatePayload = {
+    status: "rejected",
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("generation_candidates")
+    .update(payload)
+    .eq("owner_id", userId)
+    .eq("id", candidateId)
+    .is("accepted_card_id", null)
+    .in("status", EDITABLE_CANDIDATE_STATUSES)
+    .select(CANDIDATE_COLUMNS)
+    .maybeSingle<GenerationCandidateProjection>();
+
+  if (error) {
+    throw error;
+  }
+
+  return data ? mapCandidateToDto(data) : null;
 }
 
 export async function hasFingerprintConflict(

@@ -68,6 +68,7 @@ export const CANDIDATE_ERROR_CODES = {
   INVALID_BODY: "invalid_body",
   UNAUTHORIZED: "unauthorized",
   NOT_FOUND: "not_found",
+  INVALID_TRANSITION: "invalid_transition",
   DUPLICATE_CANDIDATE: "duplicate_candidate",
   DB_ERROR: "db_error",
   UNEXPECTED_ERROR: "unexpected_error",
