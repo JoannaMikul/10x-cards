@@ -72,6 +72,19 @@ export const CANDIDATE_ERROR_CODES = {
 
 export type CandidateErrorCode = (typeof CANDIDATE_ERROR_CODES)[keyof typeof CANDIDATE_ERROR_CODES];
 
+export const CANDIDATE_ACCEPT_ERROR_CODES = {
+  INVALID_BODY: "invalid_body",
+  UNAUTHORIZED: "unauthorized",
+  NOT_FOUND: "not_found",
+  ALREADY_ACCEPTED: "already_accepted",
+  FINGERPRINT_CONFLICT: "fingerprint_conflict",
+  UNPROCESSABLE_ENTITY: "unprocessable_entity",
+  DB_ERROR: "db_error",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type CandidateAcceptErrorCode = (typeof CANDIDATE_ACCEPT_ERROR_CODES)[keyof typeof CANDIDATE_ACCEPT_ERROR_CODES];
+
 export interface HttpErrorDescriptor<TCode extends string = string> {
   status: number;
   body: ApiErrorResponse<TCode>;
@@ -94,6 +107,7 @@ export function buildErrorResponse<TCode extends string>(
 const ACTIVE_GENERATION_INDEX = "generations_active_per_user_unique";
 const RATE_LIMIT_SIGNATURE = "generation_rate_limit_exceeded";
 const FLASHCARD_FINGERPRINT_INDEX = "flashcards_owner_fingerprint_unique";
+const ACCEPT_ALREADY_ACCEPTED_SIGNATURE = "candidate_already_accepted";
 
 /**
  * Maps PostgREST or plain PostgreSQL errors to structured responses returned by the
@@ -157,5 +171,37 @@ export function mapCandidateDbError(error: PostgrestError): HttpErrorDescriptor<
     500,
     CANDIDATE_ERROR_CODES.DB_ERROR,
     "A database error occurred while fetching generation candidates."
+  );
+}
+
+export function mapAcceptCandidateDbError(error: PostgrestError): HttpErrorDescriptor<CandidateAcceptErrorCode> {
+  if (error.code === "23505" && matchesSignature(error, FLASHCARD_FINGERPRINT_INDEX)) {
+    return buildErrorResponse(
+      422,
+      CANDIDATE_ACCEPT_ERROR_CODES.FINGERPRINT_CONFLICT,
+      "An active flashcard with the same content already exists."
+    );
+  }
+
+  if (error.code === "23503") {
+    return buildErrorResponse(
+      422,
+      CANDIDATE_ACCEPT_ERROR_CODES.UNPROCESSABLE_ENTITY,
+      "Referenced metadata entities are invalid or no longer exist."
+    );
+  }
+
+  if (error.code === "P0001" && matchesSignature(error, ACCEPT_ALREADY_ACCEPTED_SIGNATURE)) {
+    return buildErrorResponse(
+      409,
+      CANDIDATE_ACCEPT_ERROR_CODES.ALREADY_ACCEPTED,
+      "The generation candidate has already been accepted."
+    );
+  }
+
+  return buildErrorResponse(
+    500,
+    CANDIDATE_ACCEPT_ERROR_CODES.DB_ERROR,
+    "A database error occurred while accepting the generation candidate."
   );
 }

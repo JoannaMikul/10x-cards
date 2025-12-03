@@ -1,6 +1,6 @@
 import { DEFAULT_USER_ID } from "../../db/supabase.client.ts";
-import type { CandidateErrorCode } from "../errors.ts";
-import type { ApiErrorResponse, GenerationCandidateListResponse } from "../../types";
+import type { CandidateAcceptErrorCode, CandidateErrorCode } from "../errors.ts";
+import type { ApiErrorResponse, FlashcardDTO, GenerationCandidateListResponse } from "../../types";
 
 export interface GenerationCandidatesApiMock {
   description: string;
@@ -113,6 +113,161 @@ export const generationCandidatesApiMocks: GenerationCandidatesApiMock[] = [
       error: {
         code: "db_error",
         message: "A database error occurred while fetching generation candidates.",
+      },
+    },
+  },
+];
+
+export interface AcceptGenerationCandidateApiMock {
+  description: string;
+  status: number;
+  request: {
+    method: "POST";
+    url: string;
+    headers?: Record<string, string>;
+    body?: Record<string, unknown>;
+  };
+  response: FlashcardDTO | ApiErrorResponse<CandidateAcceptErrorCode>;
+}
+
+export const acceptGenerationCandidateApiMocks: AcceptGenerationCandidateApiMock[] = [
+  {
+    description: "201 Created – candidate accepted with overrides",
+    status: 201,
+    request: {
+      method: "POST",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c/accept",
+      headers: { "Content-Type": "application/json" },
+      body: {
+        category_id: 3,
+        tag_ids: [2, 5],
+        content_source_id: 8,
+        origin: "ai-edited",
+      },
+    },
+    response: {
+      id: "b5e4a2d9-0a1b-4f2c-8a9d-3c7f1e2b4d6a",
+      front: "What is TCP three-way handshake?",
+      back: "SYN, SYN-ACK, ACK.",
+      origin: "ai-edited",
+      metadata: {
+        accepted_from_candidate_id: "6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+        generation_id: "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
+        candidate_fingerprint: "51b3022f1b8848fd9e430ad5a3dc1a2e",
+      },
+      category_id: 3,
+      content_source_id: 8,
+      owner_id: DEFAULT_USER_ID,
+      created_at: "2025-12-03T10:20:00.000Z",
+      updated_at: "2025-12-03T10:20:00.000Z",
+      deleted_at: null,
+      tags: [
+        {
+          id: 2,
+          name: "networking",
+          slug: "networking",
+          description: "Computer networking fundamentals",
+          created_at: "2025-11-30T08:00:00.000Z",
+          updated_at: "2025-11-30T08:00:00.000Z",
+        },
+        {
+          id: 5,
+          name: "protocols",
+          slug: "protocols",
+          description: "Network protocol theory",
+          created_at: "2025-11-30T08:00:00.000Z",
+          updated_at: "2025-11-30T08:00:00.000Z",
+        },
+      ],
+    },
+  },
+  {
+    description: "400 Bad Request – schema validation failure",
+    status: 400,
+    request: {
+      method: "POST",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c/accept",
+      headers: { "Content-Type": "application/json" },
+      body: {
+        tag_ids: ["invalid"],
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_body",
+        message: "Tag ids must be an array of integers.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – candidate missing",
+    status: 404,
+    request: {
+      method: "POST",
+      url: "/api/generation-candidates/11111111-2222-3333-4444-555555555555/accept",
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Generation candidate could not be found.",
+      },
+    },
+  },
+  {
+    description: "409 Conflict – already accepted",
+    status: 409,
+    request: {
+      method: "POST",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c/accept",
+    },
+    response: {
+      error: {
+        code: "already_accepted",
+        message: "The generation candidate has already been accepted.",
+      },
+    },
+  },
+  {
+    description: "422 Unprocessable Entity – fingerprint conflict",
+    status: 422,
+    request: {
+      method: "POST",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c/accept",
+    },
+    response: {
+      error: {
+        code: "fingerprint_conflict",
+        message: "A flashcard with the same content already exists.",
+      },
+    },
+  },
+  {
+    description: "422 Unprocessable Entity – invalid references",
+    status: 422,
+    request: {
+      method: "POST",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c/accept",
+      headers: { "Content-Type": "application/json" },
+      body: { category_id: 9999 },
+    },
+    response: {
+      error: {
+        code: "unprocessable_entity",
+        message: "Referenced metadata entities are invalid or no longer exist.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database failure",
+    status: 500,
+    request: {
+      method: "POST",
+      url: "/api/generation-candidates/6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c/accept",
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while accepting the generation candidate.",
       },
     },
   },

@@ -505,15 +505,67 @@
 
 #### POST /api/generation-candidates/:id/accept
 
-- **Description:** Atomically creates `flashcards` row (origin `ai-full` or `ai-edited`) and sets `accepted_card_id`.
-- **Request:** optional overrides for metadata:
+- **Description:** Finalizes a single AI candidate by atomically creating a `flashcards` row and updating the candidate (`status = accepted`, `accepted_card_id = new_card_id`). Operacja jest w całości wykonywana w funkcji SQL `accept_generation_candidate(...)` (transakcja w DB), co eliminuje ryzyko osieroconych rekordów.
+- **Headers:** `Content-Type: application/json`. Docelowo również `Authorization: Bearer <jwt>`; obecnie wykorzystywany jest `DEFAULT_USER_ID`.
+- **Path params:** `id` (UUID) – identyfikator kandydata przypisanego do użytkownika.
+- **Request body (opcjonalne nadpisania metadanych):**
+  - `category_id?: number` – pozytywne ID kategorii (domyślnie `candidate.suggested_category_id`).
+  - `tag_ids?: number[]` – tablica dodatnich, unikalnych ID tagów (maks. 50). Jeśli brak → używane są `candidate.suggested_tags` (po przefiltrowaniu do liczb).
+  - `content_source_id?: number` – pozytywne ID źródła (domyślnie `null`).
+  - `origin?: "ai-full" | "ai-edited"` – brak wartości → `"ai-edited"` dla kandydatów w statusie `edited`, w przeciwnym razie `"ai-full"`.
+  - Body musi być poprawnym JSONem; puste ciało traktowane jest jako `{}`.
+- **Proces biznesowy:**
+  1. Walidacja `params` (`getCandidateParamsSchema`) i `body` (`acceptGenerationCandidateSchema`). Błędy raportowane jako `400 invalid_body`.
+  2. Pobranie kandydata (`getCandidateForOwner`). Brak rekordu → `404 not_found`.
+  3. Wczesny konflikt: gdy `accepted_card_id` jest ustawione → `409 already_accepted`.
+  4. Pre-check odcisku (`hasFingerprintConflict`) w tabeli `flashcards` (`owner_id`, `front_back_fingerprint`, `deleted_at is null`). Gdy istnieje dopasowanie → `422 fingerprint_conflict`.
+  5. Zbudowanie końcowych metadanych (`origin`, `category_id`, `tag_ids`, `metadata.accepted_from_candidate_id`, `generation_id`, `candidate_fingerprint`).
+  6. Wywołanie RPC `accept_generation_candidate`, które w jednej transakcji:
+     - blokuje kandydata (`SELECT ... FOR UPDATE`),
+     - weryfikuje konflikt odcisku (drugi poziom zabezpieczenia, mapowany na `23505`),
+     - tworzy rekord w `flashcards` (wraz z tagami),
+     - ustawia `status = accepted`, `accepted_card_id`.
+  7. Po sukcesie RPC serwis dociąga pełny `FlashcardDTO` (wraz z tagami) i zwraca go jako payload `201`.
+- **Response 201:**
 
 ```json
-{ "category_id": 1, "tag_ids": [2], "content_source_id": 5, "origin": "ai-edited" }
+{
+  "id": "b5e4a2d9-0a1b-4f2c-8a9d-3c7f1e2b4d6a",
+  "front": "What is TCP three-way handshake?",
+  "back": "SYN, SYN-ACK, ACK.",
+  "origin": "ai-edited",
+  "metadata": {
+    "accepted_from_candidate_id": "6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
+    "generation_id": "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
+    "candidate_fingerprint": "…"
+  },
+  "category_id": 1,
+  "content_source_id": 5,
+  "owner_id": "49e6ead8-c0d5-4747-8b8b-e70d650263b7",
+  "created_at": "…",
+  "updated_at": "…",
+  "deleted_at": null,
+  "tags": [
+    { "id": 2, "name": "networking", "slug": "networking", "description": "…", "created_at": "…", "updated_at": "…" }
+  ]
+}
 ```
 
-- **Response:** `201 Created` with flashcard DTO.
-- **Errors:** `400 invalid_body`, `409 already_accepted`, `422 fingerprint_conflict`.
+- **Errors:**
+
+| Status | `error.code`             | Opis                                                                                              |
+| ------ | ------------------------ | -------------------------------------------------------------------------------------------------- |
+| 400    | `invalid_body`           | Niepoprawny JSON lub błędy walidacji Zod (`category_id`, `tag_ids`, `origin`, itp.)                |
+| 401    | `unauthorized`           | Docelowo brak uwierzytelnienia (niezaimplementowane)                                              |
+| 404    | `not_found`              | Kandydat nie istnieje lub nie należy do użytkownika                                               |
+| 409    | `already_accepted`       | Kandydat posiada już `accepted_card_id` albo status `accepted`                                    |
+| 422    | `fingerprint_conflict`   | Istnieje aktywna fiszka użytkownika o tym samym odcisku (pre-check lub unikalność w transakcji)   |
+| 422    | `unprocessable_entity`   | Błąd FK/CHECK podczas tworzenia fiszki (np. kategoria/tag nie istnieje)                           |
+| 500    | `db_error`               | Błąd PostgREST/PG zwrócony przez funkcję RPC                                                       |
+| 500    | `unexpected_error`       | Inne nieoczekiwane wyjątki (brak klienta Supabase, brak odcisku kandydata itp.)                    |
+
+- **Observability:** Endpoint loguje każde 4xx/5xx (oraz sukces 201) przez `recordAcceptEvent` (`scope: "api/generation-candidates/:id/accept"`, `userId = DEFAULT_USER_ID`) wraz z metadanymi (`candidateId`, `fingerprint`, `flashcardId`).
+- **Mocks:** Kontraktowe scenariusze (201, 400, 404, 409, 422 fingerprint, 422 FK, 500) dodane do `src/lib/mocks/generation-candidates.api.mocks.ts`.
 
 #### POST /api/generation-candidates/:id/reject
 

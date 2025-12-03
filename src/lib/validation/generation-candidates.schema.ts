@@ -132,3 +132,46 @@ export function buildGenerationCandidatesQuery(payload: GenerationCandidatesQuer
     ...rest,
   };
 }
+
+const positiveIntSchema = z
+  .number({
+    required_error: "Value is required.",
+    invalid_type_error: "Value must be a number.",
+  })
+  .int("Value must be an integer.")
+  .positive("Value must be greater than 0.");
+
+const tagIdsSchema = z
+  .array(positiveIntSchema, {
+    invalid_type_error: "Tag ids must be an array of integers.",
+  })
+  .max(50, "Tag selection cannot exceed 50 entries.")
+  .refine((values) => new Set(values).size === values.length, "Tag ids must be unique.")
+  .optional();
+
+const ACCEPTABLE_ORIGINS = ["ai-full", "ai-edited"] as const;
+
+export const getCandidateParamsSchema = z.object({
+  id: z
+    .string({
+      required_error: "Candidate id is required.",
+      invalid_type_error: "Candidate id must be a string.",
+    })
+    .uuid("Candidate id must be a valid UUID."),
+});
+
+export const acceptGenerationCandidateSchema = z.object({
+  category_id: positiveIntSchema.optional(),
+  tag_ids: tagIdsSchema,
+  content_source_id: positiveIntSchema.optional(),
+  origin: z
+    .enum(ACCEPTABLE_ORIGINS, {
+      errorMap: () => ({
+        message: `Origin must be one of: ${ACCEPTABLE_ORIGINS.join(", ")}.`,
+      }),
+    })
+    .optional(),
+});
+
+export type GetCandidateParamsSchema = z.infer<typeof getCandidateParamsSchema>;
+export type AcceptGenerationCandidateSchema = z.infer<typeof acceptGenerationCandidateSchema>;
