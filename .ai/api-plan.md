@@ -426,15 +426,15 @@
 
 - **Error contract:** All errors follow `ApiErrorResponse`.
 
-| Status | `error.code`         | Trigger                                                                 |
-| ------ | -------------------- | ----------------------------------------------------------------------- |
-| 400    | `invalid_params`     | Non-UUID path param                                                     |
-| 400    | `invalid_payload`    | Invalid JSON / schema validation failure (only `status: "cancelled"` allowed) |
-| 401    | `unauthorized`       | Missing/invalid Supabase JWT (future state)                             |
-| 404    | `generation_not_found` | Record missing or belongs to a different user                          |
-| 409    | `invalid_transition` | Generation status is not `pending` or `running`                         |
-| 500    | `db_error`           | Postgres/PostgREST failure during atomic update                        |
-| 500    | `unexpected_error`   | Non-PostgREST runtime error                                             |
+| Status | `error.code`           | Trigger                                                                       |
+| ------ | ---------------------- | ----------------------------------------------------------------------------- |
+| 400    | `invalid_params`       | Non-UUID path param                                                           |
+| 400    | `invalid_payload`      | Invalid JSON / schema validation failure (only `status: "cancelled"` allowed) |
+| 401    | `unauthorized`         | Missing/invalid Supabase JWT (future state)                                   |
+| 404    | `generation_not_found` | Record missing or belongs to a different user                                 |
+| 409    | `invalid_transition`   | Generation status is not `pending` or `running`                               |
+| 500    | `db_error`             | Postgres/PostgREST failure during atomic update                               |
+| 500    | `unexpected_error`     | Non-PostgREST runtime error                                                   |
 
 - **Example error:**
 
@@ -454,8 +454,49 @@
 
 #### GET /api/generation-candidates
 
-- **Query:** `generation_id`, `status[]`, `limit`, `cursor`.
-- **Response:** records with suggested metadata.
+- **Description:** Returns cursor-paginated candidates for a specific generation owned by the current user, including AI-suggested metadata (`suggested_category_id`, `suggested_tags`). Consumers use it to review, edit, and accept/reject proposals.
+- **Query params:**
+  - `generation_id` (required UUID) – owning generation; endpoint verifies ownership via `getGenerationById`.
+  - `status[]` (optional array of `proposed|edited|accepted|rejected`) – accepts repeated query params (`?status[]=proposed&status[]=edited`). Duplicates are deduplicated; array length capped at 4.
+  - `limit` (optional int) – defaults to `20`, bounded to `1..100`. Handler fetches `limit + 1` rows to determine `has_more`.
+  - `cursor` (optional string) – Base64-encoded candidate UUID representing the last item from the previous page. Decoded value must be a valid UUID; invalid Base64/UUID ⇒ `400 invalid_query`.
+- **Pagination:** candidates ordered by `id ASC`. When there is another page, `next_cursor = base64(last_visible_id)`; otherwise `null`.
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "c1b38d86-d0a5-4e2d-a70b-02f4b0071b4a",
+      "generation_id": "794d9f4a-3b8f-482f-a61c-0b4cce9b2f95",
+      "owner_id": "49e6ead8-c0d5-4747-8b8b-e70d650263b7",
+      "front": "Czym różni się TCP od UDP?",
+      "back": "TCP zapewnia niezawodną, połączeniową transmisję; UDP jest bezpołączeniowe...",
+      "front_back_fingerprint": "4e6c3cfa05404f5ea266e7f0f86b1a52",
+      "status": "proposed",
+      "accepted_card_id": null,
+      "suggested_category_id": 2,
+      "suggested_tags": ["networking", "transport-layer"],
+      "created_at": "2025-12-01T10:00:00.000Z",
+      "updated_at": "2025-12-01T10:00:00.000Z"
+    }
+  ],
+  "page": { "next_cursor": "YzFiMzhkODYtZDBhNS00ZTJkLWE3MGItMDJmNGIwMDcxYjRh", "has_more": true }
+}
+```
+
+- **Success Codes:** `200 OK`.
+- **Errors:**
+
+| Status | `error.code`       | Notes                                                                                                   |
+| ------ | ------------------ | ------------------------------------------------------------------------------------------------------- |
+| 400    | `invalid_query`    | Missing `generation_id`, invalid UUID, out-of-range `limit`, malformed Base64 cursor, bad status filter |
+| 404    | `not_found`        | Generation not found or does not belong to the user                                                     |
+| 500    | `db_error`         | PostgREST failure while verifying generation or fetching candidates                                     |
+| 500    | `unexpected_error` | Missing Supabase client or non-DB runtime exception                                                     |
+
+- **Observability:** Handler logs structured events via `recordCandidatesEvent` (`scope: "api/generation-candidates"`, `userId = DEFAULT_USER_ID`). Events capture query payloads for 4xx/5xx cases.
+- **Mocks:** Contract fixtures (200, 400, 404, 500) live in `src/lib/mocks/generation-candidates.api.mocks.ts`.
 
 #### PATCH /api/generation-candidates/:id
 

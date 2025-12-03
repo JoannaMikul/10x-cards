@@ -62,6 +62,16 @@ export const FLASHCARD_ERROR_CODES = {
 
 export type FlashcardErrorCode = (typeof FLASHCARD_ERROR_CODES)[keyof typeof FLASHCARD_ERROR_CODES];
 
+export const CANDIDATE_ERROR_CODES = {
+  INVALID_QUERY: "invalid_query",
+  UNAUTHORIZED: "unauthorized",
+  NOT_FOUND: "not_found",
+  DB_ERROR: "db_error",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type CandidateErrorCode = (typeof CANDIDATE_ERROR_CODES)[keyof typeof CANDIDATE_ERROR_CODES];
+
 export interface HttpErrorDescriptor<TCode extends string = string> {
   status: number;
   body: ApiErrorResponse<TCode>;
@@ -138,5 +148,14 @@ export function mapFlashcardDbError(error: PostgrestError): HttpErrorDescriptor<
     500,
     FLASHCARD_ERROR_CODES.DB_ERROR,
     "A database error occurred while creating the flashcard."
+  );
+}
+
+export function mapCandidateDbError(error: PostgrestError): HttpErrorDescriptor<CandidateErrorCode> {
+  void error;
+  return buildErrorResponse(
+    500,
+    CANDIDATE_ERROR_CODES.DB_ERROR,
+    "A database error occurred while fetching generation candidates."
   );
 }

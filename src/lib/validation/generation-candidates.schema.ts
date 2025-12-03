@@ -1,0 +1,134 @@
+import { z } from "zod";
+
+import { decodeBase64 } from "../utils/base64.ts";
+
+export const CANDIDATE_LIMIT_DEFAULT = 20;
+export const CANDIDATE_LIMIT_MIN = 1;
+export const CANDIDATE_LIMIT_MAX = 100;
+
+export const CANDIDATE_STATUSES = ["proposed", "edited", "accepted", "rejected"] as const;
+export type CandidateStatus = (typeof CANDIDATE_STATUSES)[number];
+
+export interface GenerationCandidatesQuery {
+  generationId: string;
+  statuses?: CandidateStatus[];
+  limit: number;
+  cursor?: string;
+}
+
+const generationIdSchema = z
+  .string({
+    required_error: "Generation id is required.",
+    invalid_type_error: "Generation id must be a string.",
+  })
+  .uuid("Generation id must be a valid UUID.");
+
+const limitSchema = z.preprocess(
+  (value) => {
+    if (typeof value === "number") {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        return CANDIDATE_LIMIT_DEFAULT;
+      }
+
+      const parsed = Number.parseInt(trimmed, 10);
+      return Number.isFinite(parsed) ? parsed : value;
+    }
+
+    if (value == null) {
+      return CANDIDATE_LIMIT_DEFAULT;
+    }
+
+    return value;
+  },
+  z
+    .number({
+      invalid_type_error: "Limit must be a valid integer.",
+    })
+    .int("Limit must be a valid integer.")
+    .min(CANDIDATE_LIMIT_MIN, `Limit must be at least ${CANDIDATE_LIMIT_MIN}.`)
+    .max(CANDIDATE_LIMIT_MAX, `Limit cannot exceed ${CANDIDATE_LIMIT_MAX}.`)
+);
+
+const statusesSchema = z
+  .array(
+    z.enum(CANDIDATE_STATUSES, {
+      errorMap: () => ({
+        message: `Status must be one of: ${CANDIDATE_STATUSES.join(", ")}.`,
+      }),
+    }),
+    {
+      invalid_type_error: "Status filter must be an array.",
+    }
+  )
+  .max(CANDIDATE_STATUSES.length, `Status filter cannot exceed ${CANDIDATE_STATUSES.length} entries.`)
+  .optional()
+  .transform((value) => {
+    if (!value || value.length === 0) {
+      return undefined;
+    }
+
+    const deduplicated = Array.from(new Set(value));
+    return deduplicated.length ? deduplicated : undefined;
+  });
+
+const cursorSchema = z
+  .string({
+    invalid_type_error: "Cursor must be a string.",
+  })
+  .trim()
+  .min(1, "Cursor cannot be empty.")
+  .optional();
+
+export const generationCandidatesQuerySchema = z.object({
+  generation_id: generationIdSchema,
+  limit: limitSchema,
+  cursor: cursorSchema,
+  "status[]": statusesSchema,
+});
+
+export type GenerationCandidatesQuerySchema = z.infer<typeof generationCandidatesQuerySchema>;
+
+export class InvalidCandidateCursorError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidCandidateCursorError";
+  }
+}
+
+export function decodeCandidateCursor(value: string): string {
+  let decoded: string;
+  try {
+    decoded = decodeBase64(value);
+  } catch {
+    throw new InvalidCandidateCursorError("Cursor must be a valid Base64 string.");
+  }
+
+  const trimmed = decoded.trim();
+  const uuidResult = z
+    .string({
+      invalid_type_error: "Cursor must decode to a valid UUID.",
+    })
+    .uuid("Cursor must decode to a valid UUID.")
+    .safeParse(trimmed);
+
+  if (!uuidResult.success) {
+    throw new InvalidCandidateCursorError("Cursor must decode to a valid UUID.");
+  }
+
+  return trimmed;
+}
+
+export function buildGenerationCandidatesQuery(payload: GenerationCandidatesQuerySchema): GenerationCandidatesQuery {
+  const { cursor, generation_id, "status[]": statuses, ...rest } = payload;
+  return {
+    generationId: generation_id,
+    statuses,
+    cursor: cursor ? decodeCandidateCursor(cursor) : undefined,
+    ...rest,
+  };
+}
