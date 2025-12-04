@@ -49,8 +49,10 @@ export const SOURCE_ERROR_CODES = {
 export type SourceErrorCode = (typeof SOURCE_ERROR_CODES)[keyof typeof SOURCE_ERROR_CODES];
 
 export const FLASHCARD_ERROR_CODES = {
+  INVALID_QUERY: "invalid_query",
   INVALID_BODY: "invalid_body",
   UNAUTHORIZED: "unauthorized",
+  NOT_FOUND: "not_found",
   CATEGORY_NOT_FOUND: "category_not_found",
   SOURCE_NOT_FOUND: "source_not_found",
   TAG_NOT_FOUND: "tag_not_found",

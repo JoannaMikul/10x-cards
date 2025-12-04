@@ -231,7 +231,8 @@
        - `search`: `or("front.ilike.%term%,back.ilike.%term%")` z escapowaniem wzorca
        - `include_deleted=false`: jawnie `.is("deleted_at", null)` aby admin domyślnie też nie widział skasowanych (chyba że `include_deleted=true`)
      - Sort:
-       - `created_at` / `-created_at`: `.order("created_at", { ascending })` + `.order("id", { ascending: true })` (deterministyczność)
+       - `created_at`: `.order("created_at", { ascending: true })` + `.order("id", { ascending: true })` (deterministyczność)
+       - `-created_at`: `.order("created_at", { ascending: false })` + `.order("id", { ascending: false })` (deterministyczność)
        - `updated_at`: `.order("updated_at", { ascending })` + `.order("id", { ascending: true })`
        - `next_review_at`: LEFT JOIN `review_stats` i `.order("review_stats.next_review_at", { nullsFirst: true, ascending })`, następnie `.order("id", { ascending: true })`
      - Paginacja (keyset):
