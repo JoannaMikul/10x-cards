@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient } from "../../../../db/supabase.client.ts";
+import { DEFAULT_USER_ID, supabaseClient, supabaseServiceClient } from "../../../../db/supabase.client.ts";
 import {
   CANDIDATE_ACCEPT_ERROR_CODES,
   buildErrorResponse,
@@ -24,7 +24,7 @@ const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 const EVENT_SCOPE = "api/generation-candidates/:id/accept";
 
 export const POST: APIRoute = async ({ locals, params, request }) => {
-  const supabase = locals.supabase ?? supabaseClient;
+  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
 
   if (!supabase) {
     const descriptor = buildErrorResponse(

@@ -20,8 +20,9 @@ export function GeneratorPage() {
   };
 
   const handleNavigateToCandidates = () => {
-    // Navigate to candidates page - will be implemented when we have routing
-    console.log("Navigate to candidates page");
+    if (generation?.id) {
+      window.location.href = `/candidates?generation_id=${generation.id}`;
+    }
   };
 
   return (

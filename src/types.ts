@@ -378,3 +378,24 @@ export interface GenerationPollingState {
   status: GenerationStatus;
   error?: ApiErrorResponse;
 }
+
+/** Candidates View Types *****************************************************/
+
+export interface CandidateEditState {
+  candidateId: string;
+  isEditing: boolean;
+  tempFront: string;
+  tempBack: string;
+  errors: string[];
+  categoryId?: number;
+  tagIds?: number[];
+}
+
+export interface CandidatesViewState {
+  candidates: GenerationCandidateDTO[];
+  loading: boolean;
+  error?: ApiErrorResponse;
+  nextCursor: string | null;
+  hasMore: boolean;
+  filters: { status?: string[] };
+}
