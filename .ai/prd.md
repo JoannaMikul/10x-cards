@@ -44,7 +44,7 @@ Kryteria akceptacji:
 - Przy podaniu poprawnych danych użytkownik zostaje zalogowany, a sesja jest utrzymywana zgodnie z konfiguracją Supabase.
 - Przy błędnych danych wyświetlany jest komunikat o niepoprawnym logowaniu bez ujawniania szczegółów.
 - Hasła są przechowywane w sposób bezpieczny, a dostęp do danych w bazie jest ograniczony do autora fiszek dzięki regułom RLS.
-- Tylko zalogowany użytkownik może wyświetlać, edytować i usuwać ficzki.
+- Tylko zalogowany użytkownik może wyświetlać, edytować i usuwać fiszki.
 - Nie ma dostępu do fiszek innych użytkowników ani możliwości współdzielenia.
 
 ID: US-002
