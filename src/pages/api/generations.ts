@@ -51,7 +51,8 @@ export const GET: APIRoute = async (context) => {
   try {
     const { data, error } = await supabase
       .from("generations")
-      .select(`
+      .select(
+        `
         id,
         user_id,
         model,
@@ -67,7 +68,8 @@ export const GET: APIRoute = async (context) => {
         updated_at,
         error_code,
         error_message
-      `)
+      `
+      )
       .eq("user_id", userId)
       .in("status", [...ACTIVE_STATUSES])
       .order("created_at", { ascending: false })
