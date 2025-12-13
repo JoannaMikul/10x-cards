@@ -5,8 +5,7 @@ import { GenerationStatusPanel } from "./GenerationStatusPanel";
 import type { CreateGenerationCommand } from "../types";
 
 export function GeneratorPage() {
-  const { generation, candidatesSummary, isLoading, isPolling, error, startGeneration, cancelGeneration, clearError } =
-    useGeneration();
+  const { generation, isLoading, isPolling, error, startGeneration, cancelGeneration, clearError } = useGeneration();
 
   const handleFormSubmit = async (data: CreateGenerationCommand) => {
     clearError();
@@ -46,7 +45,6 @@ export function GeneratorPage() {
         <div className="space-y-6">
           <GenerationStatusPanel
             generation={generation}
-            candidatesSummary={candidatesSummary}
             isPolling={isPolling}
             onCancel={handleCancel}
             onNavigateToCandidates={handleNavigateToCandidates}

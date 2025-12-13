@@ -66,6 +66,11 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
             console.warn("Failed to clear active generation ID from localStorage:", err);
           }
 
+          // Auto-redirect to candidates page when generation succeeds
+          if (updatedGeneration.status === "succeeded" && typeof window !== "undefined") {
+            window.location.href = `/candidates?generation_id=${id}`;
+          }
+
           return;
         }
 

@@ -5,11 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Alert, AlertDescription } from "./ui/alert";
 import { Loader2, CheckCircle, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import type { GenerationDTO, CandidatesSummary, ApiErrorResponse } from "../types";
+import type { GenerationDTO, ApiErrorResponse } from "../types";
 
 interface GenerationStatusPanelProps {
   generation: GenerationDTO | null;
-  candidatesSummary: CandidatesSummary | null;
   isPolling: boolean;
   onCancel: () => void;
   onNavigateToCandidates: () => void;
@@ -19,7 +18,6 @@ interface GenerationStatusPanelProps {
 
 export function GenerationStatusPanel({
   generation,
-  candidatesSummary,
   isPolling,
   onCancel,
   onNavigateToCandidates,
@@ -42,14 +40,10 @@ export function GenerationStatusPanel({
   React.useEffect(() => {
     if (generation?.status === "succeeded") {
       toast.success("Generation completed!", {
-        description: `Created ${candidatesSummary?.total || 0} flashcard candidates`,
-        action: {
-          label: "View results",
-          onClick: onNavigateToCandidates,
-        },
+        description: "Flashcard candidates created successfully. Redirecting to review...",
       });
     }
-  }, [generation?.status, candidatesSummary?.total, onNavigateToCandidates]);
+  }, [generation?.status]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -171,41 +165,14 @@ export function GenerationStatusPanel({
                 </div>
               </div>
 
-              {candidatesSummary && (
+              {generation.status === "succeeded" && (
                 <div className="space-y-3">
-                  <h2 className="font-medium">Candidates summary:</h2>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex justify-between">
-                      <span>All:</span>
-                      <span className="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-medium">
-                        {candidatesSummary.total}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Proposed:</span>
-                      <span className="inline-flex items-center px-2 py-1 rounded-md border border-gray-300 text-gray-700 text-xs font-medium">
-                        {candidatesSummary.by_status.proposed || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Edited:</span>
-                      <span className="inline-flex items-center px-2 py-1 rounded-md border border-gray-300 text-gray-700 text-xs font-medium">
-                        {candidatesSummary.by_status.edited || 0}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Accepted:</span>
-                      <span className="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800 text-xs font-medium">
-                        {candidatesSummary.by_status.accepted || 0}
-                      </span>
-                    </div>
+                  <div className="text-center text-sm text-muted-foreground">
+                    Generation completed! Redirecting to review page...
                   </div>
-
-                  {generation.status === "succeeded" && candidatesSummary.total > 0 && (
-                    <Button onClick={onNavigateToCandidates} className="w-full">
-                      View flashcard candidates
-                    </Button>
-                  )}
+                  <Button onClick={onNavigateToCandidates} variant="outline" className="w-full">
+                    Go to review now
+                  </Button>
                 </div>
               )}
             </div>
