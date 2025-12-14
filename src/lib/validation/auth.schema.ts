@@ -33,5 +33,12 @@ export const resetPasswordSchema = z.object({
 });
 
 export const updatePasswordSchema = z.object({
-  password: z.string().min(8, "Password must be at least 8 characters long"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password should contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password should contain at least one lowercase letter")
+    .regex(/\d/, "Password should contain at least one digit"),
+  tokenHash: z.string().optional(),
+  token: z.string().optional(),
 });

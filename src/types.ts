@@ -21,7 +21,6 @@ export interface ApiErrorResponse<TCode extends string = string> {
   };
 }
 
-/** Categories ***************************************************************/
 type CategoryRow = Tables<"categories">;
 type CategoryInsert = TablesInsert<"categories">;
 type CategoryUpdate = TablesUpdate<"categories">;
@@ -52,7 +51,6 @@ export interface UpdateCategoryCommand {
   color?: CategoryUpdate["color"];
 }
 
-/** Tags *********************************************************************/
 type TagRow = Tables<"tags">;
 type TagInsert = TablesInsert<"tags">;
 type TagUpdate = TablesUpdate<"tags">;
@@ -80,7 +78,6 @@ export interface UpdateTagCommand {
   description?: TagUpdate["description"];
 }
 
-/** Sources ******************************************************************/
 type SourceRow = Tables<"sources">;
 type SourceInsert = TablesInsert<"sources">;
 type SourceUpdate = TablesUpdate<"sources">;
@@ -114,7 +111,6 @@ export interface UpdateSourceCommand {
   url?: SourceUpdate["url"];
 }
 
-/** Flashcards ***************************************************************/
 type FlashcardRow = Tables<"flashcards">;
 type FlashcardInsert = TablesInsert<"flashcards">;
 type FlashcardUpdate = TablesUpdate<"flashcards">;
@@ -183,7 +179,6 @@ export interface SetFlashcardTagsCommand {
   tag_ids: number[];
 }
 
-/** Generations **************************************************************/
 type GenerationRow = Tables<"generations">;
 type GenerationInsert = TablesInsert<"generations">;
 type GenerationUpdate = TablesUpdate<"generations">;
@@ -218,7 +213,6 @@ export interface UpdateGenerationCommand {
   status: Extract<GenerationUpdate["status"], "cancelled">;
 }
 
-/** Generation Candidates ****************************************************/
 type GenerationCandidateRow = Tables<"generation_candidates">;
 type GenerationCandidateUpdate = TablesUpdate<"generation_candidates">;
 
@@ -254,7 +248,6 @@ export interface AcceptGenerationCandidateCommand {
 
 export type RejectGenerationCandidateCommand = Record<string, never>;
 
-/** Generation Error Logs ****************************************************/
 type GenerationErrorLogRow = Tables<"generation_error_logs">;
 
 export interface GenerationErrorLogDTO {
@@ -270,7 +263,6 @@ export interface GenerationErrorLogDTO {
 
 export type GenerationErrorLogListResponse = PaginatedResponse<GenerationErrorLogDTO>;
 
-/** Review Events & Sessions *************************************************/
 type ReviewEventRow = Tables<"review_events">;
 type ReviewEventInsert = TablesInsert<"review_events">;
 
@@ -306,12 +298,10 @@ export interface CreateReviewSessionCommand {
   reviews: ReviewSessionEntryCommand[];
 }
 
-/** Review Stats *************************************************************/
 export type ReviewStatsDTO = ReviewStatsSnapshotDTO;
 
 export type ReviewStatsListResponse = PaginatedResponse<ReviewStatsDTO>;
 
-/** Analytics KPI (admin) ****************************************************/
 export interface AnalyticsTrendPointDTO {
   date: IsoDateString;
   ai: number;
@@ -330,7 +320,7 @@ export interface AnalyticsKpiResponse {
   totals: AnalyticsTotalsDTO;
   trend: AnalyticsTrendPointDTO[];
 }
-/** User Roles ***************************************************************/
+
 type UserRoleRow = Tables<"user_roles">;
 type UserRoleInsert = TablesInsert<"user_roles">;
 
@@ -347,12 +337,6 @@ export interface CreateUserRoleCommand {
   role: UserRoleInsert["role"];
 }
 
-/** Generation UI Types ********************************************************/
-
-/**
- * Extended view model for the generation form that includes raw input text
- * before sanitization and additional UI state.
- */
 export interface CreateGenerationViewModel {
   model: string;
   sanitized_input_text: string;
@@ -379,8 +363,6 @@ export interface GenerationPollingState {
   error?: ApiErrorResponse;
 }
 
-/** Candidates View Types *****************************************************/
-
 export interface CandidateEditState {
   candidateId: string;
   isEditing: boolean;
@@ -399,8 +381,6 @@ export interface CandidatesViewState {
   hasMore: boolean;
   filters: { status?: string[] };
 }
-
-/** Authentication Types *******************************************************/
 
 export interface CurrentUserDTO {
   id: string;
@@ -435,4 +415,6 @@ export interface ResetPasswordCommand {
 
 export interface UpdatePasswordCommand {
   password: string;
+  tokenHash?: string;
+  token?: string;
 }

@@ -226,6 +226,7 @@ export const AUTH_ERROR_CODES = {
   EMAIL_ALREADY_REGISTERED: "email_already_registered",
   UNAUTHORIZED: "unauthorized",
   PASSWORD_TOO_WEAK: "password_too_weak",
+  INVALID_RECOVERY_CODE: "invalid_recovery_code",
   UNEXPECTED_ERROR: "unexpected_error",
 } as const;
 

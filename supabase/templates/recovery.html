@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Reset Your Password</title>
+  </head>
+  <body>
+    <h2>Reset password</h2>
+
+    <p>Follow this link to reset the password for your user:</p>
+    <p><a href="http://localhost:3000/auth/callback?token_hash={{ .TokenHash }}&type=recovery">Reset password</a></p>
+
+    <p>Alternatively, enter the token: <strong>{{ .Token }}</strong></p>
+
+    <p>If you didn't request this password reset, you can safely ignore this email.</p>
+  </body>
+</html>

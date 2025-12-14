@@ -10,10 +10,7 @@ import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Loader2, CheckCircle } from "lucide-react";
 import { AuthLayoutCard } from "./AuthLayoutCard";
-
-const resetPasswordSchema = z.object({
-  email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
-});
+import { resetPasswordSchema } from "../../lib/validation/auth.schema";
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
