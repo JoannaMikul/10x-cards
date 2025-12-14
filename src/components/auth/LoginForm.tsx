@@ -68,7 +68,7 @@ export function LoginForm({ redirect, onSuccess }: LoginFormProps) {
       const result = await response.json();
 
       // Redirect after success
-      const redirectUrl = redirect || "/generator";
+      const redirectUrl = redirect || "/";
       window.location.href = redirectUrl;
 
       onSuccess?.(result.user);

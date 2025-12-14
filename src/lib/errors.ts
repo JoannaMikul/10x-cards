@@ -219,3 +219,14 @@ export function mapAcceptCandidateDbError(error: PostgrestError): HttpErrorDescr
     "A database error occurred while accepting the generation candidate."
   );
 }
+
+export const AUTH_ERROR_CODES = {
+  INVALID_BODY: "invalid_body",
+  INVALID_CREDENTIALS: "invalid_credentials",
+  EMAIL_ALREADY_REGISTERED: "email_already_registered",
+  UNAUTHORIZED: "unauthorized",
+  PASSWORD_TOO_WEAK: "password_too_weak",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];

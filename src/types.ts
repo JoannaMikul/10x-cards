@@ -399,3 +399,34 @@ export interface CandidatesViewState {
   hasMore: boolean;
   filters: { status?: string[] };
 }
+
+/** Authentication Types *******************************************************/
+
+export interface CurrentUserDTO {
+  id: string;
+  email: string;
+  created_at: IsoDateString;
+}
+
+export interface AuthSessionDTO {
+  user: CurrentUserDTO | null;
+  expires_at: IsoDateString | null;
+}
+
+export interface LoginCommand {
+  email: string;
+  password: string;
+}
+
+export interface RegisterCommand {
+  email: string;
+  password: string;
+}
+
+export interface ResetPasswordCommand {
+  email: string;
+}
+
+export interface UpdatePasswordCommand {
+  password: string;
+}

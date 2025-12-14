@@ -3,6 +3,7 @@ description:
 globs:
 alwaysApply: false
 ---
+
 # Supabase Auth Integration with Astro
 
 Use this guide to introduce authentication (sign-up & sign-in) in Astro applications with server-side rendering (SSR) support
@@ -46,6 +47,7 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 ```
+
 When introducing new env variables or values stored on Astro.locals, always update `src/env.d.ts` to reflect these changes.
 
 Make sure `.env.example` is updated with the correct environment variables.
@@ -57,45 +59,36 @@ Make sure `.env.example` is updated with the correct environment variables.
 Update existing Supabase client or create one in `src/db/supabase.client.ts`:
 
 ```typescript
-import type { AstroCookies } from 'astro';
-import { createServerClient, type CookieOptionsWithName } from '@supabase/ssr';
-import type { Database } from '../db/database.types.ts';
+import type { AstroCookies } from "astro";
+import { createServerClient, type CookieOptionsWithName } from "@supabase/ssr";
+import type { Database } from "../db/database.types.ts";
 
 export const cookieOptions: CookieOptionsWithName = {
-  path: '/',
+  path: "/",
   secure: true,
   httpOnly: true,
-  sameSite: 'lax',
+  sameSite: "lax",
 };
 
 function parseCookieHeader(cookieHeader: string): { name: string; value: string }[] {
-  return cookieHeader.split(';').map((cookie) => {
-    const [name, ...rest] = cookie.trim().split('=');
-    return { name, value: rest.join('=') };
+  return cookieHeader.split(";").map((cookie) => {
+    const [name, ...rest] = cookie.trim().split("=");
+    return { name, value: rest.join("=") };
   });
 }
 
-export const createSupabaseServerInstance = (context: {
-  headers: Headers;
-  cookies: AstroCookies;
-}) => {
-  const supabase = createServerClient<Database>(
-    import.meta.env.SUPABASE_URL,
-    import.meta.env.SUPABASE_KEY,
-    {
-      cookieOptions,
-      cookies: {
-        getAll() {
-          return parseCookieHeader(context.headers.get('Cookie') ?? '');
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            context.cookies.set(name, value, options),
-          );
-        },
+export const createSupabaseServerInstance = (context: { headers: Headers; cookies: AstroCookies }) => {
+  const supabase = createServerClient<Database>(import.meta.env.SUPABASE_URL, import.meta.env.SUPABASE_KEY, {
+    cookieOptions,
+    cookies: {
+      getAll() {
+        return parseCookieHeader(context.headers.get("Cookie") ?? "");
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => context.cookies.set(name, value, options));
       },
     },
-  );
+  });
 
   return supabase;
 };
@@ -106,8 +99,8 @@ export const createSupabaseServerInstance = (context: {
 Update existing auth middleware or create one in `src/middleware/index.ts`:
 
 ```typescript
-import { createSupabaseServerInstance } from '../db/supabase.client.ts';
-import { defineMiddleware } from 'astro:middleware';
+import { createSupabaseServerInstance } from "../db/supabase.client.ts";
+import { defineMiddleware } from "astro:middleware";
 
 // Public paths - Auth API endpoints & Server-Rendered Astro Pages
 const PUBLIC_PATHS = [
@@ -121,36 +114,34 @@ const PUBLIC_PATHS = [
   "/api/auth/reset-password",
 ];
 
-export const onRequest = defineMiddleware(
-  async ({ locals, cookies, url, request, redirect }, next) => {
-    // Skip auth check for public paths
-    if (PUBLIC_PATHS.includes(url.pathname)) {
-      return next();
-    }
-
-    const supabase = createSupabaseServerInstance({
-      cookies,
-      headers: request.headers,
-    });
-
-    // IMPORTANT: Always get user session first before any other operations
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (user) {
-      locals.user = {
-        email: user.email,
-        id: user.id,
-      };
-    } else if (!PUBLIC_PATHS.includes(url.pathname)) {
-      // Redirect to login for protected routes
-      return redirect('/auth/login');
-    }
-
+export const onRequest = defineMiddleware(async ({ locals, cookies, url, request, redirect }, next) => {
+  // Skip auth check for public paths
+  if (PUBLIC_PATHS.includes(url.pathname)) {
     return next();
-  },
-);
+  }
+
+  const supabase = createSupabaseServerInstance({
+    cookies,
+    headers: request.headers,
+  });
+
+  // IMPORTANT: Always get user session first before any other operations
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    locals.user = {
+      email: user.email,
+      id: user.id,
+    };
+  } else if (!PUBLIC_PATHS.includes(url.pathname)) {
+    // Redirect to login for protected routes
+    return redirect("/auth/login");
+  }
+
+  return next();
+});
 ```
 
 ### 3. Create Auth API Endpoints
@@ -159,8 +150,8 @@ Create the following endpoints in `src/pages/api/auth/`:
 
 ```typescript
 // src/pages/api/auth/login.ts
-import type { APIRoute } from 'astro';
-import { createSupabaseServerInstance } from '../../db/supabase.client.ts';
+import type { APIRoute } from "astro";
+import { createSupabaseServerInstance } from "../../db/supabase.client.ts";
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const { email, password } = await request.json();
@@ -231,7 +222,7 @@ In protected Astro pages:
 const { user } = Astro.locals;
 
 if (!user) {
-  return Astro.redirect('/auth/login');
+  return Astro.redirect("/auth/login");
 }
 ---
 
