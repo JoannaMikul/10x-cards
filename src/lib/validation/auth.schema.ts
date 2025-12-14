@@ -5,10 +5,28 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-export const registerSchema = z.object({
+const baseRegisterSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters long"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password should contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password should contain at least one lowercase letter")
+    .regex(/\d/, "Password should contain at least one digit"),
 });
+
+export const registerApiSchema = baseRegisterSchema;
+
+export const registerSchema = baseRegisterSchema
+  .merge(
+    z.object({
+      passwordConfirm: z.string().min(1, "Password confirmation is required"),
+    })
+  )
+  .refine((data) => data.password === data.passwordConfirm, {
+    message: "Passwords must match",
+    path: ["passwordConfirm"],
+  });
 
 export const resetPasswordSchema = z.object({
   email: z.string().min(1, "Email is required").email("Please enter a valid email address"),
