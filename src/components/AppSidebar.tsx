@@ -27,14 +27,14 @@ interface AppSidebarProps {
 
 export function AppSidebar({ currentUser, children }: AppSidebarProps) {
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider defaultOpen={true}>
       <Sidebar collapsible="icon">
         <SidebarHeader className="p-0 h-14 shrink-0">
-          <div className="flex items-center justify-start px-2 py-1 h-full">
+          <div className="flex items-center justify-start px-2 py-1 h-full transition-all duration-300 ease-in-out">
             <img
               src="/10xcards_logo.svg"
               alt="10x-cards"
-              className="h-[32px] w-auto transition-all duration-300 ease-out"
+              className="h-[32px] w-auto transition-all duration-300 ease-in-out group-data-[collapsible=icon]:h-[24px]"
             />
           </div>
         </SidebarHeader>
@@ -44,18 +44,32 @@ export function AppSidebar({ currentUser, children }: AppSidebarProps) {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <a href="/generator">
-                      <FileText />
-                      <span>Generator</span>
+                  <SidebarMenuButton
+                    asChild
+                    className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
+                  >
+                    <a href="/generator" className="flex items-center gap-2 transition-all duration-300 ease-in-out">
+                      <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
+                        <FileText className="w-4 h-4 transition-all duration-300 ease-in-out" />
+                      </div>
+                      <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
+                        Generator
+                      </span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <a href="/candidates">
-                      <CheckSquare />
-                      <span>Candidates</span>
+                  <SidebarMenuButton
+                    asChild
+                    className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
+                  >
+                    <a href="/candidates" className="flex items-center gap-2 transition-all duration-300 ease-in-out">
+                      <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
+                        <CheckSquare className="w-4 h-4 transition-all duration-300 ease-in-out" />
+                      </div>
+                      <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
+                        Candidates
+                      </span>
                     </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -66,22 +80,38 @@ export function AppSidebar({ currentUser, children }: AppSidebarProps) {
         <SidebarFooter className="p-0 py-2 h-24 shrink-0">
           <SidebarMenu>
             <SidebarMenuItem>
-              <div className="flex items-center justify-start gap-2 px-2 py-2 transition-all duration-300 ease-out">
-                <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium">
-                  {currentUser.email?.charAt(0).toUpperCase() || "U"}
+              <SidebarMenuButton
+                asChild
+                className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
+              >
+                <div className="flex items-center gap-2 w-full transition-all duration-300 ease-in-out">
+                  <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ease-in-out">
+                    {currentUser.email?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  <div className="flex-1 min-w-0 transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
+                    <p className="text-sm font-medium text-sidebar-foreground truncate">
+                      {currentUser.email || "Unknown"}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0 transition-opacity duration-300 delay-150 ease-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{currentUser.email || "Unknown"}</p>
-                </div>
-              </div>
+              </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
-                onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => (window.location.href = "/"))}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                asChild
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
               >
-                <LogOut />
-                <span>Logout</span>
+                <button
+                  onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => (window.location.href = "/"))}
+                  className="flex items-center gap-2 w-full transition-all duration-300 ease-in-out"
+                >
+                  <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
+                    <LogOut className="w-4 h-4 transition-all duration-300 ease-in-out" />
+                  </div>
+                  <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
+                    Logout
+                  </span>
+                </button>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
