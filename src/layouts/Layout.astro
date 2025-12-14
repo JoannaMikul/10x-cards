@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import { AuthStatus } from "../components/AuthStatus.tsx";
+import { AppSidebar } from "../components/AppSidebar.tsx";
 
 interface Props {
   title?: string;
@@ -8,7 +8,6 @@ interface Props {
 
 const { title = "10x-cards" } = Astro.props;
 
-// Get current user from middleware
 const currentUser = Astro.locals.user || null;
 ---
 
@@ -22,42 +21,46 @@ const currentUser = Astro.locals.user || null;
     <title>{title}</title>
   </head>
   <body>
-    <header class="bg-white shadow-sm border-b">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center h-12">
-          <div class="flex items-center">
-            <a href="/" class="flex items-center">
-              <img src="/10xcards_logo.svg" alt="10x-cards" class="h-8 w-auto" />
-            </a>
-          </div>
+    {
+      currentUser ? (
+        <AppSidebar currentUser={currentUser} client:load>
+          <slot />
+        </AppSidebar>
+      ) : (
+        <div>
+          <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div class="flex justify-between items-center h-12">
+                <div class="flex items-center">
+                  <a href="/" class="flex items-center">
+                    <img src="/10xcards_logo.svg" alt="10x-cards" class="h-8 w-auto" />
+                  </a>
+                </div>
 
-          {
-            currentUser && (
-              <nav class="hidden md:flex space-x-8">
-                <a
-                  href="/generator"
-                  class="text-gray-700 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Generator
-                </a>
-                <a
-                  href="/candidates"
-                  class="text-gray-700 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Candidates
-                </a>
-              </nav>
-            )
-          }
+                <div class="flex items-center space-x-2">
+                  <a
+                    href="/auth/register"
+                    class="text-gray-700 hover:text-primary px-3 py-2 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Sign up
+                  </a>
+                  <a
+                    href="/auth/login"
+                    class="bg-primary text-primary-foreground px-3 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    Sign in
+                  </a>
+                </div>
+              </div>
+            </div>
+          </header>
 
-          <div class="flex items-center">
-            <AuthStatus currentUser={currentUser} client:load />
-          </div>
+          <main>
+            <slot />
+          </main>
         </div>
-      </div>
-    </header>
-
-    <slot />
+      )
+    }
   </body>
 </html>
 
