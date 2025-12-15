@@ -1,12 +1,31 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { GeneratorPage } from "../components/GeneratorPage.tsx";
+
+const BASE_MODELS = [
+  { label: "GPT-4o Mini", value: "openrouter/gpt-4o-mini" },
+  { label: "GPT-4o", value: "openrouter/gpt-4o" },
+  { label: "Claude 3.5 Sonnet", value: "openrouter/anthropic/claude-3.5-sonnet" },
+  { label: "GPT-3.5 Turbo", value: "openai/gpt-3.5-turbo" },
+];
+
+const AVAILABLE_MODELS = (() => {
+  const defaultModel = import.meta.env.OPENROUTER_DEFAULT_MODEL;
+  if (!defaultModel) return BASE_MODELS;
+
+  const existingModel = BASE_MODELS.find((model) => model.value === defaultModel);
+  if (existingModel) return BASE_MODELS;
+
+  return [{ label: `${defaultModel} (Default)`, value: defaultModel }, ...BASE_MODELS];
+})();
+
+const defaultModel = import.meta.env.OPENROUTER_DEFAULT_MODEL || AVAILABLE_MODELS[0].value;
 ---
 
 <Layout title="Generator AI - 10x-cards">
   <main class="min-h-[calc(100vh-3rem)] bg-background p-6">
     <div class="max-w-4xl mx-auto">
-      <GeneratorPage client:load />
+      <GeneratorPage client:load availableModels={AVAILABLE_MODELS} {defaultModel} />
     </div>
   </main>
 </Layout>

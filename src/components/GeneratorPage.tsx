@@ -4,7 +4,17 @@ import { GeneratorForm } from "./GeneratorForm";
 import { GenerationStatusPanel } from "./GenerationStatusPanel";
 import type { CreateGenerationCommand } from "../types";
 
-export function GeneratorPage() {
+interface ModelOption {
+  label: string;
+  value: string;
+}
+
+interface GeneratorPageProps {
+  availableModels: readonly ModelOption[];
+  defaultModel: string;
+}
+
+export function GeneratorPage({ availableModels, defaultModel }: GeneratorPageProps) {
   const { generation, isLoading, isPolling, error, startGeneration, cancelGeneration, clearError } = useGeneration();
 
   const handleFormSubmit = async (data: CreateGenerationCommand) => {
@@ -39,6 +49,8 @@ export function GeneratorPage() {
             onSubmit={handleFormSubmit}
             isLoading={isLoading}
             currentGenerationStatus={generation?.status}
+            availableModels={availableModels}
+            defaultModel={defaultModel}
           />
         </div>
 

@@ -20,24 +20,31 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface ModelOption {
+  label: string;
+  value: string;
+}
+
 interface GeneratorFormProps {
   onSubmit: (data: CreateGenerationCommand) => void;
   isLoading: boolean;
   currentGenerationStatus?: string | null;
+  availableModels: readonly ModelOption[];
+  defaultModel: string;
 }
 
-const AVAILABLE_MODELS = [
-  { label: "GPT-4o Mini", value: "openrouter/gpt-4o-mini" },
-  { label: "GPT-4o", value: "openrouter/gpt-4o" },
-  { label: "Claude 3.5 Sonnet", value: "openrouter/anthropic/claude-3.5-sonnet" },
-] as const;
-
-export function GeneratorForm({ onSubmit, isLoading, currentGenerationStatus }: GeneratorFormProps) {
+export function GeneratorForm({
+  onSubmit,
+  isLoading,
+  currentGenerationStatus,
+  availableModels,
+  defaultModel,
+}: GeneratorFormProps) {
   const methods = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       raw_input_text: "",
-      model: AVAILABLE_MODELS[0].value,
+      model: defaultModel,
       temperature: 0.7,
     },
   });
@@ -157,7 +164,7 @@ export function GeneratorForm({ onSubmit, isLoading, currentGenerationStatus }: 
                 placeholder="Paste your source text here (article, book, notes)..."
                 getSanitizedText={getSanitizedText}
               />
-              <ModelSelector options={AVAILABLE_MODELS} />
+              <ModelSelector options={availableModels} />
               <TemperatureSlider min={0} max={2} step={0.1} />
             </FieldGroup>
           </form>

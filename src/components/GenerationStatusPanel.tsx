@@ -168,7 +168,7 @@ export function GenerationStatusPanel({
               {generation.status === "succeeded" && (
                 <div className="space-y-3">
                   <div className="text-center text-sm text-muted-foreground">
-                    Generation completed! Redirecting to review page...
+                    Generation completed! Review your AI-generated flashcards.
                   </div>
                   <Button onClick={onNavigateToCandidates} variant="outline" className="w-full">
                     Go to review now
