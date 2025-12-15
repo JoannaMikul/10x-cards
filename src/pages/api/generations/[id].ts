@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient, supabaseServiceClient } from "../../../db/supabase.client.ts";
+import { supabaseClient } from "../../../db/supabase.client.ts";
 import type { SupabaseClient } from "../../../db/supabase.client.ts";
 import {
   GENERATION_ERROR_CODES,
@@ -38,7 +38,7 @@ interface UpdateGenerationResponse {
 }
 
 export const GET: APIRoute = async ({ locals, params }) => {
-  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
+  const supabase = locals.supabase ?? supabaseClient;
 
   if (!supabase) {
     const descriptor = buildErrorResponse(
@@ -54,6 +54,16 @@ export const GET: APIRoute = async ({ locals, params }) => {
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, GENERATION_ERROR_CODES.UNEXPECTED_ERROR, "User not authenticated.");
+    recordGenerationDetailEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      details: { reason: "user_not_authenticated" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
   const validationResult = getGenerationParamsSchema.safeParse({ id: params?.id });
   if (!validationResult.success) {
     const descriptor = buildErrorResponse(
@@ -64,13 +74,14 @@ export const GET: APIRoute = async ({ locals, params }) => {
     recordGenerationDetailEvent({
       outcome: descriptor.body.error.code,
       status: descriptor.status,
+      userId: locals.user.id,
       details: { reason: "invalid_params" },
     });
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
   const { id } = validationResult.data;
-  const userId = DEFAULT_USER_ID;
+  const userId = locals.user.id;
 
   let generation: GenerationRecord | null = null;
 
@@ -116,7 +127,7 @@ export const GET: APIRoute = async ({ locals, params }) => {
 };
 
 export const PATCH: APIRoute = async ({ locals, params, request }) => {
-  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
+  const supabase = locals.supabase ?? supabaseClient;
 
   if (!supabase) {
     const descriptor = buildErrorResponse(
@@ -132,6 +143,16 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, GENERATION_ERROR_CODES.UNEXPECTED_ERROR, "User not authenticated.");
+    recordGenerationDetailEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      details: { reason: "user_not_authenticated" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
   const paramsValidationResult = getGenerationParamsSchema.safeParse({ id: params?.id });
   if (!paramsValidationResult.success) {
     const descriptor = buildErrorResponse(
@@ -142,13 +163,14 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
     recordGenerationDetailEvent({
       outcome: descriptor.body.error.code,
       status: descriptor.status,
+      userId: locals.user.id,
       details: { reason: "invalid_params" },
     });
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
   const { id } = paramsValidationResult.data;
-  const userId = DEFAULT_USER_ID;
+  const userId = locals.user.id;
 
   let requestBody: unknown;
   try {

@@ -3,7 +3,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
 
 import type { Enums } from "../../db/database.types.ts";
-import { DEFAULT_USER_ID, supabaseClient, supabaseServiceClient } from "../../db/supabase.client.ts";
+import { supabaseClient } from "../../db/supabase.client.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
 import {
   GENERATION_ERROR_CODES,
@@ -29,7 +29,7 @@ const ACTIVE_STATUSES: readonly Enums<"generation_status">[] = ["pending", "runn
 
 export const GET: APIRoute = async (context) => {
   const { locals, url } = context;
-  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
+  const supabase = locals.supabase ?? supabaseClient;
 
   if (!supabase) {
     const descriptor = buildErrorResponse(
@@ -45,11 +45,22 @@ export const GET: APIRoute = async (context) => {
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
-  const userId = DEFAULT_USER_ID;
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, GENERATION_ERROR_CODES.UNEXPECTED_ERROR, "User not authenticated.");
+    recordGenerationEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      details: { reason: "user_not_authenticated" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const userId = locals.user.id;
   const limit = parseInt(url.searchParams.get("limit") || "10");
+  const showAll = url.searchParams.get("all") === "true";
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("generations")
       .select(
         `
@@ -71,9 +82,15 @@ export const GET: APIRoute = async (context) => {
       `
       )
       .eq("user_id", userId)
-      .in("status", [...ACTIVE_STATUSES])
       .order("created_at", { ascending: false })
       .limit(limit);
+
+    // If not showing all, filter to active generations only
+    if (!showAll) {
+      query = query.in("status", [...ACTIVE_STATUSES]);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       const descriptor = mapGenerationDbError(error);
@@ -94,7 +111,7 @@ export const GET: APIRoute = async (context) => {
     });
 
     return jsonResponse(200, { generations });
-  } catch (error) {
+  } catch {
     const descriptor = buildErrorResponse(
       500,
       GENERATION_ERROR_CODES.UNEXPECTED_ERROR,
@@ -111,7 +128,7 @@ export const GET: APIRoute = async (context) => {
 
 export const POST: APIRoute = async (context) => {
   const { locals, request } = context;
-  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
+  const supabase = locals.supabase ?? supabaseClient;
 
   if (!supabase) {
     const descriptor = buildErrorResponse(
@@ -123,6 +140,16 @@ export const POST: APIRoute = async (context) => {
       outcome: descriptor.body.error.code,
       status: descriptor.status,
       details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, GENERATION_ERROR_CODES.UNEXPECTED_ERROR, "User not authenticated.");
+    recordGenerationEvent({
+      outcome: descriptor.body.error.code,
+      status: descriptor.status,
+      details: { reason: "user_not_authenticated" },
     });
     return jsonResponse(descriptor.status, descriptor.body);
   }
@@ -179,7 +206,7 @@ export const POST: APIRoute = async (context) => {
     temperature: parsedPayload.temperature,
   };
 
-  const userId = DEFAULT_USER_ID;
+  const userId = locals.user.id;
 
   const activeCheck = await hasActiveGeneration(supabase, userId);
   if (!activeCheck.success) {
@@ -361,7 +388,7 @@ function isPostgrestError(error: unknown): error is PostgrestError {
   );
 }
 
-type GenerationEventOutcome = GenerationErrorCode | "accepted";
+type GenerationEventOutcome = GenerationErrorCode | "accepted" | "retrieved";
 
 interface GenerationEventPayload {
   outcome: GenerationEventOutcome;

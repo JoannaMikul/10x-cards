@@ -2,7 +2,7 @@ import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 import type { Json } from "../../db/database.types.ts";
-import { DEFAULT_USER_ID, supabaseClient, supabaseServiceClient } from "../../db/supabase.client.ts";
+import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
 import {
   FLASHCARD_ERROR_CODES,
   buildErrorResponse,
@@ -20,7 +20,7 @@ const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 const FLASHCARD_EVENT_SCOPE = "api/flashcards";
 
 export const POST: APIRoute = async ({ locals, request }) => {
-  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
+  const supabase = locals.supabase ?? supabaseClient;
 
   if (!supabase) {
     const descriptor = buildErrorResponse(
@@ -33,6 +33,17 @@ export const POST: APIRoute = async ({ locals, request }) => {
       status: descriptor.status,
       code: descriptor.body.error.code,
       details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, FLASHCARD_ERROR_CODES.UNEXPECTED_ERROR, "User not authenticated.");
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      details: { reason: "user_not_authenticated" },
     });
     return jsonResponse(descriptor.status, descriptor.body);
   }
@@ -65,7 +76,7 @@ export const POST: APIRoute = async ({ locals, request }) => {
   }
 
   const command: CreateFlashcardCommand = validationResult.data;
-  const userId = DEFAULT_USER_ID;
+  const userId = locals.user.id;
 
   try {
     const flashcard = await createFlashcard(supabase, userId, command);

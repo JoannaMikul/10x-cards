@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient, supabaseServiceClient } from "../../../../db/supabase.client.ts";
+import { DEFAULT_USER_ID, supabaseClient } from "../../../../db/supabase.client.ts";
 import {
   CANDIDATE_ACCEPT_ERROR_CODES,
   buildErrorResponse,
@@ -24,7 +24,7 @@ const JSON_HEADERS = { "Content-Type": "application/json" } as const;
 const EVENT_SCOPE = "api/generation-candidates/:id/accept";
 
 export const POST: APIRoute = async ({ locals, params, request }) => {
-  const supabase = supabaseServiceClient ?? locals.supabase ?? supabaseClient;
+  const supabase = locals.supabase ?? supabaseClient;
 
   if (!supabase) {
     const descriptor = buildErrorResponse(
@@ -37,6 +37,21 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
       status: descriptor.status,
       code: descriptor.body.error.code,
       details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(
+      401,
+      CANDIDATE_ACCEPT_ERROR_CODES.UNEXPECTED_ERROR,
+      "User not authenticated."
+    );
+    recordAcceptEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      details: { reason: "user_not_authenticated" },
     });
     return jsonResponse(descriptor.status, descriptor.body);
   }
@@ -73,7 +88,7 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
     });
   }
 
-  const userId = DEFAULT_USER_ID;
+  const userId = locals.user.id;
   const candidateId = paramsValidation.data.id;
   const overrides = bodyValidation.data;
 
@@ -86,12 +101,15 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         CANDIDATE_ACCEPT_ERROR_CODES.NOT_FOUND,
         "Generation candidate could not be found."
       );
-      recordAcceptEvent({
-        severity: "info",
-        status: descriptor.status,
-        code: descriptor.body.error.code,
-        details: { reason: "candidate_not_found", candidateId, userId },
-      });
+      recordAcceptEvent(
+        {
+          severity: "info",
+          status: descriptor.status,
+          code: descriptor.body.error.code,
+          details: { reason: "candidate_not_found", candidateId, userId },
+        },
+        userId
+      );
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
@@ -101,12 +119,15 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         CANDIDATE_ACCEPT_ERROR_CODES.ALREADY_ACCEPTED,
         "The generation candidate has already been accepted."
       );
-      recordAcceptEvent({
-        severity: "info",
-        status: descriptor.status,
-        code: descriptor.body.error.code,
-        details: { reason: "candidate_already_accepted", candidateId, accepted_card_id: candidate.accepted_card_id },
-      });
+      recordAcceptEvent(
+        {
+          severity: "info",
+          status: descriptor.status,
+          code: descriptor.body.error.code,
+          details: { reason: "candidate_already_accepted", candidateId, accepted_card_id: candidate.accepted_card_id },
+        },
+        userId
+      );
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
@@ -117,12 +138,15 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         CANDIDATE_ACCEPT_ERROR_CODES.UNEXPECTED_ERROR,
         "Candidate fingerprint is missing."
       );
-      recordAcceptEvent({
-        severity: "error",
-        status: descriptor.status,
-        code: descriptor.body.error.code,
-        details: { reason: "missing_fingerprint", candidateId },
-      });
+      recordAcceptEvent(
+        {
+          severity: "error",
+          status: descriptor.status,
+          code: descriptor.body.error.code,
+          details: { reason: "missing_fingerprint", candidateId },
+        },
+        userId
+      );
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
@@ -133,38 +157,47 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         CANDIDATE_ACCEPT_ERROR_CODES.FINGERPRINT_CONFLICT,
         "A flashcard with the same content already exists."
       );
-      recordAcceptEvent({
-        severity: "info",
-        status: descriptor.status,
-        code: descriptor.body.error.code,
-        details: { reason: "fingerprint_conflict", candidateId, fingerprint },
-      });
+      recordAcceptEvent(
+        {
+          severity: "info",
+          status: descriptor.status,
+          code: descriptor.body.error.code,
+          details: { reason: "fingerprint_conflict", candidateId, fingerprint },
+        },
+        userId
+      );
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
     const flashcard = await acceptCandidateForOwner(supabase, userId, candidate, overrides);
 
-    recordAcceptEvent({
-      severity: "info",
-      status: 201,
-      code: "accepted" as CandidateAcceptErrorCode,
-      details: { candidateId, flashcardId: flashcard.id },
-    });
+    recordAcceptEvent(
+      {
+        severity: "info",
+        status: 201,
+        code: "accepted" as CandidateAcceptErrorCode,
+        details: { candidateId, flashcardId: flashcard.id },
+      },
+      userId
+    );
 
     return jsonResponse(201, flashcard);
   } catch (error) {
     if (isPostgrestError(error)) {
       const descriptor = mapAcceptCandidateDbError(error);
-      recordAcceptEvent({
-        severity: "error",
-        status: descriptor.status,
-        code: descriptor.body.error.code,
-        details: {
-          reason: "postgrest_error",
-          db_code: error.code,
-          candidateId,
+      recordAcceptEvent(
+        {
+          severity: "error",
+          status: descriptor.status,
+          code: descriptor.body.error.code,
+          details: {
+            reason: "postgrest_error",
+            db_code: error.code,
+            candidateId,
+          },
         },
-      });
+        userId
+      );
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
@@ -228,11 +261,11 @@ interface AcceptEventPayload {
 }
 
 /* eslint-disable no-console */
-function recordAcceptEvent(payload: AcceptEventPayload): void {
+function recordAcceptEvent(payload: AcceptEventPayload, userId?: string): void {
   const entry = {
     scope: EVENT_SCOPE,
     timestamp: new Date().toISOString(),
-    userId: DEFAULT_USER_ID,
+    userId: userId || DEFAULT_USER_ID,
     ...payload,
   };
 

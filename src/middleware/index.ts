@@ -34,6 +34,7 @@ export const onRequest = defineMiddleware(async ({ locals, cookies, url, request
       email: user.email || "",
       id: user.id,
     };
+    locals.supabase = supabase;
   } else if (!PUBLIC_PATHS.includes(url.pathname)) {
     return redirect("/auth/login");
   }

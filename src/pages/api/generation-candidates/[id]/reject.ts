@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient } from "../../../../db/supabase.client.ts";
+import { supabaseClient } from "../../../../db/supabase.client.ts";
 import {
   CANDIDATE_ERROR_CODES,
   buildErrorResponse,
@@ -35,33 +35,54 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
       severity: "error",
       status: descriptor.status,
       code: descriptor.body.error.code,
+      userId: locals.user?.id || "",
       details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, CANDIDATE_ERROR_CODES.UNEXPECTED_ERROR, "User not authenticated.");
+    recordRejectEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      userId: "",
+      details: { reason: "user_not_authenticated" },
     });
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
   const paramsValidation = getCandidateParamsSchema.safeParse(params);
   if (!paramsValidation.success) {
-    return invalidParamsResponse(paramsValidation.error.issues[0]?.message ?? "Candidate id is invalid.", params);
+    return invalidParamsResponse(
+      paramsValidation.error.issues[0]?.message ?? "Candidate id is invalid.",
+      params,
+      locals.user.id
+    );
   }
 
   let rawPayload: unknown = {};
   try {
     rawPayload = await parseJsonBody(request);
   } catch {
-    return invalidBodyResponse("Request body must be valid JSON.", { reason: "invalid_json" });
+    return invalidBodyResponse("Request body must be valid JSON.", { reason: "invalid_json" }, locals.user.id);
   }
 
   const bodyValidation = rejectGenerationCandidateSchema.safeParse(rawPayload ?? {});
   if (!bodyValidation.success) {
     const message = bodyValidation.error.issues[0]?.message ?? "Request body must be empty.";
-    return invalidBodyResponse(message, {
-      reason: "schema_validation_failed",
-      issues: bodyValidation.error.issues,
-    });
+    return invalidBodyResponse(
+      message,
+      {
+        reason: "schema_validation_failed",
+        issues: bodyValidation.error.issues,
+      },
+      locals.user.id
+    );
   }
 
-  const userId = DEFAULT_USER_ID;
+  const userId = locals.user.id;
   const candidateId = paramsValidation.data.id;
 
   try {
@@ -72,6 +93,7 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         severity: "info",
         status: 200,
         code: "rejected",
+        userId,
         details: { candidateId, outcome: "rejected" },
       });
       return jsonResponse(200, { candidate });
@@ -89,7 +111,8 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         severity: "info",
         status: descriptor.status,
         code: descriptor.body.error.code,
-        details: { reason: "candidate_not_found", candidateId, userId },
+        userId,
+        details: { reason: "candidate_not_found", candidateId },
       });
       return jsonResponse(descriptor.status, descriptor.body);
     }
@@ -104,6 +127,7 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         severity: "info",
         status: descriptor.status,
         code: descriptor.body.error.code,
+        userId,
         details: { reason: "invalid_transition", candidateId, currentStatus: existingCandidate.status },
       });
       return jsonResponse(descriptor.status, descriptor.body);
@@ -114,6 +138,7 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         severity: "info",
         status: 200,
         code: "rejected",
+        userId,
         details: { candidateId, outcome: "already_rejected" },
       });
       return jsonResponse(200, { candidate: existingCandidate });
@@ -128,6 +153,7 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
       severity: "info",
       status: descriptor.status,
       code: descriptor.body.error.code,
+      userId,
       details: { reason: "candidate_not_rejectable", candidateId, status: existingCandidate.status },
     });
     return jsonResponse(descriptor.status, descriptor.body);
@@ -138,6 +164,7 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
         severity: "error",
         status: descriptor.status,
         code: descriptor.body.error.code,
+        userId,
         details: {
           reason: "postgrest_error",
           db_code: error.code,
@@ -156,6 +183,7 @@ export const POST: APIRoute = async ({ locals, params, request }) => {
       severity: "error",
       status: descriptor.status,
       code: descriptor.body.error.code,
+      userId,
       details: {
         reason: "unexpected_reject_error",
         candidateId,
@@ -182,23 +210,25 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
-function invalidParamsResponse(message: string, params: Record<string, unknown>): Response {
+function invalidParamsResponse(message: string, params: Record<string, unknown>, userId: string): Response {
   const descriptor = buildErrorResponse(400, CANDIDATE_ERROR_CODES.INVALID_PARAMS, message);
   recordRejectEvent({
     severity: "info",
     status: descriptor.status,
     code: descriptor.body.error.code,
+    userId,
     details: { reason: "invalid_params", params },
   });
   return jsonResponse(descriptor.status, descriptor.body);
 }
 
-function invalidBodyResponse(message: string, details?: Record<string, unknown>): Response {
+function invalidBodyResponse(message: string, details?: Record<string, unknown>, userId?: string): Response {
   const descriptor = buildErrorResponse(400, CANDIDATE_ERROR_CODES.INVALID_BODY, message);
   recordRejectEvent({
     severity: "info",
     status: descriptor.status,
     code: descriptor.body.error.code,
+    userId: userId || "",
     details: { ...(details ?? {}), message },
   });
   return jsonResponse(descriptor.status, descriptor.body);
@@ -214,6 +244,7 @@ interface CandidateRejectEventPayload {
   severity: "info" | "error";
   status: number;
   code: CandidateErrorCode | "rejected";
+  userId: string;
   details?: Record<string, unknown>;
 }
 
@@ -222,7 +253,6 @@ function recordRejectEvent(payload: CandidateRejectEventPayload): void {
   const entry = {
     scope: EVENT_SCOPE,
     timestamp: new Date().toISOString(),
-    userId: DEFAULT_USER_ID,
     ...payload,
   };
 

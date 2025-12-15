@@ -40,6 +40,17 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, CANDIDATE_ERROR_CODES.UNEXPECTED_ERROR, "User not authenticated.");
+    recordUpdateEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      details: { reason: "user_not_authenticated" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
   const paramsValidation = getCandidateParamsSchema.safeParse(params);
   if (!paramsValidation.success) {
     return invalidParamsResponse(paramsValidation.error.issues[0]?.message ?? "Candidate id is invalid.", params);
@@ -67,7 +78,7 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
 
   const command = buildUpdateCommand(bodyValidation.data);
   const candidateId = paramsValidation.data.id;
-  const userId = DEFAULT_USER_ID;
+  const userId = locals.user.id;
 
   try {
     const candidate = await updateCandidateForOwner(supabase, userId, candidateId, {

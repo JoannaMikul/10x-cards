@@ -1,13 +1,8 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
-import {
-  CANDIDATE_ERROR_CODES,
-  buildErrorResponse,
-  mapCandidateDbError,
-  type CandidateErrorCode,
-} from "../../lib/errors.ts";
+import { supabaseClient } from "../../db/supabase.client.ts";
+import { CANDIDATE_ERROR_CODES, buildErrorResponse, mapCandidateDbError } from "../../lib/errors.ts";
 import { listGenerationCandidates } from "../../lib/services/generation-candidates.service.ts";
 import { getGenerationById } from "../../lib/services/generations.service.ts";
 import {
@@ -15,7 +10,6 @@ import {
   buildGenerationCandidatesQuery,
   generationCandidatesQuerySchema,
   type GenerationCandidatesQuery,
-  type GenerationCandidatesQuerySchema,
 } from "../../lib/validation/generation-candidates.schema.ts";
 import { encodeBase64 } from "../../lib/utils/base64.ts";
 import type { GenerationCandidateListResponse } from "../../types";
@@ -23,7 +17,6 @@ import type { GenerationCandidateListResponse } from "../../types";
 export const prerender = false;
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
-const EVENT_SCOPE = "api/generation-candidates";
 
 interface RawGenerationCandidatesQueryParams {
   generation_id?: string;
@@ -41,12 +34,11 @@ export const GET: APIRoute = async ({ locals, url }) => {
       CANDIDATE_ERROR_CODES.UNEXPECTED_ERROR,
       "Supabase client is not available in the current context."
     );
-    recordCandidatesEvent({
-      severity: "error",
-      status: descriptor.status,
-      code: descriptor.body.error.code,
-      details: { reason: "missing_supabase_client" },
-    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, CANDIDATE_ERROR_CODES.UNEXPECTED_ERROR, "User not authenticated.");
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
@@ -56,13 +48,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
   if (!validationResult.success) {
     const message =
       validationResult.error.issues.map((issue) => issue.message).join("; ") || "Query parameters are invalid.";
-    return invalidQueryResponse(message, rawQuery, {
-      reason: "schema_validation_failed",
-      issues: validationResult.error.issues.map((issue) => ({
-        message: issue.message,
-        path: issue.path,
-      })),
-    });
+    return invalidQueryResponse(message);
   }
 
   let query: GenerationCandidatesQuery;
@@ -70,7 +56,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
     query = buildGenerationCandidatesQuery(validationResult.data);
   } catch (error) {
     if (error instanceof InvalidCandidateCursorError) {
-      return invalidQueryResponse(error.message, rawQuery, { reason: "invalid_cursor" });
+      return invalidQueryResponse(error.message);
     }
 
     const descriptor = buildErrorResponse(
@@ -78,28 +64,59 @@ export const GET: APIRoute = async ({ locals, url }) => {
       CANDIDATE_ERROR_CODES.UNEXPECTED_ERROR,
       "Unexpected error while parsing the query cursor."
     );
-    recordCandidatesEvent({
-      severity: "error",
-      status: descriptor.status,
-      code: descriptor.body.error.code,
-      details: { reason: "cursor_decoding_failure", query: rawQuery },
-    });
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
-  const userId = DEFAULT_USER_ID;
+  const userId = locals.user.id;
 
   try {
     const generation = await getGenerationById(supabase, userId, query.generationId);
 
+    if (generation && generation.status === "succeeded") {
+      const { data: candidates } = await supabase
+        .from("generation_candidates")
+        .select("id, status")
+        .eq("generation_id", query.generationId)
+        .eq("owner_id", userId);
+
+      if (!candidates || candidates.length === 0) {
+        try {
+          await fetch("/api/generations/process", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch {
+          // Ignore reprocessing errors
+        }
+
+        return jsonResponse(202, {
+          data: [],
+          page: {
+            has_more: false,
+            next_cursor: null,
+          },
+          message: "Generation completed but no candidates were created. Reprocessing has been triggered.",
+        });
+      }
+    }
+
     if (!generation) {
+      const { data: anyGeneration } = await supabase
+        .from("generations")
+        .select("id, user_id, status")
+        .eq("id", query.generationId)
+        .maybeSingle();
+
+      if (anyGeneration) {
+        return jsonResponse(403, {
+          error: {
+            code: "forbidden",
+            message: "You don't have access to this generation.",
+          },
+        });
+      }
+
       const descriptor = buildErrorResponse(404, CANDIDATE_ERROR_CODES.NOT_FOUND, "Generation could not be found.");
-      recordCandidatesEvent({
-        severity: "info",
-        status: descriptor.status,
-        code: descriptor.body.error.code,
-        details: { reason: "generation_not_found", generationId: query.generationId, userId },
-      });
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
@@ -116,16 +133,6 @@ export const GET: APIRoute = async ({ locals, url }) => {
   } catch (error) {
     if (isPostgrestError(error)) {
       const descriptor = mapCandidateDbError(error);
-      recordCandidatesEvent({
-        severity: "error",
-        status: descriptor.status,
-        code: descriptor.body.error.code,
-        details: {
-          reason: "postgrest_error",
-          db_code: error.code,
-          query: serializeStructuredQuery(validationResult.data),
-        },
-      });
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
@@ -134,16 +141,6 @@ export const GET: APIRoute = async ({ locals, url }) => {
       CANDIDATE_ERROR_CODES.UNEXPECTED_ERROR,
       "Unexpected error while fetching generation candidates."
     );
-    recordCandidatesEvent({
-      severity: "error",
-      status: descriptor.status,
-      code: descriptor.body.error.code,
-      details: {
-        reason: "unexpected_fetch_error",
-        query: serializeStructuredQuery(validationResult.data),
-        message: error instanceof Error ? error.message : String(error),
-      },
-    });
     return jsonResponse(descriptor.status, descriptor.body);
   }
 };
@@ -175,18 +172,8 @@ function encodeCandidateCursor(id: string | null): string | null {
   }
 }
 
-function invalidQueryResponse(
-  message: string,
-  rawQuery: RawGenerationCandidatesQueryParams,
-  details?: Record<string, unknown>
-): Response {
+function invalidQueryResponse(message: string): Response {
   const descriptor = buildErrorResponse(400, CANDIDATE_ERROR_CODES.INVALID_QUERY, message);
-  recordCandidatesEvent({
-    severity: "info",
-    status: descriptor.status,
-    code: descriptor.body.error.code,
-    details: { ...(details ?? {}), query: rawQuery },
-  });
   return jsonResponse(descriptor.status, descriptor.body);
 }
 
@@ -202,33 +189,3 @@ function isPostgrestError(error: unknown): error is PostgrestError {
     error && typeof error === "object" && "code" in error && typeof (error as Record<string, unknown>).code === "string"
   );
 }
-
-function serializeStructuredQuery(query: GenerationCandidatesQuerySchema): Record<string, unknown> {
-  return {
-    generation_id: query.generation_id,
-    limit: query.limit,
-    cursor: query.cursor,
-    statuses: query["status[]"],
-  };
-}
-
-interface CandidateEventPayload {
-  severity: "info" | "error";
-  status: number;
-  code: CandidateErrorCode;
-  details?: Record<string, unknown>;
-}
-
-/* eslint-disable no-console */
-function recordCandidatesEvent(payload: CandidateEventPayload): void {
-  const entry = {
-    scope: EVENT_SCOPE,
-    timestamp: new Date().toISOString(),
-    userId: DEFAULT_USER_ID,
-    ...payload,
-  };
-
-  const logger = payload.severity === "error" ? console.error : console.info;
-  logger(`[${EVENT_SCOPE}]`, JSON.stringify(entry));
-}
-/* eslint-enable no-console */
