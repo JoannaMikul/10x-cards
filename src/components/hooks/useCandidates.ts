@@ -30,7 +30,9 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
 
   const fetchCandidates = useCallback(
     async (cursor: string | null = null, append = false) => {
-      if (!generationId) return;
+      if (!generationId) {
+        return;
+      }
 
       setLoading(true);
       setError(null);
@@ -44,7 +46,6 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
           params.set("cursor", cursor);
         }
 
-        // Add status filter for proposed and accepted candidates
         params.append("status[]", "proposed");
         params.append("status[]", "accepted");
 
@@ -103,7 +104,6 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
       const data = await response.json();
       const updatedCandidate: GenerationCandidateDTO = data.candidate;
 
-      // Update the candidate in the local state
       setCandidates((prev) => prev.map((candidate) => (candidate.id === id ? updatedCandidate : candidate)));
       toast.success("Candidate updated", {
         description: "Flashcard candidate has been successfully updated.",
@@ -140,7 +140,6 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
 
       const data = await response.json();
 
-      // Update the candidate status to accepted and set accepted_card_id
       setCandidates((prev) =>
         prev.map((candidate) =>
           candidate.id === id ? { ...candidate, status: "accepted" as const, accepted_card_id: data.id } : candidate
@@ -179,7 +178,6 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
         throw new Error(errorData.error.message);
       }
 
-      // Update the candidate status to rejected
       setCandidates((prev) =>
         prev.map((candidate) => (candidate.id === id ? { ...candidate, status: "rejected" as const } : candidate))
       );
@@ -205,7 +203,6 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
     await fetchCandidates(null, false);
   }, [fetchCandidates]);
 
-  // Initial load
   useEffect(() => {
     if (generationId) {
       fetchCandidates();

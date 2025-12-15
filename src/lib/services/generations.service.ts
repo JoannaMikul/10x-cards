@@ -20,6 +20,7 @@ const GENERATION_PROJECTION = [
   "prompt_tokens",
   "sanitized_input_length",
   "sanitized_input_sha256",
+  "sanitized_input_text",
   "started_at",
   "completed_at",
   "created_at",
@@ -38,6 +39,7 @@ export type GenerationRecord = Pick<
   | "prompt_tokens"
   | "sanitized_input_length"
   | "sanitized_input_sha256"
+  | "sanitized_input_text"
   | "started_at"
   | "completed_at"
   | "created_at"

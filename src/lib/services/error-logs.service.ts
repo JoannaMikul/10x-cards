@@ -9,16 +9,18 @@ export type GenerationErrorLogPayload = Pick<
 >;
 
 /**
- * Best-effort logging for generation errors – never throws even if logging fails.
+ * Best-effort logging for generation errors – logs to console only since database logging requires admin permissions.
+ * This prevents RLS policy violations when called by regular users.
  */
 export async function logGenerationError(supabase: SupabaseClient, payload: GenerationErrorLogPayload): Promise<void> {
-  const { error } = await supabase.from("generation_error_logs").insert(payload);
-
-  if (error) {
-    // eslint-disable-next-line no-console
-    console.error("[generation] Failed to write error log", {
-      code: error.code,
-      message: error.message,
-    });
-  }
+  // Log to console instead of database to avoid RLS policy violations for regular users
+  // eslint-disable-next-line no-console
+  console.error("[generation] Error occurred", {
+    userId: payload.user_id,
+    model: payload.model,
+    errorCode: payload.error_code,
+    errorMessage: payload.error_message,
+    sourceHash: payload.source_text_hash,
+    sourceLength: payload.source_text_length,
+  });
 }

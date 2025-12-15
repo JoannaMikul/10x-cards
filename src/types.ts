@@ -418,3 +418,84 @@ export interface UpdatePasswordCommand {
   tokenHash?: string;
   token?: string;
 }
+
+export interface OpenRouterModelParams {
+  temperature?: number;
+  top_p?: number;
+  max_tokens?: number;
+  presence_penalty?: number;
+  frequency_penalty?: number;
+  stop?: string[];
+}
+
+export interface OpenRouterMetadata {
+  userId?: string;
+  requestId?: string;
+  featureName?: string;
+  source?: string;
+}
+
+export interface OpenRouterUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface OpenRouterTextResponse {
+  text: string;
+  usage: OpenRouterUsage;
+  model: string;
+  metadata?: OpenRouterMetadata;
+}
+
+export interface JsonSchemaResponseFormat {
+  type: "json_schema";
+  json_schema: {
+    name: string;
+    strict: boolean;
+    schema: Record<string, unknown>;
+  };
+}
+
+export interface FlashcardGenerationItem {
+  front: string;
+  back: string;
+  explanation?: string;
+  tags?: string[];
+}
+
+export interface FlashcardsGenerationResult {
+  cards: FlashcardGenerationItem[];
+}
+
+export interface OpenRouterMessage {
+  role: "system" | "user" | "assistant";
+  content: string | object;
+}
+
+export interface OpenRouterChoice {
+  message: OpenRouterMessage;
+  finish_reason: string;
+}
+
+export interface OpenRouterUsageResponse {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface OpenRouterResponse {
+  id: string;
+  choices: OpenRouterChoice[];
+  usage: OpenRouterUsageResponse;
+  model: string;
+  created: number;
+}
+
+export interface OpenRouterServiceConfig {
+  apiKey: string;
+  baseUrl?: string;
+  defaultModel: string;
+  defaultParams?: OpenRouterModelParams;
+  httpClient?: typeof fetch;
+}

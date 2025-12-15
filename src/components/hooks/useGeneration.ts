@@ -18,6 +18,30 @@ interface UseGenerationReturn {
   checkActiveGeneration: () => Promise<void>;
 }
 
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // Silently fail
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Silently fail
+    }
+  },
+};
+
 export function useGeneration(options: UseGenerationOptions = {}): UseGenerationReturn {
   const { pollingInterval = 5000 } = options;
 
@@ -55,26 +79,12 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
         setGeneration(updatedGeneration);
         setCandidatesSummary(candidates_summary);
 
-        // Stop polling if generation is completed, cancelled, or errored
         if (["succeeded", "cancelled", "failed"].includes(updatedGeneration.status)) {
           setIsPolling(false);
-
-          // Clear stored generation ID when generation completes
-          try {
-            localStorage.removeItem("activeGenerationId");
-          } catch (err) {
-            console.warn("Failed to clear active generation ID from localStorage:", err);
-          }
-
-          // Auto-redirect to candidates page when generation succeeds
-          if (updatedGeneration.status === "succeeded" && typeof window !== "undefined") {
-            window.location.href = `/candidates?generation_id=${id}`;
-          }
-
+          safeLocalStorage.removeItem("activeGenerationId");
           return;
         }
 
-        // Continue polling for active generations
         if (["pending", "running"].includes(updatedGeneration.status)) {
           pollingIntervalRef.current = setTimeout(() => pollGenerationStatus(id), pollingInterval);
         }
@@ -93,39 +103,24 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
   );
 
   const resetGeneration = useCallback(() => {
-    // Stop any ongoing polling
     if (pollingIntervalRef.current) {
       clearTimeout(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
     }
 
-    // Reset all state
     setGeneration(null);
     setCandidatesSummary(null);
     setIsLoading(false);
     setIsPolling(false);
     setError(null);
     generationIdRef.current = null;
-
-    // Clear stored generation ID
-    try {
-      localStorage.removeItem("activeGenerationId");
-    } catch (err) {
-      console.warn("Failed to clear active generation ID from localStorage:", err);
-    }
+    safeLocalStorage.removeItem("activeGenerationId");
   }, []);
 
   const checkActiveGeneration = useCallback(async () => {
     try {
-      // First try to get from localStorage
-      let activeGenerationId: string | null = null;
-      try {
-        activeGenerationId = localStorage.getItem("activeGenerationId");
-      } catch (err) {
-        console.warn("Failed to read from localStorage:", err);
-      }
+      const activeGenerationId = safeLocalStorage.getItem("activeGenerationId");
 
-      // If we have a stored ID, try to check its status
       if (activeGenerationId) {
         try {
           const response = await fetch(`/api/generations/${activeGenerationId}`, {
@@ -142,7 +137,6 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
             };
             const { generation: updatedGeneration, candidates_summary } = data;
 
-            // If generation is still active, resume polling
             if (["pending", "running"].includes(updatedGeneration.status)) {
               setGeneration(updatedGeneration);
               setCandidatesSummary(candidates_summary);
@@ -155,34 +149,19 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
               }, pollingInterval);
               return;
             } else {
-              // Generation completed, clear stored ID
-              try {
-                localStorage.removeItem("activeGenerationId");
-              } catch (err) {
-                console.warn("Failed to clear active generation ID from localStorage:", err);
-              }
+              safeLocalStorage.removeItem("activeGenerationId");
             }
           }
         } catch (err) {
           console.warn("Failed to check stored generation status:", err);
-          // Clear invalid stored ID
-          try {
-            localStorage.removeItem("activeGenerationId");
-          } catch (storageErr) {
-            console.warn("Failed to clear invalid generation ID from localStorage:", storageErr);
-          }
+          safeLocalStorage.removeItem("activeGenerationId");
         }
       }
-
-      // TODO: As a fallback, we could fetch recent generations to find active ones
-      // This would require adding a GET endpoint to /api/generations that returns user's generations
-      // For now, we rely on localStorage persistence only
     } catch (err) {
       console.error("Error checking for active generation:", err);
     }
   }, [pollGenerationStatus, pollingInterval]);
 
-  // Check for active generation on mount
   useEffect(() => {
     checkActiveGeneration();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -203,14 +182,11 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
 
         if (!response.ok) {
           const errorData: ApiErrorResponse = await response.json();
-          console.warn("Generation request failed:", response.status, errorData);
 
-          // If there's already an active generation, try to resume it
           if (
             response.status === 409 &&
             errorData.error.message.includes("active generation request is already in progress")
           ) {
-            console.warn("Active generation detected, attempting to resume...");
             await checkActiveGeneration();
             return;
           }
@@ -221,16 +197,15 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
         const result = await response.json();
         const { id, status, enqueued_at } = result;
 
-        // Set initial generation state
         const initialGeneration: GenerationDTO = {
           id,
-          user_id: "", // Will be set by backend
+          user_id: "",
           model: data.model,
           status: status as "pending",
           temperature: data.temperature || 0.7,
           prompt_tokens: null,
           sanitized_input_length: data.sanitized_input_text.length,
-          sanitized_input_sha256: "", // Will be set by backend
+          sanitized_input_sha256: "",
           sanitized_input_text: data.sanitized_input_text,
           started_at: null,
           completed_at: null,
@@ -242,15 +217,19 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
 
         setGeneration(initialGeneration);
         generationIdRef.current = id;
+        safeLocalStorage.setItem("activeGenerationId", id);
 
-        // Store generation ID for persistence across page refreshes
         try {
-          localStorage.setItem("activeGenerationId", id);
+          await fetch("/api/generations/process", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
         } catch (err) {
-          console.warn("Failed to store generation ID in localStorage:", err);
+          console.warn("Failed to trigger generation processing:", err);
         }
 
-        // Start polling
         setIsPolling(true);
         pollingIntervalRef.current = setTimeout(() => pollGenerationStatus(id), pollingInterval);
       } catch (err) {
@@ -288,22 +267,14 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
         throw new Error(errorData.error.message);
       }
 
-      // Stop polling
       if (pollingIntervalRef.current) {
         clearTimeout(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
       setIsPolling(false);
 
-      // Update generation status locally
       setGeneration((prev) => (prev ? { ...prev, status: "cancelled" } : null));
-
-      // Clear stored generation ID
-      try {
-        localStorage.removeItem("activeGenerationId");
-      } catch (err) {
-        console.warn("Failed to clear active generation ID from localStorage:", err);
-      }
+      safeLocalStorage.removeItem("activeGenerationId");
     } catch (err) {
       console.error("Error cancelling generation:", err);
       setError({
@@ -317,7 +288,6 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
     }
   }, []);
 
-  // Cleanup polling on unmount
   useEffect(() => {
     return () => {
       if (pollingIntervalRef.current) {
