@@ -13,6 +13,7 @@ import {
 import {
   getFlashcardById,
   updateFlashcard,
+  softDeleteFlashcard,
   FlashcardReferenceError,
 } from "../../../../lib/services/flashcards.service.ts";
 import {
@@ -304,6 +305,107 @@ async function readJsonBody(
     };
   }
 }
+
+export const DELETE: APIRoute = async ({ locals, params }) => {
+  const supabase = locals.supabase ?? supabaseClient;
+
+  if (!supabase) {
+    const descriptor = buildErrorResponse(
+      500,
+      FLASHCARD_ERROR_CODES.UNEXPECTED_ERROR,
+      "Supabase client is not available in the current context."
+    );
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, FLASHCARD_ERROR_CODES.UNAUTHORIZED, "User not authenticated.");
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      details: { reason: "user_not_authenticated" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const userId = locals.user.id;
+
+  const idValidationResult = flashcardIdParamSchema.safeParse(params);
+  if (!idValidationResult.success) {
+    const descriptor = buildErrorResponse(400, FLASHCARD_ERROR_CODES.INVALID_QUERY, "Invalid flashcard ID parameter.");
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      userId,
+      cardId: params.id as string,
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const cardId = parseFlashcardId(idValidationResult.data);
+
+  try {
+    await softDeleteFlashcard(supabase, userId, cardId);
+
+    recordFlashcardsEvent({
+      severity: "info",
+      status: 204,
+      code: "success",
+      userId,
+      cardId,
+    });
+
+    return new Response(null, { status: 204, headers: JSON_HEADERS });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Flashcard not found") {
+      const descriptor = buildErrorResponse(404, FLASHCARD_ERROR_CODES.NOT_FOUND, "Flashcard not found.");
+      recordFlashcardsEvent({
+        severity: "warning",
+        status: descriptor.status,
+        code: descriptor.body.error.code,
+        userId,
+        cardId,
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    if ((error as PostgrestError).code) {
+      const descriptor = mapFlashcardDbError(error as PostgrestError);
+      recordFlashcardsEvent({
+        severity: "error",
+        status: descriptor.status,
+        code: descriptor.body.error.code,
+        userId,
+        cardId,
+        db_code: (error as PostgrestError).code,
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    const descriptor = buildErrorResponse(
+      500,
+      FLASHCARD_ERROR_CODES.UNEXPECTED_ERROR,
+      "An unexpected error occurred while deleting the flashcard."
+    );
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      userId,
+      cardId,
+      details: { error_message: error instanceof Error ? error.message : "Unknown error" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+};
 
 function recordFlashcardsEvent(payload: FlashcardEventPayload): void {
   const entry = {

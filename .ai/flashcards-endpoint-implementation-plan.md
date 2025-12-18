@@ -650,3 +650,331 @@
   - `409` dla duplikatu (fingerprint)
   - `422` dla naruszeń CHECK/FK
   - `500` dla błędów serwera
+
+## API Endpoint Implementation Plan: DELETE /api/flashcards/:id
+
+### 1. Przegląd punktu końcowego
+
+- Usuwa miękko (soft‑delete) pojedynczą fiszkę uwierzytelnionego użytkownika przez ustawienie pola `deleted_at = now()` w tabeli `flashcards`.
+- Nie usuwa fizycznie rekordu – pozwala zachować powiązane dane (`review_events`, `review_stats`, powiązania `card_tags`) oraz umożliwia potencjalne przywracanie przez osobne endpointy.
+- Zwraca **`204 No Content`** przy powodzeniu, bez body.
+- Jest semantycznym odpowiednikiem operacji „oznacz jako usuniętą”; uzupełnia istniejące możliwości soft‑delete dostępne przez `PATCH /api/flashcards/:id` (sygnał `deleted_at`).
+
+### 2. Szczegóły żądania
+
+- **Metoda HTTP**: DELETE
+- **URL**: `/api/flashcards/:id`
+- **Nagłówki**:
+  - `Authorization: Bearer <jwt>` – wymagany w docelowej wersji; w DEV dopuszczalny fallback do `DEFAULT_USER_ID`, ale należy dążyć do pełnego JWT.
+- **Parametry**:
+  - **Path (wymagane)**:
+    - `id` – identyfikator fiszki, **UUID** (np. `8f8c0b7c-9d1b-4d4e-8eae-72b020b3c4cc`).
+  - **Query**: brak.
+  - **Body**: brak – żądanie nie powinno zawierać treści; serwer ignoruje ewentualne body.
+
+### 3. Wykorzystywane typy
+
+- Z `src/types.ts`:
+  - `ApiErrorResponse` – kontrakt dla wszystkich odpowiedzi błędów (np. `ApiErrorResponse<FlashcardErrorCode>`).
+- Z `src/db/database.types.ts`:
+  - Tabela `flashcards` (pola: `id`, `owner_id`, `deleted_at`, `created_at`, `updated_at`, ...).
+- Z `src/lib/errors.ts`:
+  - `FLASHCARD_ERROR_CODES`:
+    - `INVALID_QUERY`
+    - `UNAUTHORIZED`
+    - `NOT_FOUND`
+    - `DB_ERROR`
+    - `UNEXPECTED_ERROR`
+  - `buildErrorResponse`, `mapFlashcardDbError`.
+- Z `src/lib/validation/flashcards.schema.ts`:
+  - Istniejące:
+    - `flashcardIdParamSchema` – walidacja `params.id` jako UUID.
+    - `parseFlashcardId` – ekstrakcja `cardId: string` z wyników walidacji.
+- Z `src/lib/services/flashcards.service.ts`:
+  - Nowe:
+    - `softDeleteFlashcard(supabase, userId: string, cardId: string): Promise<void>` – funkcja serwisowa realizująca soft‑delete.
+
+### 4. Szczegóły odpowiedzi
+
+- **Sukces**:
+  - **Status**: `204 No Content`
+  - **Body**: brak (`Response` bez treści; nagłówki standardowe, np. `Content-Length: 0`).
+- **Błędy** – zawsze w formacie `ApiErrorResponse`:
+  - `400 Bad Request` – `error.code = "invalid_query"`
+    - Niepoprawny identyfikator `id` (nie‑UUID).
+  - `401 Unauthorized` – `error.code = "unauthorized"`
+    - Brak ważnego kontekstu użytkownika (brak/niepoprawny JWT, brak `locals.user`).
+  - `404 Not Found` – `error.code = "not_found"`
+    - Karta o podanym `id` nie istnieje lub nie jest widoczna dla użytkownika (RLS + filtr właściciela / soft‑delete).
+  - `500 Internal Server Error` – `error.code = "db_error"` lub `"unexpected_error"`
+    - Błąd bazy danych (Supabase/PostgREST) lub inny nieoczekiwany wyjątek po stronie serwera.
+
+### 5. Przepływ danych
+
+1. **Pobranie klienta Supabase**
+   - W handlerze użyj `const supabase = locals.supabase ?? supabaseClient;`.
+   - Jeśli klient jest niedostępny → zbuduj `buildErrorResponse(500, UNEXPECTED_ERROR, "Supabase client is not available in the current context.")`, zaloguj przez `recordFlashcardsEvent`, zwróć `500`.
+2. **Weryfikacja uwierzytelnienia**
+   - Docelowo: wymagaj `locals.user` (ustawianego przez middleware na podstawie JWT).
+   - Jeśli `locals.user` jest pusty:
+     - Zwróć `401` z `error.code = "unauthorized"`.
+     - Zaloguj zdarzenie (`severity: "error"`, `reason: "user_not_authenticated"`).
+   - W aktualnym trybie DEV można zachować fallback do `DEFAULT_USER_ID`, ale plan zakłada przejście na twarde `401`.
+3. **Walidacja parametru ścieżki**
+   - Użyj `flashcardIdParamSchema.safeParse(params)`:
+     - Gdy `!success`:
+       - Zwróć `400 invalid_query` + szczegóły walidacji w `details.validation_errors`.
+       - Zaloguj zdarzenie z `cardId: params.id`.
+   - Na sukcesie: `const cardId = parseFlashcardId(result.data);`.
+4. **Wywołanie serwisu `softDeleteFlashcard`**
+   - Podpis: `await softDeleteFlashcard(supabase, userId, cardId);`.
+   - Implementacja serwisu:
+     1. Zbuduj payload aktualizacji:
+        - `{ deleted_at: new Date().toISOString() }`.
+     2. Wykonaj zapytanie:
+        - `supabase.from("flashcards").update(payload).eq("id", cardId).eq("owner_id", userId).is("deleted_at", null).select("id").single();`
+        - Filtr `deleted_at IS NULL` zapewnia, że tylko „aktywne” karty mogą zostać oznaczone jako usunięte.
+     3. Obsługa wyników:
+        - Jeśli `error` ma kod `PGRST116` (no rows returned) → traktuj jako „not found” (brak rekordu lub brak uprawnień).
+        - Inne błędy `PostgrestError` → rzuć dalej do handlera w celu zmapowania na `db_error`.
+        - Na sukcesie (brak błędu, dane obecne) – zakończ bez zwracania wartości.
+5. **Zbudowanie odpowiedzi HTTP**
+   - Po pomyślnym wykonaniu `softDeleteFlashcard`:
+     - Zaloguj zdarzenie `recordFlashcardsEvent({ severity: "info", status: 204, code: "success", userId, cardId })`.
+     - Zwróć `new Response(null, { status: 204, headers: JSON_HEADERS })` (bez body).
+6. **Obsługa wyjątków w handlerze**
+   - Jeśli serwis rzuci błąd „not found” (np. własny `FlashcardNotFoundError` lub rozpoznany `PGRST116`), zwróć `404 not_found`.
+   - Jeśli napotkasz `PostgrestError` inny niż „no rows”:
+     - Użyj `mapFlashcardDbError`, aby zbudować odpowiedź (zwykle `500 db_error`).
+   - Jeśli błąd nie jest instancją `PostgrestError`:
+     - Zwróć `500 unexpected_error` z ogólnym komunikatem.
+   - W każdym przypadku zaloguj zdarzenie przez `recordFlashcardsEvent` z odpowiednim `severity` (`"info"` dla 4xx, `"error"` dla 5xx), `status`, `code`, `userId`, `cardId` i `details`.
+
+### 6. Względy bezpieczeństwa
+
+- **Uwierzytelnianie i autoryzacja**
+  - Wymagaj poprawnej sesji Supabase (JWT → `locals.user`), aby operacja była wykonywana w kontekście konkretnego użytkownika.
+  - Endpoint powinien być niedostępny anonimowo (`401 unauthorized` dla braku użytkownika).
+- **Izolacja danych użytkowników**
+  - RLS na tabeli `flashcards` egzekwuje `owner_id = auth.uid() OR is_admin()`, a dodatkowy warunek na `deleted_at` ukrywa miękko usunięte rekordy.
+  - W serwisie dodatkowo filtruj po `owner_id` oraz `deleted_at IS NULL`, aby:
+    - zabezpieczyć się przed ewentualnym użyciem klienta serwisowego bez RLS,
+    - spójnie traktować wszystkie „aktywne” karty.
+- **Brak ujawniania istnienia zasobu**
+  - Nie rozróżniaj „karta innego użytkownika” od „karta nie istnieje” – obie sytuacje zwracają `404 not_found`.
+  - To samo dotyczy powtórnych wywołań DELETE na już usuniętej karcie (również `404`).
+- **Zabezpieczenia przed nadużyciem**
+  - Walidacja `id` jako UUID (Zod) minimalizuje powierzchnię ataku przy zapytaniach do bazy.
+  - Brak body eliminuje ryzyko injection w treści żądania.
+  - Logi nie powinny zawierać treści fiszek; wyłącznie metadane (`userId`, `cardId`, `status`, `code`, ewentualnie `db_code`).
+
+### 7. Obsługa błędów
+
+- **Scenariusze błędów i mapowanie kodów stanu**:
+  - `400 invalid_query`
+    - `id` nie jest poprawnym UUID (walidacja `flashcardIdParamSchema`).
+  - `401 unauthorized`
+    - `locals.user` nie jest ustawiony (brak sesji/auth).
+  - `404 not_found`
+    - Supabase zwraca `PGRST116` dla aktualizacji z filtrami `eq("id", cardId).eq("owner_id", userId).is("deleted_at", null)`.
+    - Rekord nie istnieje, należy do innego użytkownika albo jest już miękko usunięty.
+  - `500 db_error`
+    - Aktualizacja w tabeli `flashcards` zwróci inny błąd `PostgrestError` (np. problemy z połączeniem, błąd serwera).
+  - `500 unexpected_error`
+    - Inne wyjątki (np. runtime w handlerze, błędy serializacji odpowiedzi).
+- **Format odpowiedzi błędu**:
+  - Zawsze:
+    - `status` zgodnie z powyższym mapowaniem.
+    - Body:
+      ```json
+      {
+        "error": {
+          "code": "not_found",
+          "message": "Flashcard not found."
+        }
+      }
+      ```
+  - Dodatkowe informacje (np. `details.validation_errors`, `details.db_code`) dołączaj wyłącznie w `details`, bez ujawniania wrażliwych danych.
+- **Logowanie (observability)**
+  - Wykorzystaj istniejącą funkcję `recordFlashcardsEvent` z `scope: "api/flashcards"`.
+  - Ustal `severity`:
+    - `"info"` dla 2xx/4xx.
+    - `"error"` dla 5xx i błędów infrastrukturalnych (brak klienta Supabase).
+
+### 8. Rozważania dotyczące wydajności
+
+- Operacja soft‑delete sprowadza się do **pojedynczego UPDATE** po kluczu głównym (`id`) i `owner_id`, z wykorzystaniem istniejących indeksów:
+  - PK na `flashcards.id`.
+  - Indeksy na `owner_id` i ewentualne złożone (`owner_id, created_at`).
+- Nie są wykonywane dodatkowe zapytania (brak SELECT po wykonaniu DELETE, brak manipulacji w `card_tags`).
+- Wywołanie jest lekkie nawet przy dużej liczbie kart – brak pełnotekstowego wyszukiwania, brak joinów.
+- Idempotencja:
+  - Kolejne wywołania na już usuniętej fiszce kończą się szybkim brakiem matcha (`PGRST116`), który mapujemy na `404`, bez negatywnego wpływu na wydajność.
+
+### 9. Etapy wdrożenia
+
+1. **Walidacja parametru `id`**
+   - Re‑use istniejącego `flashcardIdParamSchema` oraz `parseFlashcardId` z `src/lib/validation/flashcards.schema.ts` (brak zmian wymaganych).
+2. **Rozszerzenie serwisu `flashcards.service.ts`**
+   - Dodaj funkcję:
+
+     ```ts
+     export async function softDeleteFlashcard(
+       supabase: SupabaseClient,
+       userId: string,
+       cardId: string
+     ): Promise<void> {
+       const payload: TablesUpdate<"flashcards"> = {
+         deleted_at: new Date().toISOString(),
+       };
+
+       const { error } = await supabase
+         .from("flashcards")
+         .update(payload)
+         .eq("id", cardId)
+         .eq("owner_id", userId)
+         .is("deleted_at", null);
+
+       if (error) {
+         if (error.code === "PGRST116") {
+           throw new Error("Flashcard not found");
+         }
+         throw error;
+       }
+     }
+     ```
+
+   - Alternatywnie, jeśli chcemy lepiej typować błąd „not found”, można wprowadzić osobną klasę `FlashcardNotFoundError` i użyć jej w handlerze.
+
+3. **Implementacja handlera DELETE**
+   - Zaktualizuj `src/pages/api/flashcards/[id]/index.ts`:
+     - Dodaj:
+
+       ```ts
+       export const DELETE: APIRoute = async ({ locals, params }) => {
+         const supabase = locals.supabase ?? supabaseClient;
+
+         if (!supabase) {
+           const descriptor = buildErrorResponse(
+             500,
+             FLASHCARD_ERROR_CODES.UNEXPECTED_ERROR,
+             "Supabase client is not available in the current context."
+           );
+           recordFlashcardsEvent({
+             severity: "error",
+             status: descriptor.status,
+             code: descriptor.body.error.code,
+             details: { reason: "missing_supabase_client" },
+           });
+           return jsonResponse(descriptor.status, descriptor.body);
+         }
+
+         if (!locals.user) {
+           const descriptor = buildErrorResponse(401, FLASHCARD_ERROR_CODES.UNAUTHORIZED, "User not authenticated.");
+           recordFlashcardsEvent({
+             severity: "error",
+             status: descriptor.status,
+             code: descriptor.body.error.code,
+             details: { reason: "user_not_authenticated" },
+           });
+           return jsonResponse(descriptor.status, descriptor.body);
+         }
+
+         const userId = locals.user.id;
+
+         const idValidationResult = flashcardIdParamSchema.safeParse(params);
+         if (!idValidationResult.success) {
+           const descriptor = buildErrorResponse(
+             400,
+             FLASHCARD_ERROR_CODES.INVALID_QUERY,
+             "Invalid flashcard ID parameter."
+           );
+           recordFlashcardsEvent({
+             severity: "error",
+             status: descriptor.status,
+             code: descriptor.body.error.code,
+             userId,
+             cardId: params.id as string,
+           });
+           return jsonResponse(descriptor.status, descriptor.body);
+         }
+
+         const cardId = parseFlashcardId(idValidationResult.data);
+
+         try {
+           await softDeleteFlashcard(supabase, userId, cardId);
+
+           recordFlashcardsEvent({
+             severity: "info",
+             status: 204,
+             code: "success",
+             userId,
+             cardId,
+           });
+
+           return new Response(null, { status: 204, headers: JSON_HEADERS });
+         } catch (error) {
+           if (error instanceof Error && error.message === "Flashcard not found") {
+             const descriptor = buildErrorResponse(404, FLASHCARD_ERROR_CODES.NOT_FOUND, "Flashcard not found.");
+             recordFlashcardsEvent({
+               severity: "warning",
+               status: descriptor.status,
+               code: descriptor.body.error.code,
+               userId,
+               cardId,
+             });
+             return jsonResponse(descriptor.status, descriptor.body);
+           }
+
+           if ((error as PostgrestError).code) {
+             const descriptor = mapFlashcardDbError(error as PostgrestError);
+             recordFlashcardsEvent({
+               severity: "error",
+               status: descriptor.status,
+               code: descriptor.body.error.code,
+               userId,
+               cardId,
+               db_code: (error as PostgrestError).code,
+             });
+             return jsonResponse(descriptor.status, descriptor.body);
+           }
+
+           const descriptor = buildErrorResponse(
+             500,
+             FLASHCARD_ERROR_CODES.UNEXPECTED_ERROR,
+             "An unexpected error occurred while deleting the flashcard."
+           );
+           recordFlashcardsEvent({
+             severity: "error",
+             status: descriptor.status,
+             code: descriptor.body.error.code,
+             userId,
+             cardId,
+             details: { error_message: error instanceof Error ? error.message : "Unknown error" },
+           });
+           return jsonResponse(descriptor.status, descriptor.body);
+         }
+       };
+       ```
+
+     - Re‑use istniejących helperów `jsonResponse` i `recordFlashcardsEvent`.
+
+4. **Aktualizacja kontraktów błędów (jeśli potrzeba)**
+   - Upewnij się, że `FLASHCARD_ERROR_CODES` zawiera `UNAUTHORIZED` i `NOT_FOUND` oraz że `mapFlashcardDbError` poprawnie obsługuje błędy `PostgrestError` (dla DELETE najistotniejsze są błędy ogólne, nie 23505).
+5. **Mocks/kontrakty dla endpointu**
+   - Rozszerz `src/lib/mocks/flashcards.api.mocks.ts` o scenariusze:
+     - `204` – sukces usunięcia aktywnej fiszki.
+     - `400 invalid_query` – niepoprawny UUID w `:id`.
+     - `401 unauthorized` – brak sesji.
+     - `404 not_found` – brak karty / karta innego użytkownika / karta już usunięta.
+     - `500 db_error` – błąd DB podczas aktualizacji.
+6. **QA i testy integracyjne**
+   - Przypadki:
+     - Użytkownik usuwa własną aktywną fiszkę → `204`, `deleted_at` ustawione, `GET /api/flashcards` nie zwraca rekordu.
+     - Użytkownik próbuje usunąć fiszkę innego użytkownika → `404`.
+     - Użytkownik wywołuje DELETE drugi raz dla tej samej karty → `404`.
+     - Brak JWT / brak `locals.user` → `401`.
+     - Wymuszenie błędu DB (np. tymczasowe wyłączenie tabeli) → `500 db_error`.
+   - Zweryfikuj logi `recordFlashcardsEvent` pod kątem:
+     - Poprawności pól (`status`, `code`, `userId`, `cardId`).
+     - Braku wrażliwych danych.

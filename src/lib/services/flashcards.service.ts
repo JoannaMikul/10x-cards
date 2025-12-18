@@ -621,3 +621,23 @@ async function fetchReviewStatsSnapshot(
     aggregates: data.aggregates,
   };
 }
+
+export async function softDeleteFlashcard(supabase: SupabaseClient, userId: string, cardId: string): Promise<void> {
+  const payload: TablesUpdate<"flashcards"> = {
+    deleted_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("flashcards")
+    .update(payload)
+    .eq("id", cardId)
+    .eq("owner_id", userId)
+    .is("deleted_at", null);
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      throw new Error("Flashcard not found");
+    }
+    throw error;
+  }
+}

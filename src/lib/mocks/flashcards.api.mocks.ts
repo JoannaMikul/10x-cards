@@ -5,12 +5,12 @@ export interface FlashcardsApiMock {
   description: string;
   status: number;
   request: {
-    method: "GET" | "POST" | "PATCH";
+    method: "GET" | "POST" | "PATCH" | "DELETE";
     url: string;
     headers?: Record<string, string>;
     body?: Record<string, unknown>;
   };
-  response: FlashcardDTO | FlashcardListResponse | ApiErrorResponse<FlashcardErrorCode>;
+  response: FlashcardDTO | FlashcardListResponse | ApiErrorResponse<FlashcardErrorCode> | null;
 }
 
 const baseCard: FlashcardDTO = {
@@ -567,6 +567,119 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
       error: {
         code: "db_error",
         message: "A database error occurred while updating the flashcard.",
+      },
+    },
+  },
+
+  // DELETE /api/flashcards/:id mocks
+  {
+    description: "204 No Content – successful soft delete of active flashcard",
+    status: 204,
+    request: {
+      method: "DELETE",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: null,
+  },
+  {
+    description: "400 Bad Request – invalid flashcard ID parameter",
+    status: 400,
+    request: {
+      method: "DELETE",
+      url: "/api/flashcards/invalid-uuid",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Invalid flashcard ID parameter.",
+      },
+    },
+  },
+  {
+    description: "401 Unauthorized – user not authenticated",
+    status: 401,
+    request: {
+      method: "DELETE",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authenticated.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – flashcard does not exist",
+    status: 404,
+    request: {
+      method: "DELETE",
+      url: "/api/flashcards/99999999-9999-9999-9999-999999999999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Flashcard not found.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – flashcard belongs to different user",
+    status: 404,
+    request: {
+      method: "DELETE",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <different-user-jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Flashcard not found.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – flashcard already soft deleted",
+    status: 404,
+    request: {
+      method: "DELETE",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Flashcard not found.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error",
+    status: 500,
+    request: {
+      method: "DELETE",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while deleting the flashcard.",
       },
     },
   },
