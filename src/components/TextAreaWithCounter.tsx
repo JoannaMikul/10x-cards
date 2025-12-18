@@ -34,9 +34,9 @@ export function TextAreaWithCounter({ maxLength, placeholder, getSanitizedText }
     return `${sanitizedTextResult.sanitized.length}/${maxLength}`;
   };
 
-  const error =
-    (typeof errors.raw_input_text?.message === "string" ? errors.raw_input_text.message : undefined) ||
-    getSanitizedText(rawInputText || "").error;
+  const formError = typeof errors.raw_input_text?.message === "string" ? errors.raw_input_text.message : undefined;
+  const sanitizationError = getSanitizedText(rawInputText || "").error;
+  const error = formError || sanitizationError;
 
   return (
     <Controller
@@ -51,7 +51,7 @@ export function TextAreaWithCounter({ maxLength, placeholder, getSanitizedText }
               id="text-input"
               placeholder={placeholder}
               rows={6}
-              className="min-h-[120px] resize-none"
+              className="max-h-[220px] resize-none overflow-y-auto"
               aria-invalid={fieldState.invalid}
             />
             <InputGroupAddon align="block-end" className="justify-end">
@@ -60,9 +60,11 @@ export function TextAreaWithCounter({ maxLength, placeholder, getSanitizedText }
               </InputGroupText>
             </InputGroupAddon>
           </InputGroup>
-          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-          {error && !rawInputText && <FieldDescription>{error}</FieldDescription>}
-          {error && rawInputText && <FieldError>{error}</FieldError>}
+          <div className="min-h-[20px]">
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+            {!fieldState.invalid && error && !rawInputText && <FieldDescription>{error}</FieldDescription>}
+            {!fieldState.invalid && error && rawInputText && <FieldError>{error}</FieldError>}
+          </div>
         </Field>
       )}
     />
