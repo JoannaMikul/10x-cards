@@ -31,7 +31,7 @@ Formatting requirements:
 - Back: clear, complete answer (max ${BACK_TRUNCATE_LENGTH} characters)
 - Tags: list of appropriate thematic tags`;
 
-const USER_PROMPT_TEMPLATE = `Analyze the following source text and generate 3-4 high-quality educational flashcards for IT professionals.
+const USER_PROMPT_TEMPLATE = `Analyze the following source text and generate up to 10 high-quality educational flashcards for IT professionals.
 
 Source text:
 {{sourceText}}
@@ -41,6 +41,8 @@ Requirements:
 - Each flashcard should be self-contained and educationally valuable
 - Use tags for thematic categorization
 - Focus on practical and technical aspects
+- Generate flashcards in the same language as the source text
+- Generate as many flashcards as needed to adequately cover the content (up to 10 maximum)
 
 Generate flashcards in JSON format according to the schema.`;
 
