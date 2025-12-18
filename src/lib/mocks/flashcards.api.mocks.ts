@@ -5,7 +5,7 @@ export interface FlashcardsApiMock {
   description: string;
   status: number;
   request: {
-    method: "GET" | "POST";
+    method: "GET" | "POST" | "PATCH";
     url: string;
     headers?: Record<string, string>;
     body?: Record<string, unknown>;
@@ -374,6 +374,199 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
       error: {
         code: "db_error",
         message: "A database error occurred while retrieving the flashcard.",
+      },
+    },
+  },
+  // PATCH /api/flashcards/:id mocks
+  {
+    description: "200 OK – partial content update",
+    status: 200,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        front: "What is the TCP three-way handshake?",
+        back: "SYN -> SYN/ACK -> ACK",
+        metadata: { language: "EN" },
+      },
+    },
+    response: {
+      ...baseCard,
+      front: "What is the TCP three-way handshake?",
+      back: "SYN -> SYN/ACK -> ACK",
+      metadata: { language: "EN" },
+      updated_at: "2025-12-19T12:00:00.000Z",
+    },
+  },
+  {
+    description: "200 OK – tag replacement (empty array clears tags)",
+    status: 200,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        tag_ids: [],
+      },
+    },
+    response: {
+      ...baseCard,
+      tags: [],
+      updated_at: "2025-12-19T12:00:00.000Z",
+    },
+  },
+  {
+    description: "200 OK – soft delete",
+    status: 200,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        deleted_at: true,
+      },
+    },
+    response: {
+      ...baseCard,
+      deleted_at: "2025-12-19T12:00:00.000Z",
+      updated_at: "2025-12-19T12:00:00.000Z",
+    },
+  },
+  {
+    description: "400 Bad Request – invalid body (empty front)",
+    status: 400,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        front: "",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_body",
+        message: "Front text cannot be empty.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – flashcard does not exist",
+    status: 404,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/99999999-9999-9999-9999-999999999999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        front: "Updated front",
+      },
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Flashcard not found.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – category does not exist",
+    status: 404,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        category_id: 999,
+      },
+    },
+    response: {
+      error: {
+        code: "category_not_found",
+        message: "Category 999 does not exist.",
+        details: { category_id: 999 },
+      },
+    },
+  },
+  {
+    description: "409 Conflict – duplicate flashcard fingerprint",
+    status: 409,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        front: "Duplicate front",
+        back: "Duplicate back",
+      },
+    },
+    response: {
+      error: {
+        code: "duplicate_flashcard",
+        message: "A flashcard with the same front and back already exists.",
+      },
+    },
+  },
+  {
+    description: "422 Unprocessable Entity – FK constraint violation",
+    status: 422,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        content_source_id: 999,
+      },
+    },
+    response: {
+      error: {
+        code: "unprocessable_entity",
+        message: "Referenced entities are invalid or no longer exist.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error",
+    status: 500,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+        "Content-Type": "application/json",
+      },
+      body: {
+        front: "Updated front",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while updating the flashcard.",
       },
     },
   },

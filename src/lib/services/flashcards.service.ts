@@ -1,9 +1,10 @@
-import type { Json, Tables, TablesInsert, Enums } from "../../db/database.types.ts";
+import type { Json, Tables, TablesInsert, TablesUpdate, Enums } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
 
 type SupabaseQueryBuilder = ReturnType<SupabaseClient["from"]>;
 import type {
   CreateFlashcardCommand,
+  UpdateFlashcardCommand,
   FlashcardDTO,
   TagDTO,
   FlashcardAggregatesDTO,
@@ -477,6 +478,73 @@ async function computeFlashcardAggregates(
 function escapeSearchTerm(term: string): string {
   // Escape special characters for PostgreSQL ilike
   return term.replace(/[%_]/g, "\\$&");
+}
+
+export async function updateFlashcard(
+  supabase: SupabaseClient,
+  userId: string,
+  cardId: string,
+  cmd: UpdateFlashcardCommand
+): Promise<FlashcardDTO> {
+  // Validate references conditionally
+  const tasks: Promise<void>[] = [];
+
+  if (cmd.category_id !== undefined && cmd.category_id !== null) {
+    tasks.push(ensureCategoryExists(supabase, cmd.category_id));
+  }
+
+  if (cmd.content_source_id !== undefined && cmd.content_source_id !== null) {
+    tasks.push(ensureContentSourceExists(supabase, cmd.content_source_id));
+  }
+
+  if (cmd.tag_ids !== undefined) {
+    tasks.push(ensureTagsExist(supabase, cmd.tag_ids));
+  }
+
+  await Promise.all(tasks);
+
+  // Build update payload
+  const updatePayload: Partial<TablesUpdate<"flashcards">> = {};
+
+  if (cmd.front !== undefined) updatePayload.front = cmd.front;
+  if (cmd.back !== undefined) updatePayload.back = cmd.back;
+  if (cmd.origin !== undefined) updatePayload.origin = cmd.origin;
+  if (cmd.category_id !== undefined) updatePayload.category_id = cmd.category_id;
+  if (cmd.content_source_id !== undefined) updatePayload.content_source_id = cmd.content_source_id;
+  if (cmd.metadata !== undefined) updatePayload.metadata = cmd.metadata;
+
+  // Handle soft delete
+  if (cmd.deleted_at !== undefined) {
+    updatePayload.deleted_at = new Date().toISOString();
+  }
+
+  // Update flashcard
+  const { error: updateError } = await supabase.from("flashcards").update(updatePayload).eq("id", cardId);
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  // Handle tag updates if tag_ids was provided
+  if (cmd.tag_ids !== undefined) {
+    await deleteCardTags(supabase, cardId);
+    if (cmd.tag_ids.length > 0) {
+      await upsertCardTags(supabase, cardId, cmd.tag_ids);
+    }
+  }
+
+  // Fetch updated row and tags in parallel
+  const [row, tags] = await Promise.all([fetchFlashcardRow(supabase, cardId), fetchTagsForCard(supabase, cardId)]);
+
+  return mapFlashcardRowToDto(row, tags);
+}
+
+async function deleteCardTags(supabase: SupabaseClient, cardId: string): Promise<void> {
+  const { error } = await supabase.from("card_tags").delete().eq("card_id", cardId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 export async function getFlashcardById(

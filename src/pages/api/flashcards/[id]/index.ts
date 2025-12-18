@@ -3,9 +3,23 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 import type { Json } from "../../../../db/database.types.ts";
 import { DEFAULT_USER_ID, supabaseClient } from "../../../../db/supabase.client.ts";
-import { FLASHCARD_ERROR_CODES, buildErrorResponse, mapFlashcardDbError } from "../../../../lib/errors.ts";
-import { getFlashcardById } from "../../../../lib/services/flashcards.service.ts";
-import { flashcardIdParamSchema, parseFlashcardId } from "../../../../lib/validation/flashcards.schema.ts";
+import {
+  FLASHCARD_ERROR_CODES,
+  buildErrorResponse,
+  mapFlashcardDbError,
+  type HttpErrorDescriptor,
+  type FlashcardErrorCode,
+} from "../../../../lib/errors.ts";
+import {
+  getFlashcardById,
+  updateFlashcard,
+  FlashcardReferenceError,
+} from "../../../../lib/services/flashcards.service.ts";
+import {
+  flashcardIdParamSchema,
+  parseFlashcardId,
+  updateFlashcardSchema,
+} from "../../../../lib/validation/flashcards.schema.ts";
 
 export const prerender = false;
 
@@ -129,6 +143,168 @@ interface FlashcardEventPayload {
 }
 
 /* eslint-disable no-console */
+export const PATCH: APIRoute = async ({ locals, params, request }) => {
+  const supabase = locals.supabase ?? supabaseClient;
+
+  if (!supabase) {
+    const descriptor = buildErrorResponse(
+      500,
+      FLASHCARD_ERROR_CODES.UNEXPECTED_ERROR,
+      "Supabase client is not available in the current context."
+    );
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const userId = locals.user?.id ?? DEFAULT_USER_ID;
+
+  const idValidationResult = flashcardIdParamSchema.safeParse(params);
+  if (!idValidationResult.success) {
+    const descriptor = buildErrorResponse(400, FLASHCARD_ERROR_CODES.INVALID_QUERY, "Invalid flashcard ID parameter.");
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      userId,
+      cardId: params.id as string,
+      details: {
+        validation_errors: idValidationResult.error.issues.map((issue) => ({
+          message: issue.message,
+          path: issue.path,
+        })),
+      },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const cardId = parseFlashcardId(idValidationResult.data);
+
+  const bodyResult = await readJsonBody(request);
+  if (!bodyResult.success) {
+    recordFlashcardsEvent({
+      severity: "error",
+      status: bodyResult.error.status,
+      code: bodyResult.error.body.error.code,
+      userId,
+      cardId,
+      details: { reason: "invalid_json_body" },
+    });
+    return jsonResponse(bodyResult.error.status, bodyResult.error.body);
+  }
+
+  const bodyValidationResult = updateFlashcardSchema.safeParse(bodyResult.data);
+  if (!bodyValidationResult.success) {
+    const descriptor = buildErrorResponse(400, FLASHCARD_ERROR_CODES.INVALID_BODY, "Invalid request body.");
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      userId,
+      cardId,
+      details: {
+        validation_errors: bodyValidationResult.error.issues.map((issue) => ({
+          message: issue.message,
+          path: issue.path,
+        })),
+      },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const updateCommand = {
+    ...bodyValidationResult.data,
+    deleted_at: bodyValidationResult.data.deleted_at === true ? null : bodyValidationResult.data.deleted_at,
+  };
+
+  try {
+    const updatedFlashcard = await updateFlashcard(supabase, userId, cardId, updateCommand);
+
+    recordFlashcardsEvent({
+      severity: "info",
+      status: 200,
+      code: "success",
+      userId,
+      cardId,
+    });
+
+    return jsonResponse(200, updatedFlashcard);
+  } catch (error) {
+    if (error instanceof FlashcardReferenceError) {
+      let status = 422;
+      if (
+        error.code === FLASHCARD_ERROR_CODES.CATEGORY_NOT_FOUND ||
+        error.code === FLASHCARD_ERROR_CODES.SOURCE_NOT_FOUND ||
+        error.code === FLASHCARD_ERROR_CODES.TAG_NOT_FOUND
+      ) {
+        status = 404;
+      }
+      const descriptor = buildErrorResponse(status, error.code, error.message, error.details);
+      recordFlashcardsEvent({
+        severity: "warning",
+        status: descriptor.status,
+        code: descriptor.body.error.code,
+        userId,
+        cardId,
+        details: error.details,
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    if ((error as PostgrestError).code) {
+      const descriptor = mapFlashcardDbError(error as PostgrestError);
+      recordFlashcardsEvent({
+        severity: "error",
+        status: descriptor.status,
+        code: descriptor.body.error.code,
+        userId,
+        cardId,
+        db_code: (error as PostgrestError).code,
+        details: { db_message: (error as PostgrestError).message },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    const descriptor = buildErrorResponse(
+      500,
+      FLASHCARD_ERROR_CODES.UNEXPECTED_ERROR,
+      "An unexpected error occurred while updating the flashcard."
+    );
+    recordFlashcardsEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: descriptor.body.error.code,
+      userId,
+      cardId,
+      details: { error_message: error instanceof Error ? error.message : "Unknown error" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+};
+
+async function readJsonBody(
+  request: Request
+): Promise<{ success: true; data: unknown } | { success: false; error: HttpErrorDescriptor<FlashcardErrorCode> }> {
+  try {
+    const data = await request.json();
+    return { success: true, data };
+  } catch (error) {
+    return {
+      success: false,
+      error: buildErrorResponse(
+        400,
+        FLASHCARD_ERROR_CODES.INVALID_BODY,
+        "Request body must be valid JSON.",
+        error instanceof Error ? { message: error.message } : undefined
+      ),
+    };
+  }
+}
+
 function recordFlashcardsEvent(payload: FlashcardEventPayload): void {
   const entry = {
     scope: FLASHCARD_EVENT_SCOPE,

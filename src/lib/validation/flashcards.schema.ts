@@ -65,6 +65,39 @@ export const createFlashcardSchema = z.object({
 
 export type CreateFlashcardPayload = z.infer<typeof createFlashcardSchema>;
 
+export const updateFlashcardSchema = z.object({
+  front: z
+    .string({
+      invalid_type_error: "Front text must be a string.",
+    })
+    .trim()
+    .min(1, "Front text cannot be empty.")
+    .max(MAX_FRONT_LENGTH, `Front text cannot exceed ${MAX_FRONT_LENGTH} characters.`)
+    .optional(),
+  back: z
+    .string({
+      invalid_type_error: "Back text must be a string.",
+    })
+    .trim()
+    .min(1, "Back text cannot be empty.")
+    .max(MAX_BACK_LENGTH, `Back text cannot exceed ${MAX_BACK_LENGTH} characters.`)
+    .optional(),
+  origin: z
+    .enum(CARD_ORIGINS, {
+      errorMap: () => ({
+        message: `Origin must be one of: ${CARD_ORIGINS.join(", ")}.`,
+      }),
+    })
+    .optional(),
+  category_id: positiveIntSchema.optional(),
+  content_source_id: positiveIntSchema.optional(),
+  tag_ids: tagIdsSchema,
+  metadata: jsonSchema.optional(),
+  deleted_at: z.union([z.literal(true), z.string().datetime()]).optional(),
+});
+
+export type UpdateFlashcardPayload = z.infer<typeof updateFlashcardSchema>;
+
 // Query validation schemas
 export const flashcardsQuerySchema = z.object({
   limit: z
