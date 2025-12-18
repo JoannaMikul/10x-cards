@@ -1,16 +1,16 @@
-import type { ApiErrorResponse, FlashcardDTO } from "../../types";
+import type { ApiErrorResponse, FlashcardDTO, FlashcardListResponse } from "../../types";
 import type { FlashcardErrorCode } from "../errors.ts";
 
 export interface FlashcardsApiMock {
   description: string;
   status: number;
   request: {
-    method: "POST";
+    method: "GET" | "POST";
     url: string;
     headers?: Record<string, string>;
     body?: Record<string, unknown>;
   };
-  response: FlashcardDTO | ApiErrorResponse<FlashcardErrorCode>;
+  response: FlashcardDTO | FlashcardListResponse | ApiErrorResponse<FlashcardErrorCode>;
 }
 
 const baseCard: FlashcardDTO = {
@@ -201,6 +201,87 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
           code: "XX000",
           message: "unexpected db failure",
         },
+      },
+    },
+  },
+  {
+    description: "200 OK – first page of flashcards",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/flashcards",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      data: [baseCard],
+      page: {
+        next_cursor: "MjAyNS0xMi0wMlQxMDowMDowMC4wMDBaIzEzZjNmYzBkLTgyMzYtNGQzNi1hMGIyLTZiOTdhOGUwZjk5OQ==",
+        has_more: true,
+      },
+      aggregates: {
+        total: 25,
+        by_origin: {
+          "ai-full": 12,
+          "ai-edited": 8,
+          manual: 5,
+        },
+      },
+    },
+  },
+  {
+    description: "200 OK – paginated results with filters",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/flashcards?limit=5&category_id=1&origin=manual&search=handshake&sort=-created_at",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      data: [baseCard],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+      aggregates: {
+        total: 1,
+        by_origin: {
+          manual: 1,
+        },
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid query parameters",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/flashcards?limit=150&sort=invalid_sort",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Limit must be between 1 and 100.; Sort must be one of: created_at, -created_at, updated_at, next_review_at.",
+      },
+    },
+  },
+  {
+    description: "401 Unauthorized – missing authentication",
+    status: 401,
+    request: {
+      method: "GET",
+      url: "/api/flashcards",
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authenticated.",
       },
     },
   },
