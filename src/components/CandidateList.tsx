@@ -20,7 +20,7 @@ interface CandidateListProps {
   hasMore: boolean;
   editState: CandidateEditState | null;
   onEditStart: (candidateId: string, front: string, back: string) => void;
-  onEditSave: (candidateId: string) => void;
+  onEditSave: (candidateId: string, changes: { front: string; back: string }) => void;
   onEditCancel: () => void;
   onAccept: (candidateId: string) => Promise<void>;
   onReject: (candidateId: string) => Promise<void>;

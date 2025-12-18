@@ -8,6 +8,7 @@ type GenerationResponseShape = Pick<
   | "temperature"
   | "prompt_tokens"
   | "sanitized_input_length"
+  | "sanitized_input_text"
   | "started_at"
   | "completed_at"
   | "created_at"
@@ -24,6 +25,7 @@ export function projectGeneration(generation: GenerationRecord): GenerationRespo
     temperature,
     prompt_tokens,
     sanitized_input_length,
+    sanitized_input_text,
     started_at,
     completed_at,
     created_at,
@@ -39,6 +41,7 @@ export function projectGeneration(generation: GenerationRecord): GenerationRespo
     temperature,
     prompt_tokens,
     sanitized_input_length,
+    sanitized_input_text,
     started_at,
     completed_at,
     created_at,

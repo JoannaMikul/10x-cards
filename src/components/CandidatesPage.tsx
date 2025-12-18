@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useCandidates } from "./hooks/useCandidates";
 import { CandidateList } from "./CandidateList";
+import { GenerationSelector } from "./GenerationSelector";
 import { Toaster } from "./ui/sonner";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Card, CardContent } from "./ui/card";
@@ -10,7 +11,6 @@ import type { CandidateEditState } from "../types";
 export function CandidatesPage() {
   const [generationId, setGenerationId] = useState<string | null>(null);
 
-  // Get generation_id from URL search params after component mounts
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
@@ -32,6 +32,13 @@ export function CandidatesPage() {
       errors: [],
     });
   };
+
+  const handleAccept = useCallback(
+    async (candidateId: string) => {
+      await acceptCandidate(candidateId);
+    },
+    [acceptCandidate]
+  );
 
   const handleEditSave = async (candidateId: string, changes: { front: string; back: string }) => {
     const errors = validateEdit(changes.front, changes.back);
@@ -73,6 +80,13 @@ export function CandidatesPage() {
     return errors;
   };
 
+  const handleSelectGeneration = (selectedGenerationId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("generation_id", selectedGenerationId);
+    window.history.pushState({}, "", url.toString());
+    setGenerationId(selectedGenerationId);
+  };
+
   if (!generationId) {
     return (
       <div className="space-y-8 max-w-7xl mx-auto">
@@ -99,6 +113,8 @@ export function CandidatesPage() {
             </div>
           </CardContent>
         </Card>
+
+        <GenerationSelector onSelectGeneration={handleSelectGeneration} />
 
         <Toaster />
       </div>
@@ -144,7 +160,7 @@ export function CandidatesPage() {
         onEditStart={handleEditStart}
         onEditSave={handleEditSave}
         onEditCancel={handleEditCancel}
-        onAccept={acceptCandidate}
+        onAccept={handleAccept}
         onReject={rejectCandidate}
         onLoadMore={loadMore}
       />
