@@ -33,19 +33,17 @@ export function CandidatesPage() {
     });
   };
 
-  const handleEditSave = async (candidateId: string) => {
-    if (!editState) return;
-
-    const errors = validateEdit(editState.tempFront, editState.tempBack);
+  const handleEditSave = async (candidateId: string, changes: { front: string; back: string }) => {
+    const errors = validateEdit(changes.front, changes.back);
     if (errors.length > 0) {
-      setEditState({ ...editState, errors });
+      setEditState(editState ? { ...editState, errors } : null);
       return;
     }
 
     try {
       await updateCandidate(candidateId, {
-        front: editState.tempFront,
-        back: editState.tempBack,
+        front: changes.front,
+        back: changes.back,
         status: "edited",
       });
       setEditState(null);

@@ -26,7 +26,7 @@ interface CandidateItemProps {
   candidate: GenerationCandidateDTO;
   editState: CandidateEditState | null;
   onEditStart: (candidateId: string, front: string, back: string) => void;
-  onEditSave: (candidateId: string) => void;
+  onEditSave: (candidateId: string, changes: { front: string; back: string }) => void;
   onEditCancel: () => void;
   onAccept: (candidateId: string) => Promise<void>;
   onReject: (candidateId: string) => Promise<void>;
@@ -43,7 +43,7 @@ function CandidateContent({
   candidate: GenerationCandidateDTO;
   isEditing: boolean;
   editState: CandidateEditState | null;
-  onEditSave: (candidateId: string) => void;
+  onEditSave: (candidateId: string, changes: { front: string; back: string }) => void;
   onEditCancel: () => void;
   editorRef: React.RefObject<CandidateEditorRef | null>;
 }) {
@@ -52,7 +52,7 @@ function CandidateContent({
       <CandidateEditor
         ref={editorRef}
         candidate={candidate}
-        onSave={() => onEditSave(candidate.id)}
+        onSave={(changes) => onEditSave(candidate.id, changes)}
         onCancel={onEditCancel}
         errors={editState?.errors || []}
       />
@@ -88,7 +88,7 @@ export function CandidateItem({
 }: CandidateItemProps) {
   const editorRef = useRef<CandidateEditorRef>(null);
   const isEditing = !!(editState?.isEditing && editState.candidateId === candidate.id);
-  const isPending = candidate.status === "proposed";
+  const isPending = candidate.status === "proposed" || candidate.status === "edited";
   const isAccepted = candidate.status === "accepted";
   const isRejected = candidate.status === "rejected";
 
@@ -144,14 +144,17 @@ export function CandidateItem({
         )}
 
         {candidate.suggested_tags && Array.isArray(candidate.suggested_tags) && candidate.suggested_tags.length > 0 && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-col gap-2 text-xs text-muted-foreground">
             <span>Tags:</span>
-            <div className="flex gap-1">
-              {candidate.suggested_tags.map((tagId, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
-                  Tag #{String(tagId)}
-                </Badge>
-              ))}
+            <div className="flex gap-1 flex-wrap">
+              {candidate.suggested_tags.map((tagId, index) => {
+                const tagName = String(tagId).replace(/^Tag #/, '');
+                return (
+                  <Badge key={index} variant="outline" className="text-xs">
+                    {tagName}
+                  </Badge>
+                );
+              })}
             </div>
           </div>
         )}
