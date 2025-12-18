@@ -99,7 +99,7 @@ export const flashcardsQuerySchema = z.object({
   sort: z
     .string()
     .optional()
-    .refine((val) => !val || SORT_FIELDS.includes(val as any), {
+    .refine((val) => !val || SORT_FIELDS.includes(val as (typeof SORT_FIELDS)[number]), {
       message: `Sort must be one of: ${SORT_FIELDS.join(", ")}.`,
     }),
   include_deleted: z
@@ -183,4 +183,14 @@ export function buildFlashcardsQuery(payload: FlashcardsQueryPayload): Flashcard
     sort,
     includeDeleted: payload.include_deleted ?? false,
   };
+}
+
+export const flashcardIdParamSchema = z.object({
+  id: z.string().uuid("ID must be a valid UUID."),
+});
+
+export type FlashcardIdParamPayload = z.infer<typeof flashcardIdParamSchema>;
+
+export function parseFlashcardId(params: FlashcardIdParamPayload): string {
+  return params.id;
 }

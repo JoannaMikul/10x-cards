@@ -2,7 +2,13 @@ import type { Json, Tables, TablesInsert, Enums } from "../../db/database.types.
 import type { SupabaseClient } from "../../db/supabase.client.ts";
 
 type SupabaseQueryBuilder = ReturnType<SupabaseClient["from"]>;
-import type { CreateFlashcardCommand, FlashcardDTO, TagDTO, FlashcardAggregatesDTO } from "../../types";
+import type {
+  CreateFlashcardCommand,
+  FlashcardDTO,
+  TagDTO,
+  FlashcardAggregatesDTO,
+  ReviewStatsSnapshotDTO,
+} from "../../types";
 import { FLASHCARD_ERROR_CODES } from "../errors.ts";
 import type { FlashcardsQuery } from "../validation/flashcards.schema.ts";
 import { encodeBase64 } from "../utils/base64.ts";
@@ -471,4 +477,79 @@ async function computeFlashcardAggregates(
 function escapeSearchTerm(term: string): string {
   // Escape special characters for PostgreSQL ilike
   return term.replace(/[%_]/g, "\\$&");
+}
+
+export async function getFlashcardById(
+  supabase: SupabaseClient,
+  userId: string,
+  cardId: string
+): Promise<FlashcardDTO> {
+  // Fetch flashcard row with RLS filtering
+  const { data: flashcardRow, error: flashcardError } = await supabase
+    .from("flashcards")
+    .select(FLASHCARD_COLUMNS)
+    .eq("id", cardId)
+    .eq("owner_id", userId)
+    .is("deleted_at", null)
+    .single<FlashcardRow>();
+
+  if (flashcardError) {
+    throw flashcardError;
+  }
+
+  if (!flashcardRow) {
+    throw new Error("Flashcard not found");
+  }
+
+  // Fetch tags for the flashcard
+  const tags = await fetchTagsForCard(supabase, cardId);
+
+  // Fetch review stats snapshot
+  const reviewStats = await fetchReviewStatsSnapshot(supabase, userId, cardId);
+
+  // Map to DTO
+  const flashcardDto = mapFlashcardRowToDto(flashcardRow, tags);
+  flashcardDto.review_stats = reviewStats ?? undefined;
+
+  return flashcardDto;
+}
+
+async function fetchReviewStatsSnapshot(
+  supabase: SupabaseClient,
+  userId: string,
+  cardId: string
+): Promise<ReviewStatsSnapshotDTO | undefined> {
+  type ReviewStatsRow = Tables<"review_stats">;
+
+  const { data, error } = await supabase
+    .from("review_stats")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("card_id", cardId)
+    .single<ReviewStatsRow>();
+
+  if (error) {
+    // If no review stats exist, return undefined
+    if (error.code === "PGRST116") {
+      return undefined;
+    }
+    throw error;
+  }
+
+  if (!data) {
+    return undefined;
+  }
+
+  return {
+    card_id: data.card_id,
+    user_id: data.user_id,
+    total_reviews: data.total_reviews,
+    successes: data.successes,
+    consecutive_successes: data.consecutive_successes,
+    last_outcome: data.last_outcome,
+    last_interval_days: data.last_interval_days,
+    next_review_at: data.next_review_at,
+    last_reviewed_at: data.last_reviewed_at,
+    aggregates: data.aggregates,
+  };
 }

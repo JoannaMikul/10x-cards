@@ -37,6 +37,22 @@ const baseCard: FlashcardDTO = {
   ],
 };
 
+const baseCardWithReviewStats: FlashcardDTO = {
+  ...baseCard,
+  review_stats: {
+    card_id: baseCard.id,
+    user_id: baseCard.owner_id,
+    total_reviews: 5,
+    successes: 4,
+    consecutive_successes: 3,
+    last_outcome: "good",
+    last_interval_days: 7,
+    next_review_at: "2025-12-15T10:00:00.000Z",
+    last_reviewed_at: "2025-12-08T10:00:00.000Z",
+    aggregates: { avg_response_time_ms: 2500 },
+  },
+};
+
 export const flashcardsApiMocks: FlashcardsApiMock[] = [
   {
     description: "201 Created – manual card with metadata and tags",
@@ -267,7 +283,8 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
     response: {
       error: {
         code: "invalid_query",
-        message: "Limit must be between 1 and 100.; Sort must be one of: created_at, -created_at, updated_at, next_review_at.",
+        message:
+          "Limit must be between 1 and 100.; Sort must be one of: created_at, -created_at, updated_at, next_review_at.",
       },
     },
   },
@@ -282,6 +299,81 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
       error: {
         code: "unauthorized",
         message: "User not authenticated.",
+      },
+    },
+  },
+  {
+    description: "200 OK – get flashcard by ID with review stats",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: baseCardWithReviewStats,
+  },
+  {
+    description: "200 OK – get flashcard by ID without review stats",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: baseCard,
+  },
+  {
+    description: "400 Bad Request – invalid UUID",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/flashcards/invalid-id",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Invalid flashcard ID parameter.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – flashcard does not exist",
+    status: 404,
+    request: {
+      method: "GET",
+      url: "/api/flashcards/99999999-9999-9999-9999-999999999999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Flashcard not found.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error",
+    status: 500,
+    request: {
+      method: "GET",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while retrieving the flashcard.",
       },
     },
   },
