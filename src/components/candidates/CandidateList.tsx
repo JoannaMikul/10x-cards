@@ -12,10 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Loader2 } from "lucide-react";
 import { CandidateItem } from "./CandidateItem";
-import type { GenerationCandidateDTO, CandidateEditState } from "../../types";
+import type { GenerationCandidateDTO, CandidateEditState, TagDTO } from "../../types";
 
 interface CandidateListProps {
   candidates: GenerationCandidateDTO[];
+  tagLookup?: Record<number, TagDTO>;
   loading: boolean;
   hasMore: boolean;
   editState: CandidateEditState | null;
@@ -75,6 +76,7 @@ const columns: ColumnDef<GenerationCandidateDTO>[] = [
 
 export function CandidateList({
   candidates,
+  tagLookup = {},
   loading,
   hasMore,
   editState,
@@ -186,6 +188,7 @@ export function CandidateList({
             <CandidateItem
               key={candidate.id}
               candidate={candidate}
+              tagLookup={tagLookup}
               editState={editState}
               onEditStart={onEditStart}
               onEditSave={onEditSave}

@@ -1,11 +1,11 @@
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { Badge } from "../ui/badge";
 import { Card, CardContent, CardHeader, CardFooter } from "../ui/card";
 import { Button } from "../ui/button";
 import { Edit, Check, X } from "lucide-react";
 import { CandidateEditor, type CandidateEditorRef } from "./CandidateEditor";
 import { AcceptRejectBar } from "./AcceptRejectBar";
-import type { GenerationCandidateDTO, CandidateEditState } from "../../types";
+import type { GenerationCandidateDTO, CandidateEditState, TagDTO } from "../../types";
 
 function CandidateEditActions({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) {
   return (
@@ -24,6 +24,7 @@ function CandidateEditActions({ onSave, onCancel }: { onSave: () => void; onCanc
 
 interface CandidateItemProps {
   candidate: GenerationCandidateDTO;
+  tagLookup?: Record<number, TagDTO>;
   editState: CandidateEditState | null;
   onEditStart: (candidateId: string, front: string, back: string) => void;
   onEditSave: (candidateId: string, changes: { front: string; back: string }) => void;
@@ -79,6 +80,7 @@ function CandidateContent({
 
 export function CandidateItem({
   candidate,
+  tagLookup = {},
   editState,
   onEditStart,
   onEditSave,
@@ -87,6 +89,10 @@ export function CandidateItem({
   onReject,
 }: CandidateItemProps) {
   const editorRef = useRef<CandidateEditorRef>(null);
+  const resolvedSuggestedTags = useMemo(
+    () => resolveSuggestedTags(candidate.suggested_tags, tagLookup),
+    [candidate.suggested_tags, tagLookup]
+  );
   const isEditing = !!(editState?.isEditing && editState.candidateId === candidate.id);
   const isPending = candidate.status === "proposed" || candidate.status === "edited";
   const isAccepted = candidate.status === "accepted";
@@ -143,18 +149,15 @@ export function CandidateItem({
           </div>
         )}
 
-        {candidate.suggested_tags && Array.isArray(candidate.suggested_tags) && candidate.suggested_tags.length > 0 && (
+        {resolvedSuggestedTags.length > 0 && (
           <div className="flex flex-col gap-2 text-xs text-muted-foreground">
             <span>Tags:</span>
             <div className="flex gap-1 flex-wrap">
-              {candidate.suggested_tags.map((tagId, index) => {
-                const tagName = String(tagId).replace(/^Tag #/, "");
-                return (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {tagName}
-                  </Badge>
-                );
-              })}
+              {resolvedSuggestedTags.map((tag) => (
+                <Badge key={tag.key} variant="outline" className="text-xs">
+                  {tag.label}
+                </Badge>
+              ))}
             </div>
           </div>
         )}
@@ -175,4 +178,38 @@ export function CandidateItem({
       )}
     </Card>
   );
+}
+
+type TagLookup = Record<number, TagDTO>;
+
+interface ResolvedTag {
+  key: string;
+  label: string;
+}
+
+function resolveSuggestedTags(
+  suggestedTags: GenerationCandidateDTO["suggested_tags"],
+  tagLookup: TagLookup
+): ResolvedTag[] {
+  if (!Array.isArray(suggestedTags)) {
+    return [];
+  }
+
+  return suggestedTags
+    .map((rawValue, index) => {
+      if (typeof rawValue === "number" && Number.isFinite(rawValue) && rawValue > 0) {
+        const tagId = rawValue;
+        const label = tagLookup[tagId]?.name ?? `Tag #${tagId}`;
+        return { key: `tag-id-${tagId}-${index}`, label };
+      }
+
+      if (typeof rawValue === "string") {
+        const trimmed = rawValue.replace(/^Tag #/, "").trim();
+        const label = trimmed.length > 0 ? trimmed : rawValue;
+        return { key: `tag-str-${index}-${label}`, label };
+      }
+
+      return null;
+    })
+    .filter((tag): tag is ResolvedTag => Boolean(tag));
 }

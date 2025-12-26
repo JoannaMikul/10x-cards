@@ -1,12 +1,32 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { CandidatesPage } from "../components/candidates/CandidatesPage.tsx";
+import type { TagDTO } from "../types";
+import { supabaseClient } from "../db/supabase.client.ts";
+
+const supabase = Astro.locals.supabase ?? supabaseClient;
+
+async function fetchTags(): Promise<TagDTO[]> {
+  const { data, error } = await supabase
+    .from("tags")
+    .select("id, name, slug, description, created_at, updated_at")
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[candidates] Failed to fetch tags", error);
+    return [];
+  }
+
+  return (data ?? []) as TagDTO[];
+}
+
+const tags = await fetchTags();
 ---
 
 <Layout title="Kandydaci z AI - 10x-cards">
   <main class="min-h-[calc(100vh-3rem)] bg-background p-6">
     <div class="max-w-6xl mx-auto">
-      <CandidatesPage client:load />
+      <CandidatesPage client:load {tags} />
     </div>
   </main>
 </Layout>

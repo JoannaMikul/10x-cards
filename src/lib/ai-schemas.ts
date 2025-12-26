@@ -20,10 +20,10 @@ export const flashcardsGenerationSchema = {
             type: "string",
             description: "Optional additional explanation.",
           },
-          tags: {
+          tag_ids: {
             type: "array",
-            items: { type: "string" },
-            description: "List of thematic tags (e.g. docker, networking).",
+            items: { type: "integer", minimum: 1 },
+            description: "List of tag IDs chosen from the provided catalog.",
           },
         },
         required: ["front", "back"],
@@ -165,7 +165,7 @@ export interface FlashcardsGenerationResult {
     front: string;
     back: string;
     explanation?: string;
-    tags?: string[];
+    tag_ids?: number[];
   }[];
 }
 

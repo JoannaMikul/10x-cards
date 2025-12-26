@@ -1,15 +1,22 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useCandidates } from "../hooks/useCandidates";
+import { useTagsCatalog } from "../hooks/useTagsCatalog";
 import { CandidateList } from "./CandidateList";
 import { GenerationSelector } from "../generator/GenerationSelector";
 import { Toaster } from "../ui/sonner";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Card, CardContent } from "../ui/card";
 import { AlertTriangle } from "lucide-react";
-import type { CandidateEditState } from "../../types";
+import type { CandidateEditState, TagDTO } from "../../types";
 
-export function CandidatesPage() {
+interface CandidatesPageProps {
+  tags?: TagDTO[];
+}
+
+export function CandidatesPage({ tags }: CandidatesPageProps) {
   const [generationId, setGenerationId] = useState<string | null>(null);
+  const shouldFetchTags = !Array.isArray(tags);
+  const { tagsById } = useTagsCatalog(undefined, { enabled: shouldFetchTags, initialTags: tags });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -154,6 +161,7 @@ export function CandidatesPage() {
 
       <CandidateList
         candidates={candidates}
+        tagLookup={tagsById}
         loading={loading}
         hasMore={hasMore}
         editState={editState}

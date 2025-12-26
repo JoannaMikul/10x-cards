@@ -510,7 +510,7 @@ export interface FlashcardGenerationItem {
   front: string;
   back: string;
   explanation?: string;
-  tags?: string[];
+  tag_ids?: number[];
 }
 
 export interface FlashcardsGenerationResult {
