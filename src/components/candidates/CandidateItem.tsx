@@ -154,7 +154,11 @@ export function CandidateItem({
             <span>Tags:</span>
             <div className="flex gap-1 flex-wrap">
               {resolvedSuggestedTags.map((tag) => (
-                <Badge key={tag.key} variant="outline" className="text-xs">
+                <Badge
+                  key={tag.key}
+                  variant="outline"
+                  className="border-transparent bg-slate-600 text-xs font-medium text-white"
+                >
                   {tag.label}
                 </Badge>
               ))}

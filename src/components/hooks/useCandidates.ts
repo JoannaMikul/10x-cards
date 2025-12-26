@@ -48,6 +48,7 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
 
         params.append("status[]", "proposed");
         params.append("status[]", "accepted");
+        params.append("status[]", "rejected");
 
         const response = await fetch(`/api/generation-candidates?${params}`, {
           method: "GET",
