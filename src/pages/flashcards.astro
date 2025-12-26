@@ -1,0 +1,81 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { FlashcardsPage } from "../components/flashcards/FlashcardsPage.tsx";
+import type { CategoryDTO, SourceDTO, TagDTO } from "../types";
+import { supabaseClient } from "../db/supabase.client.ts";
+
+const supabase = Astro.locals.supabase ?? supabaseClient;
+const userId = Astro.locals.user?.id ?? null;
+
+async function fetchCategories(): Promise<CategoryDTO[]> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, slug, description, color, created_at, updated_at")
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[flashcards] Failed to fetch categories", error);
+    return [];
+  }
+
+  return (data ?? []) as CategoryDTO[];
+}
+
+async function fetchTags(): Promise<TagDTO[]> {
+  const { data, error } = await supabase
+    .from("tags")
+    .select("id, name, slug, description, created_at, updated_at")
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[flashcards] Failed to fetch tags", error);
+    return [];
+  }
+
+  return (data ?? []) as TagDTO[];
+}
+
+async function fetchSources(): Promise<SourceDTO[]> {
+  const { data, error } = await supabase
+    .from("sources")
+    .select("id, name, slug, description, kind, url, created_at, updated_at")
+    .order("name", { ascending: true });
+
+  if (error) {
+    console.error("[flashcards] Failed to fetch sources", error);
+    return [];
+  }
+
+  return (data ?? []) as SourceDTO[];
+}
+
+async function fetchIsAdmin(): Promise<boolean> {
+  if (!userId) {
+    return false;
+  }
+
+  const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+
+  if (error) {
+    console.error("[flashcards] Failed to fetch user roles", error);
+    return false;
+  }
+
+  return (data ?? []).some((role) => role.role === "admin");
+}
+
+const [categories, tags, sources, canShowDeleted] = await Promise.all([
+  fetchCategories(),
+  fetchTags(),
+  fetchSources(),
+  fetchIsAdmin(),
+]);
+---
+
+<Layout title="Flashcards - 10x-cards">
+  <main class="min-h-[calc(100vh-3rem)] bg-background p-6">
+    <div class="mx-auto max-w-7xl">
+      <FlashcardsPage client:load {categories} {tags} {sources} {canShowDeleted} />
+    </div>
+  </main>
+</Layout>

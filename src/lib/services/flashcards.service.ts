@@ -1,3 +1,5 @@
+import type { PostgrestError } from "@supabase/supabase-js";
+
 import type { Json, Tables, TablesInsert, TablesUpdate, Enums } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
 
@@ -23,6 +25,11 @@ type FlashcardRow = Tables<"flashcards">;
 type TagRow = Tables<"tags">;
 const FLASHCARD_COLUMNS =
   "id, front, back, origin, metadata, category_id, content_source_id, owner_id, created_at, updated_at, deleted_at, front_back_fingerprint";
+const SOFT_DELETE_FLASHCARD_RPC = "soft_delete_flashcard";
+type RpcInvoker = (
+  fn: string,
+  params?: Record<string, unknown>
+) => Promise<{ data: unknown; error: PostgrestError | null }>;
 
 interface FlashcardInsertResult {
   id: FlashcardRow["id"];
@@ -623,19 +630,14 @@ async function fetchReviewStatsSnapshot(
 }
 
 export async function softDeleteFlashcard(supabase: SupabaseClient, userId: string, cardId: string): Promise<void> {
-  const payload: TablesUpdate<"flashcards"> = {
-    deleted_at: new Date().toISOString(),
-  };
-
-  const { error } = await supabase
-    .from("flashcards")
-    .update(payload)
-    .eq("id", cardId)
-    .eq("owner_id", userId)
-    .is("deleted_at", null);
+  const client = supabase as SupabaseClient & { rpc: RpcInvoker };
+  const { error } = await client.rpc(SOFT_DELETE_FLASHCARD_RPC, {
+    p_owner_id: userId,
+    p_card_id: cardId,
+  });
 
   if (error) {
-    if (error.code === "PGRST116") {
+    if (error.code === "P0001" && error.message === "flashcard_not_found") {
       throw new Error("Flashcard not found");
     }
     throw error;

@@ -154,6 +154,55 @@ export interface FlashcardListResponse extends PaginatedResponse<FlashcardDTO> {
   aggregates?: FlashcardAggregatesDTO;
 }
 
+export type FlashcardsSort = "created_at" | "-created_at" | "updated_at" | "next_review_at";
+
+export interface FlashcardsFilters {
+  search: string;
+  categoryId?: number;
+  contentSourceId?: number;
+  tagIds: number[];
+  origin?: Enums<"card_origin">;
+  includeDeleted?: boolean;
+  sort: FlashcardsSort;
+}
+
+export interface FlashcardsViewState {
+  items: FlashcardDTO[];
+  loading: boolean;
+  error: ApiErrorResponse | null;
+  nextCursor: string | null;
+  hasMore: boolean;
+  filters: FlashcardsFilters;
+  aggregates?: FlashcardAggregatesDTO;
+}
+
+export type FlashcardFormMode = "create" | "edit";
+
+export interface FlashcardFormValues {
+  front: string;
+  back: string;
+  categoryId?: number;
+  contentSourceId?: number;
+  origin: Enums<"card_origin">;
+  tagIds: number[];
+  metadata?: FlashcardDTO["metadata"];
+}
+
+export interface FlashcardFormState {
+  mode: FlashcardFormMode;
+  cardId?: string;
+  values: FlashcardFormValues;
+  isOpen: boolean;
+  isSubmitting: boolean;
+  fieldErrors: string[];
+  apiError?: ApiErrorResponse;
+}
+
+export interface FlashcardSelectionState {
+  selectedIds: string[];
+  mode: "all-filtered" | "manual";
+}
+
 export interface CreateFlashcardCommand {
   front: FlashcardInsert["front"];
   back: FlashcardInsert["back"];

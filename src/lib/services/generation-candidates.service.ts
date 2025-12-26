@@ -10,7 +10,6 @@ import type {
   UpdateGenerationCandidateCommand,
 } from "../../types";
 import type { GenerationCandidatesQuery } from "../validation/generation-candidates.schema.ts";
-
 type GenerationCandidateRow = Tables<"generation_candidates">;
 type GenerationCandidateProjection = Pick<
   GenerationCandidateRow,
@@ -41,14 +40,10 @@ const EDITABLE_CANDIDATE_STATUSES = ["proposed", "edited"] as const;
 
 type UpdateCandidatePayload = UpdateGenerationCandidateCommand & { updated_at: string };
 type RejectCandidatePayload = Pick<GenerationCandidateRow, "status" | "updated_at">;
-
-type UnsafeRpc = (
+type RpcInvoker = (
   fn: string,
-  args?: Record<string, unknown>
-) => Promise<{
-  data: unknown;
-  error: PostgrestError | null;
-}>;
+  params?: Record<string, unknown>
+) => Promise<{ data: unknown; error: PostgrestError | null }>;
 
 export interface ListGenerationCandidatesResult {
   items: GenerationCandidateDTO[];
@@ -223,7 +218,8 @@ export async function acceptCandidateForOwner(
 ): Promise<FlashcardDTO> {
   const payload = buildAcceptancePayload(candidate, overrides);
 
-  const { data, error } = await (supabase as SupabaseClient & { rpc: UnsafeRpc }).rpc(ACCEPT_CANDIDATE_RPC, {
+  const client = supabase as SupabaseClient & { rpc: RpcInvoker };
+  const { data, error } = await client.rpc(ACCEPT_CANDIDATE_RPC, {
     p_owner_id: userId,
     p_candidate_id: candidate.id,
     p_origin: payload.origin,
