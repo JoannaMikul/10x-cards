@@ -16,7 +16,7 @@ import { Textarea } from "../ui/textarea";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "../ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
-import { FormError } from "../FormError";
+import { FormError } from "../common/FormError";
 
 const MAX_TAGS = 50;
 const NO_CATEGORY_VALUE = "no-category";

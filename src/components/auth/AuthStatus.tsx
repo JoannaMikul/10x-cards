@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button } from "./ui/button";
+import { Button } from "../ui/button";
 import { LogOut, User } from "lucide-react";
 
 interface CurrentUser {

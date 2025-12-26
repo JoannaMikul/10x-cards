@@ -1,7 +1,7 @@
 import React from "react";
 import { useFormContext, Controller } from "react-hook-form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Field, FieldLabel, FieldError } from "./ui/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Field, FieldLabel, FieldError } from "../ui/field";
 
 interface ModelOption {
   label: string;

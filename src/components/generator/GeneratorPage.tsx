@@ -1,8 +1,8 @@
 import React from "react";
-import { useGeneration } from "./hooks/useGeneration";
+import { useGeneration } from "../hooks/useGeneration";
 import { GeneratorForm } from "./GeneratorForm";
 import { GenerationStatusPanel } from "./GenerationStatusPanel";
-import type { CreateGenerationCommand } from "../types";
+import type { CreateGenerationCommand } from "../../types";
 
 interface ModelOption {
   label: string;

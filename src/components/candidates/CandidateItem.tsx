@@ -1,11 +1,11 @@
 import React, { useRef } from "react";
-import { Badge } from "./ui/badge";
-import { Card, CardContent, CardHeader, CardFooter } from "./ui/card";
-import { Button } from "./ui/button";
+import { Badge } from "../ui/badge";
+import { Card, CardContent, CardHeader, CardFooter } from "../ui/card";
+import { Button } from "../ui/button";
 import { Edit, Check, X } from "lucide-react";
 import { CandidateEditor, type CandidateEditorRef } from "./CandidateEditor";
 import { AcceptRejectBar } from "./AcceptRejectBar";
-import type { GenerationCandidateDTO, CandidateEditState } from "../types";
+import type { GenerationCandidateDTO, CandidateEditState } from "../../types";
 
 function CandidateEditActions({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) {
   return (
@@ -148,7 +148,7 @@ export function CandidateItem({
             <span>Tags:</span>
             <div className="flex gap-1 flex-wrap">
               {candidate.suggested_tags.map((tagId, index) => {
-                const tagName = String(tagId).replace(/^Tag #/, '');
+                const tagName = String(tagId).replace(/^Tag #/, "");
                 return (
                   <Badge key={index} variant="outline" className="text-xs">
                     {tagName}

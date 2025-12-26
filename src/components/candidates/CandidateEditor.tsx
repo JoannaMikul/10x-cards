@@ -2,9 +2,9 @@ import React, { useState, useEffect, forwardRef, useImperativeHandle } from "rea
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Field, FieldLabel, FieldError } from "./ui/field";
-import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupText } from "./ui/input-group";
-import type { GenerationCandidateDTO } from "../types";
+import { Field, FieldLabel, FieldError } from "../ui/field";
+import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupText } from "../ui/input-group";
+import type { GenerationCandidateDTO } from "../../types";
 
 const editSchema = z.object({
   front: z.string().min(1, "Question is required").max(200, "Question cannot exceed 200 characters"),

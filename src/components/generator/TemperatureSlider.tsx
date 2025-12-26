@@ -1,7 +1,7 @@
 import React from "react";
 import { useFormContext, Controller } from "react-hook-form";
-import { Slider } from "./ui/slider";
-import { Field, FieldLabel, FieldError } from "./ui/field";
+import { Slider } from "../ui/slider";
+import { Field, FieldLabel, FieldError } from "../ui/field";
 
 interface TemperatureSliderProps {
   min: number;

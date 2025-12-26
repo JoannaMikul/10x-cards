@@ -1,11 +1,11 @@
 import React from "react";
-import { Progress } from "./ui/progress";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { Alert, AlertDescription } from "./ui/alert";
+import { Progress } from "../ui/progress";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Alert, AlertDescription } from "../ui/alert";
 import { Loader2, CheckCircle, XCircle, Clock, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import type { GenerationDTO, ApiErrorResponse } from "../types";
+import type { GenerationDTO, ApiErrorResponse } from "../../types";
 
 interface GenerationStatusPanelProps {
   generation: GenerationDTO | null;

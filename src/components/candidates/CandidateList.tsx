@@ -6,13 +6,13 @@ import {
   type ColumnDef,
   flexRender,
 } from "@tanstack/react-table";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
 import { Loader2 } from "lucide-react";
 import { CandidateItem } from "./CandidateItem";
-import type { GenerationCandidateDTO, CandidateEditState } from "../types";
+import type { GenerationCandidateDTO, CandidateEditState } from "../../types";
 
 interface CandidateListProps {
   candidates: GenerationCandidateDTO[];

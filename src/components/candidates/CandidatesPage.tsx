@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useCandidates } from "./hooks/useCandidates";
+import { useCandidates } from "../hooks/useCandidates";
 import { CandidateList } from "./CandidateList";
-import { GenerationSelector } from "./GenerationSelector";
-import { Toaster } from "./ui/sonner";
-import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { Card, CardContent } from "./ui/card";
+import { GenerationSelector } from "../generator/GenerationSelector";
+import { Toaster } from "../ui/sonner";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Card, CardContent } from "../ui/card";
 import { AlertTriangle } from "lucide-react";
-import type { CandidateEditState } from "../types";
+import type { CandidateEditState } from "../../types";
 
 export function CandidatesPage() {
   const [generationId, setGenerationId] = useState<string | null>(null);

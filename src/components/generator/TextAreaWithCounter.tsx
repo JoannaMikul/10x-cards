@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useFormContext, Controller } from "react-hook-form";
-import { Field, FieldLabel, FieldError, FieldDescription } from "./ui/field";
-import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupText } from "./ui/input-group";
+import { Field, FieldLabel, FieldError, FieldDescription } from "../ui/field";
+import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupText } from "../ui/input-group";
 
 interface TextAreaWithCounterProps {
   maxLength: number;

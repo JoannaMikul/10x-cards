@@ -1,10 +1,10 @@
 import React from "react";
-import { useGenerationsList } from "./hooks/useGenerationsList";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { Skeleton } from "./ui/skeleton";
+import { useGenerationsList } from "../hooks/useGenerationsList";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Badge } from "../ui/badge";
+import { Skeleton } from "../ui/skeleton";
 import { AlertTriangle, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
-import type { GenerationDTO } from "../types";
+import type { GenerationDTO } from "../../types";
 
 interface GenerationSelectorProps {
   onSelectGeneration: (generationId: string) => void;
