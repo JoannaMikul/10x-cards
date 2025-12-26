@@ -265,9 +265,24 @@ export async function listFlashcards(
   userId: string,
   query: FlashcardsQuery
 ): Promise<ListFlashcardsResult> {
+  const tagFilteredCardIds =
+    query.tagIds && query.tagIds.length > 0 ? await fetchCardIdsByTags(supabase, query.tagIds) : undefined;
+
+  if (query.tagIds && query.tagIds.length > 0 && (tagFilteredCardIds?.length ?? 0) === 0) {
+    const aggregates = await computeFlashcardAggregates(supabase, userId, query, {
+      tagFilteredCardIds,
+    });
+    return {
+      items: [],
+      hasMore: false,
+      nextCursor: null,
+      aggregates,
+    };
+  }
+
   const queryBuilder = supabase.from("flashcards").select(FLASHCARD_COLUMNS).eq("owner_id", userId);
 
-  applyFlashcardsFilters(queryBuilder, query);
+  applyFlashcardsFilters(queryBuilder, query, { tagFilteredCardIds });
   applyFlashcardsSortingAndCursor(queryBuilder, query);
   queryBuilder.limit(query.limit + 1); // +1 to detect has_more
 
@@ -290,7 +305,9 @@ export async function listFlashcards(
   const nextCursor = hasMore && items.length > 0 ? generateCursor(items[items.length - 1], query.sort) : null;
 
   // Compute aggregates
-  const aggregates = await computeFlashcardAggregates(supabase, userId, query);
+  const aggregates = await computeFlashcardAggregates(supabase, userId, query, {
+    tagFilteredCardIds,
+  });
 
   return {
     items: flashcards,
@@ -300,7 +317,17 @@ export async function listFlashcards(
   };
 }
 
-function applyFlashcardsFilters(queryBuilder: SupabaseQueryBuilder, query: FlashcardsQuery): void {
+interface FlashcardFilterOptions {
+  includeSearch?: boolean;
+  tagFilteredCardIds?: string[];
+}
+
+function applyFlashcardsFilters(
+  queryBuilder: SupabaseQueryBuilder,
+  query: FlashcardsQuery,
+  options: FlashcardFilterOptions = {}
+): void {
+  const includeSearch = options.includeSearch ?? true;
   // Always filter out deleted records unless explicitly requested
   if (!query.includeDeleted) {
     queryBuilder.is("deleted_at", null);
@@ -319,13 +346,35 @@ function applyFlashcardsFilters(queryBuilder: SupabaseQueryBuilder, query: Flash
   }
 
   if (query.tagIds && query.tagIds.length > 0) {
-    queryBuilder.in("card_tags.tag_id", query.tagIds);
+    const cardIds = options.tagFilteredCardIds;
+    if (!cardIds || cardIds.length === 0) {
+      queryBuilder.eq("id", "00000000-0000-0000-0000-000000000000");
+      return;
+    }
+    queryBuilder.in("id", cardIds);
   }
 
-  if (query.search) {
+  if (includeSearch && query.search) {
     const searchTerm = escapeSearchTerm(query.search);
     queryBuilder.or(`front.ilike.%${searchTerm}%,back.ilike.%${searchTerm}%`);
   }
+}
+
+async function fetchCardIdsByTags(supabase: SupabaseClient, tagIds: number[]): Promise<string[]> {
+  const { data, error } = await supabase.from("card_tags").select("card_id").in("tag_id", tagIds);
+
+  if (error) {
+    throw error;
+  }
+
+  const uniqueCardIds = new Set<string>();
+  for (const relation of data ?? []) {
+    if (relation.card_id) {
+      uniqueCardIds.add(relation.card_id);
+    }
+  }
+
+  return Array.from(uniqueCardIds);
 }
 
 function applyFlashcardsSortingAndCursor(queryBuilder: SupabaseQueryBuilder, query: FlashcardsQuery): void {
@@ -438,41 +487,54 @@ async function fetchTagsForCards(supabase: SupabaseClient, cardIds: string[]): P
   return tagsByCardId;
 }
 
+interface FlashcardAggregatesOptions {
+  tagFilteredCardIds?: string[];
+}
+
 async function computeFlashcardAggregates(
   supabase: SupabaseClient,
   userId: string,
-  query: FlashcardsQuery
+  query: FlashcardsQuery,
+  options: FlashcardAggregatesOptions = {}
 ): Promise<FlashcardAggregatesDTO> {
-  const baseQuery = supabase.from("flashcards").select("origin", { count: "exact", head: true }).eq("owner_id", userId);
+  const { tagFilteredCardIds } = options;
 
-  // Apply same filters as main query (except search)
-  if (!query.includeDeleted) {
-    baseQuery.is("deleted_at", null);
+  if (tagFilteredCardIds && tagFilteredCardIds.length === 0) {
+    return {
+      total: 0,
+      by_origin: {},
+    };
   }
 
-  if (query.categoryId) {
-    baseQuery.eq("category_id", query.categoryId);
-  }
+  const buildBaseQuery = () => {
+    const builder = supabase
+      .from("flashcards")
+      .select("origin", { count: "exact", head: true })
+      .eq("owner_id", userId);
 
-  if (query.contentSourceId) {
-    baseQuery.eq("content_source_id", query.contentSourceId);
-  }
+    applyFlashcardsFilters(builder, query, {
+      includeSearch: false,
+      tagFilteredCardIds,
+    });
 
-  if (query.tagIds && query.tagIds.length > 0) {
-    baseQuery.in("card_tags.tag_id", query.tagIds);
-  }
+    return builder;
+  };
 
-  // Get total count
-  const { count: total } = await baseQuery;
+  const { count: total } = await buildBaseQuery();
 
-  // Get counts by origin - we need separate queries for each origin
   const origins: Enums<"card_origin">[] = ["ai-full", "ai-edited", "manual"];
   const byOrigin: Partial<Record<Enums<"card_origin">, number>> = {};
 
-  for (const origin of origins) {
-    const { count } = await baseQuery.eq("origin", origin);
-    if (count && count > 0) {
-      byOrigin[origin] = count;
+  const originResults = await Promise.all(
+    origins.map(async (origin) => {
+      const { count } = await buildBaseQuery().eq("origin", origin);
+      return { origin, count: count ?? 0 };
+    })
+  );
+
+  for (const result of originResults) {
+    if (result.count > 0) {
+      byOrigin[result.origin] = result.count;
     }
   }
 

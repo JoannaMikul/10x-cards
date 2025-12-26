@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 import { useGenerationsList } from "../hooks/useGenerationsList";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -8,6 +8,7 @@ import type { GenerationDTO } from "../../types";
 
 interface GenerationSelectorProps {
   onSelectGeneration: (generationId: string) => void;
+  emptyFallback?: ReactNode;
 }
 
 function getStatusIcon(status: GenerationDTO["status"]) {
@@ -54,7 +55,7 @@ function truncateText(text: string | undefined | null, maxLength = 100) {
   return text.substring(0, maxLength) + "...";
 }
 
-export function GenerationSelector({ onSelectGeneration }: GenerationSelectorProps) {
+export function GenerationSelector({ onSelectGeneration, emptyFallback }: GenerationSelectorProps) {
   const { generations, loading, error } = useGenerationsList();
 
   if (loading) {
@@ -97,6 +98,10 @@ export function GenerationSelector({ onSelectGeneration }: GenerationSelectorPro
   }
 
   if (generations.length === 0) {
+    if (emptyFallback) {
+      return <>{emptyFallback}</>;
+    }
+
     return (
       <Card className="shadow-sm">
         <CardHeader>

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import type { FlashcardAggregatesDTO, FlashcardsFilters, CategoryDTO, TagDTO, SourceDTO } from "../../types";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "../ui/field";
+import { Field, FieldGroup, FieldLabel } from "../ui/field";
 import { Checkbox } from "../ui/checkbox";
 import {
   Select,
@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "../ui/select";
 import { SortDropdown } from "./SortDropdown";
+import { cn } from "../../lib/utils";
 
 const MAX_TAGS = 50;
 const ALL_CATEGORIES_VALUE = "all-categories";
@@ -151,103 +152,107 @@ export function FiltersForm({
     emitChange({ includeDeleted: checked });
   };
 
+  const filterItemClass = "min-w-[180px] lg:flex-1";
+
   const filterFields = (
     <>
-      <Field>
-        <FieldLabel>Category</FieldLabel>
-        <Select
-          value={typeof filters.categoryId === "number" ? String(filters.categoryId) : ALL_CATEGORIES_VALUE}
-          onValueChange={handleCategoryChange}
-        >
-          <SelectTrigger aria-label="Filter by category">
-            <SelectValue placeholder="All categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_CATEGORIES_VALUE}>All categories</SelectItem>
-            <SelectSeparator />
-            <SelectGroupWithFallback
-              emptyLabel="No categories available"
-              items={categories}
-              renderItem={(category) => (
-                <SelectItem key={category.id} value={String(category.id)}>
-                  {category.name}
-                </SelectItem>
-              )}
-            />
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <Field>
-        <FieldLabel>Source</FieldLabel>
-        <Select
-          value={typeof filters.contentSourceId === "number" ? String(filters.contentSourceId) : ALL_SOURCES_VALUE}
-          onValueChange={handleSourceChange}
-        >
-          <SelectTrigger aria-label="Filter by source">
-            <SelectValue placeholder="All sources" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_SOURCES_VALUE}>All sources</SelectItem>
-            <SelectSeparator />
-            <SelectGroupWithFallback
-              emptyLabel="No sources available"
-              items={sources}
-              renderItem={(source) => (
-                <SelectItem key={source.id} value={String(source.id)}>
-                  {source.name}
-                </SelectItem>
-              )}
-            />
-          </SelectContent>
-        </Select>
-      </Field>
-
-      <Field>
-        <FieldLabel>Origin</FieldLabel>
-        <Select value={filters.origin ?? ALL_ORIGINS_VALUE} onValueChange={handleOriginChange}>
-          <SelectTrigger aria-label="Filter by origin">
-            <SelectValue placeholder="All origins" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL_ORIGINS_VALUE}>All origins</SelectItem>
-            <SelectSeparator />
-            {ORIGIN_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                <div className="flex items-center justify-between gap-2">
-                  <span>{option.label}</span>
-                  {typeof originCounters?.[option.value] === "number" && (
-                    <Badge variant="outline" className="ml-auto">
-                      {originCounters[option.value]}
-                    </Badge>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </Field>
-
-      {canShowDeleted && (
-        <Field orientation="horizontal">
-          <FieldLabel>Show deleted</FieldLabel>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="include-deleted"
-              checked={Boolean(filters.includeDeleted)}
-              onCheckedChange={(checked) => handleIncludeDeletedToggle(Boolean(checked))}
-            />
-            <label htmlFor="include-deleted" className="text-sm text-muted-foreground">
-              Include deleted cards
-            </label>
-          </div>
+      <div className="grid w-full grid-cols-2 gap-4 pb-4 lg:flex lg:flex-nowrap">
+        <Field className={filterItemClass}>
+          <FieldLabel>Category</FieldLabel>
+          <Select
+            value={typeof filters.categoryId === "number" ? String(filters.categoryId) : ALL_CATEGORIES_VALUE}
+            onValueChange={handleCategoryChange}
+          >
+            <SelectTrigger aria-label="Filter by category">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_CATEGORIES_VALUE}>All categories</SelectItem>
+              <SelectSeparator />
+              <SelectGroupWithFallback
+                emptyLabel="No categories available"
+                items={categories}
+                renderItem={(category) => (
+                  <SelectItem key={category.id} value={String(category.id)}>
+                    {category.name}
+                  </SelectItem>
+                )}
+              />
+            </SelectContent>
+          </Select>
         </Field>
-      )}
 
-      <Field>
-        <FieldLabel>Sort order</FieldLabel>
-        <SortDropdown value={filters.sort} onChange={(value) => emitChange({ sort: value })} />
-      </Field>
+        <Field className={filterItemClass}>
+          <FieldLabel>Source</FieldLabel>
+          <Select
+            value={typeof filters.contentSourceId === "number" ? String(filters.contentSourceId) : ALL_SOURCES_VALUE}
+            onValueChange={handleSourceChange}
+          >
+            <SelectTrigger aria-label="Filter by source">
+              <SelectValue placeholder="All sources" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SOURCES_VALUE}>All sources</SelectItem>
+              <SelectSeparator />
+              <SelectGroupWithFallback
+                emptyLabel="No sources available"
+                items={sources}
+                renderItem={(source) => (
+                  <SelectItem key={source.id} value={String(source.id)}>
+                    {source.name}
+                  </SelectItem>
+                )}
+              />
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <Field className={filterItemClass}>
+          <FieldLabel>Origin</FieldLabel>
+          <Select value={filters.origin ?? ALL_ORIGINS_VALUE} onValueChange={handleOriginChange}>
+            <SelectTrigger aria-label="Filter by origin">
+              <SelectValue placeholder="All origins" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_ORIGINS_VALUE}>All origins</SelectItem>
+              <SelectSeparator />
+              {ORIGIN_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span>{option.label}</span>
+                    {typeof originCounters?.[option.value] === "number" && (
+                      <Badge variant="outline" className="ml-auto">
+                        {originCounters[option.value]}
+                      </Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        {canShowDeleted && (
+          <Field className={`${filterItemClass} max-w-[260px]`} orientation="horizontal">
+            <FieldLabel>Show deleted</FieldLabel>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="include-deleted"
+                checked={Boolean(filters.includeDeleted)}
+                onCheckedChange={(checked) => handleIncludeDeletedToggle(Boolean(checked))}
+              />
+              <label htmlFor="include-deleted" className="text-sm text-muted-foreground">
+                Include deleted cards
+              </label>
+            </div>
+          </Field>
+        )}
+
+        <Field className={filterItemClass}>
+          <FieldLabel>Sort order</FieldLabel>
+          <SortDropdown value={filters.sort} onChange={(value) => emitChange({ sort: value })} />
+        </Field>
+      </div>
 
       <Field className={isPanelLayout ? "md:col-span-2" : undefined}>
         <FieldLabel>Tags</FieldLabel>
@@ -258,7 +263,12 @@ export function FiltersForm({
             return (
               <label
                 key={tag.id}
-                className="flex items-center gap-2 rounded-full border px-3 py-1 text-sm cursor-pointer"
+                className={cn(
+                  "flex items-center gap-2 rounded-full border px-3 py-1 text-sm cursor-pointer transition-colors",
+                  checked
+                    ? "border-primary bg-primary/10 text-primary shadow-sm dark:bg-primary/20 dark:text-primary-foreground"
+                    : "border-border text-foreground hover:border-foreground/60 dark:text-foreground"
+                )}
               >
                 <Checkbox
                   checked={checked}
@@ -270,9 +280,6 @@ export function FiltersForm({
             );
           })}
         </div>
-        <FieldDescription>
-          Select up to {MAX_TAGS} tags ({filters.tagIds.length}/{MAX_TAGS})
-        </FieldDescription>
       </Field>
     </>
   );
@@ -283,11 +290,7 @@ export function FiltersForm({
       aria-describedby={layout === "drawer" ? "filters-drawer-description" : undefined}
       onSubmit={(event) => event.preventDefault()}
     >
-      {isPanelLayout ? (
-        <div className="grid gap-4 md:grid-cols-2">{filterFields}</div>
-      ) : (
-        <FieldGroup>{filterFields}</FieldGroup>
-      )}
+      {isPanelLayout ? <div>{filterFields}</div> : <FieldGroup>{filterFields}</FieldGroup>}
 
       <div className={`${isPanelLayout ? "flex flex-wrap justify-end gap-2" : "flex flex-col gap-2"} mt-4`}>
         <Button type="button" variant="secondary" onClick={onReset} className={isPanelLayout ? "w-full md:w-auto" : ""}>

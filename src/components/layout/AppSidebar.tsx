@@ -30,13 +30,17 @@ export function AppSidebar({ currentUser, children }: AppSidebarProps) {
     <SidebarProvider defaultOpen={true}>
       <Sidebar collapsible="icon">
         <SidebarHeader className="p-0 h-14 shrink-0">
-          <div className="flex items-center justify-start px-2 py-1 h-full transition-all duration-300 ease-in-out">
+          <a
+            href="/"
+            className="flex items-center justify-start px-2 py-1 h-full transition-all duration-300 ease-in-out"
+            aria-label="Go to home page"
+          >
             <img
               src="/10xcards_logo.svg"
               alt="10x-cards"
               className="h-[32px] w-auto transition-all duration-300 ease-in-out group-data-[collapsible=icon]:h-[24px]"
             />
-          </div>
+          </a>
         </SidebarHeader>
         <SidebarSeparator />
         <SidebarContent className="flex-1 overflow-hidden py-2">

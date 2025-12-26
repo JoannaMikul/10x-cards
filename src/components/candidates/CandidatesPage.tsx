@@ -95,6 +95,25 @@ export function CandidatesPage({ tags }: CandidatesPageProps) {
   };
 
   if (!generationId) {
+    const emptyStateCard = (
+      <Card className="shadow-sm">
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <p className="text-muted-foreground text-lg">No generation selected</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Please select a generation to view its candidates. You can do this by:
+            </p>
+            <ul className="text-sm text-muted-foreground mt-4 space-y-1">
+              <li>• Going to the generator page to create new flashcards</li>
+              <li>
+                • Adding <code className="bg-muted px-1 py-0.5 rounded">?generation_id=UUID</code> to the URL
+              </li>
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    );
+
     return (
       <div className="space-y-8 max-w-7xl mx-auto">
         <div className="text-center space-y-3">
@@ -104,24 +123,7 @@ export function CandidatesPage({ tags }: CandidatesPageProps) {
           </p>
         </div>
 
-        <Card className="shadow-sm">
-          <CardContent className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <p className="text-muted-foreground text-lg">No generation selected</p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Please select a generation to view its candidates. You can do this by:
-              </p>
-              <ul className="text-sm text-muted-foreground mt-4 space-y-1">
-                <li>• Going to the generator page to create new flashcards</li>
-                <li>
-                  • Adding <code className="bg-muted px-1 py-0.5 rounded">?generation_id=UUID</code> to the URL
-                </li>
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-
-        <GenerationSelector onSelectGeneration={handleSelectGeneration} />
+        <GenerationSelector onSelectGeneration={handleSelectGeneration} emptyFallback={emptyStateCard} />
 
         <Toaster />
       </div>

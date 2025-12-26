@@ -24,10 +24,12 @@ import { FlashcardList } from "./FlashcardList";
 import { FlashcardsFiltersProvider, useFlashcardsFilters } from "./FlashcardsFiltersContext";
 import { FiltersForm } from "./FiltersSidebar";
 import { SearchInput } from "./SearchInput";
+import { cn } from "../../lib/utils";
 
 interface FlashcardsPageProps {
   categories?: CategoryDTO[];
   tags?: TagDTO[];
+  filterTags?: TagDTO[];
   sources?: SourceDTO[];
   canShowDeleted?: boolean;
 }
@@ -57,6 +59,7 @@ export function FlashcardsPage(props: FlashcardsPageProps) {
 function FlashcardsPageContent({
   categories = [],
   tags = [],
+  filterTags = [],
   sources = [],
   canShowDeleted = false,
 }: FlashcardsPageProps) {
@@ -98,6 +101,7 @@ function FlashcardsPageContent({
     selectionState.mode === "all-filtered"
       ? (state.aggregates?.total ?? state.items.length) > 0
       : selectionState.selectedIds.length > 0;
+  const hasActiveSelection = canStartReview;
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -325,7 +329,7 @@ function FlashcardsPageContent({
             <FiltersForm
               filters={filters}
               categories={categories}
-              tags={tags}
+              tags={filterTags}
               sources={sources}
               aggregates={state.aggregates}
               canShowDeleted={canShowDeleted}
@@ -338,10 +342,21 @@ function FlashcardsPageContent({
       </div>
 
       <div className="flex w-full shrink-0 self-stretch">
-        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm flex h-full w-full flex-col">
+        <div
+          className={cn(
+            "rounded-lg border px-4 py-3 text-sm flex h-full w-full flex-col transition-colors",
+            hasActiveSelection
+              ? "border-primary/60 bg-primary/10 shadow-sm dark:border-primary/50 dark:bg-primary/20"
+              : "border-border bg-muted/30"
+          )}
+        >
           <div>
-            <p className="font-medium text-foreground">{selectionModeLabel}</p>
-            <p className="text-muted-foreground">{selectionDescription}</p>
+            <p className={cn("font-medium", hasActiveSelection ? "text-primary" : "text-foreground")}>
+              {selectionModeLabel}
+            </p>
+            <p className={cn(hasActiveSelection ? "text-primary/80 dark:text-primary/70" : "text-muted-foreground")}>
+              {selectionDescription}
+            </p>
           </div>
           {filters.includeDeleted && (
             <Badge variant="outline" className="mt-3">
@@ -374,7 +389,7 @@ function FlashcardsPageContent({
         onOpenChange={handleDrawerOpenChange}
         filters={filters}
         categories={categories}
-        tags={tags}
+        tags={filterTags}
         sources={sources}
         aggregates={state.aggregates}
         canShowDeleted={canShowDeleted}

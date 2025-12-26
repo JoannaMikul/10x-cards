@@ -1,6 +1,6 @@
 import { memo, useMemo, useId } from "react";
 import type { FlashcardDTO, SourceDTO, TagDTO } from "../../types";
-import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
@@ -53,12 +53,8 @@ function FlashcardItemComponent({
         selected && !isDeleted && "border-primary/70 ring-2 ring-primary/30"
       )}
     >
-      <CardHeader className="gap-3">
-        <div className="space-y-2">
-          <CardTitle className="text-base leading-relaxed text-foreground">{truncatedFront}</CardTitle>
-          <p className="text-sm font-normal text-muted-foreground leading-relaxed">{truncatedBack}</p>
-        </div>
-        <CardAction className="flex items-start gap-2">
+      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="order-1 flex items-start gap-2 md:order-2 md:justify-end">
           <Label
             htmlFor={reviewCheckboxId}
             className="flex cursor-pointer select-none items-center gap-2 text-sm font-medium"
@@ -70,12 +66,16 @@ function FlashcardItemComponent({
             />
             <span>Select for review</span>
           </Label>
-        </CardAction>
+        </div>
+        <div className="order-2 space-y-2 md:order-1 md:flex-1">
+          <CardTitle className="text-base leading-relaxed text-foreground">{truncatedFront}</CardTitle>
+          <p className="text-sm font-normal text-muted-foreground leading-relaxed">{truncatedBack}</p>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap items-start gap-4 sm:flex-nowrap sm:justify-between">
+          <div className="flex min-w-0 flex-1 flex-wrap gap-4">
             <div className="flex min-w-[120px] flex-col gap-1">
               <span className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Origin</span>
               <Badge variant="outline" className={cn("border border-dotted", getOriginBadgeClass(card.origin))}>
@@ -107,13 +107,13 @@ function FlashcardItemComponent({
               </div>
             )}
           </div>
-          <div className="min-w-[160px] shrink-0">
+          <div className="min-w-[160px] shrink-0 sm:text-right">
             <MetadataRow label="Created" value={createdAtLabel} align="end" />
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1">
+        <div className="flex flex-wrap items-start gap-4 sm:flex-nowrap sm:justify-between">
+          <div className="min-w-0 flex-1 space-y-1">
             <p className="text-xs uppercase tracking-wide text-muted-foreground/70">Tags</p>
             {tags.length > 0 ? (
               <div className="flex flex-wrap gap-2">
@@ -131,9 +131,9 @@ function FlashcardItemComponent({
               <p className="text-xs text-muted-foreground/80">No tags yet</p>
             )}
           </div>
-          <div className="min-w-[160px] shrink-0">
-            <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:items-end sm:text-right">
-              <MetadataRow label="Next review" value={nextReviewLabel} />
+          <div className="min-w-[160px] shrink-0 sm:text-right">
+            <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:items-end">
+              <MetadataRow label="Next review" value={nextReviewLabel} align="end" />
               {card.review_stats?.last_reviewed_at && (
                 <MetadataRow label="Last reviewed" value={formatRelativeDate(card.review_stats.last_reviewed_at)} />
               )}

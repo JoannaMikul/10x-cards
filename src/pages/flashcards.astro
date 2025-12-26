@@ -14,6 +14,7 @@ async function fetchCategories(): Promise<CategoryDTO[]> {
     .order("name", { ascending: true });
 
   if (error) {
+    // eslint-disable-next-line no-console
     console.error("[flashcards] Failed to fetch categories", error);
     return [];
   }
@@ -21,18 +22,32 @@ async function fetchCategories(): Promise<CategoryDTO[]> {
   return (data ?? []) as CategoryDTO[];
 }
 
-async function fetchTags(): Promise<TagDTO[]> {
+type TagWithUsage = TagDTO & {
+  card_tags?: { card_id: string }[] | null;
+};
+
+async function fetchTagsCatalog(): Promise<{ tags: TagDTO[]; filterTags: TagDTO[] }> {
   const { data, error } = await supabase
     .from("tags")
-    .select("id, name, slug, description, created_at, updated_at")
+    .select("id, name, slug, description, created_at, updated_at, card_tags(card_id)")
     .order("name", { ascending: true });
 
   if (error) {
+    // eslint-disable-next-line no-console
     console.error("[flashcards] Failed to fetch tags", error);
-    return [];
+    return { tags: [], filterTags: [] };
   }
 
-  return (data ?? []) as TagDTO[];
+  const rows = (data ?? []) as TagWithUsage[];
+  const tags = rows.map(stripCardTags);
+  const filterTags = rows.filter((row) => (row.card_tags?.length ?? 0) > 0).map(stripCardTags);
+
+  return { tags, filterTags };
+}
+
+function stripCardTags({ card_tags, ...tag }: TagWithUsage): TagDTO {
+  void card_tags;
+  return tag;
 }
 
 async function fetchSources(): Promise<SourceDTO[]> {
@@ -42,6 +57,7 @@ async function fetchSources(): Promise<SourceDTO[]> {
     .order("name", { ascending: true });
 
   if (error) {
+    // eslint-disable-next-line no-console
     console.error("[flashcards] Failed to fetch sources", error);
     return [];
   }
@@ -57,6 +73,7 @@ async function fetchIsAdmin(): Promise<boolean> {
   const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
 
   if (error) {
+    // eslint-disable-next-line no-console
     console.error("[flashcards] Failed to fetch user roles", error);
     return false;
   }
@@ -64,18 +81,20 @@ async function fetchIsAdmin(): Promise<boolean> {
   return (data ?? []).some((role) => role.role === "admin");
 }
 
-const [categories, tags, sources, canShowDeleted] = await Promise.all([
+const [categories, tagsCatalog, sources, canShowDeleted] = await Promise.all([
   fetchCategories(),
-  fetchTags(),
+  fetchTagsCatalog(),
   fetchSources(),
   fetchIsAdmin(),
 ]);
+
+const { tags, filterTags } = tagsCatalog;
 ---
 
 <Layout title="Flashcards - 10x-cards">
   <main class="min-h-[calc(100vh-3rem)] bg-background p-6">
     <div class="mx-auto max-w-7xl">
-      <FlashcardsPage client:load {categories} {tags} {sources} {canShowDeleted} />
+      <FlashcardsPage client:load {categories} {tags} {sources} {canShowDeleted} {filterTags} />
     </div>
   </main>
 </Layout>

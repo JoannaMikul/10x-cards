@@ -1,4 +1,13 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
 import type { FlashcardsSort } from "../../types";
 
 interface SortDropdownProps {
@@ -24,20 +33,21 @@ export function SortDropdown({
   disabled,
 }: SortDropdownProps) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-muted-foreground">
-      <span className="sr-only">{label}</span>
-      <Select value={value} onValueChange={(next) => onChange(next as FlashcardsSort)} disabled={disabled}>
-        <SelectTrigger aria-label={label} className="w-full bg-background dark:bg-input/30">
-          <SelectValue placeholder={placeholder} />
-        </SelectTrigger>
-        <SelectContent>
+    <Select value={value} onValueChange={(next) => onChange(next as FlashcardsSort)} disabled={disabled}>
+      <SelectTrigger aria-label={label} className="w-full">
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          <SelectLabel>{label}</SelectLabel>
+          <SelectSeparator />
           {SORT_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
           ))}
-        </SelectContent>
-      </Select>
-    </label>
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 }
