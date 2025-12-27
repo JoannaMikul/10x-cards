@@ -9,9 +9,9 @@ Checkbox oznacza: **endpoint jest zaimplementowany w backendzie i jest wywoływa
 ### Categories
 
 - [ ] `GET /api/categories` — backend: `src/pages/api/categories.ts`, UI: **brak użycia** (w `src` nie ma wywołań `/api/categories`, poza mockami)
-- [ ] `POST /api/categories` (admin – planned) — backend: **brak**, UI: **brak**
-- [ ] `PATCH /api/categories/:id` (admin) — backend: **brak**, UI: **brak**
-- [ ] `DELETE /api/categories/:id` (admin) — backend: **brak**, UI: **brak**
+- [ ] `POST /api/categories` (admin) — backend: `src/pages/api/categories.ts`, UI: **brak**
+- [ ] `PATCH /api/categories/:id` (admin) — backend: `src/pages/api/categories/[id].ts`, UI: **brak**
+- [ ] `DELETE /api/categories/:id` (admin) — backend: `src/pages/api/categories/[id].ts`, UI: **brak**
 
 ### Tags
 
@@ -51,23 +51,23 @@ Checkbox oznacza: **endpoint jest zaimplementowany w backendzie i jest wywoływa
 
 ### Generation Error Logs (admin)
 
-- [ ] `GET /api/admin/generation-error-logs` — backend: **brak**, UI: **brak**
+- [ ] `GET /api/admin/generation-error-logs` — backend: `src/pages/api/admin/generation-error-logs.ts`, UI: **brak**
 
 ### Review Sessions & Events
 
-- [ ] `POST /api/review-sessions` — backend: **brak**, UI: **brak**
-- [ ] `GET /api/review-events` — backend: **brak**, UI: **brak**
-- [ ] `GET /api/review-stats` — backend: **brak**, UI: **brak**
+- [ ] `POST /api/review-sessions` — backend: `src/pages/api/review-sessions.ts`, UI: **brak**
+- [ ] `GET /api/review-events` — backend: `src/pages/api/review-events.ts`, UI: **brak**
+- [ ] `GET /api/review-stats` — backend: `src/pages/api/review-stats.ts`, UI: **brak**
 
 ### Analytics KPI (admin)
 
-- [ ] `GET /api/admin/kpi` — backend: **brak**, UI: **brak**
+- [ ] `GET /api/admin/kpi` — backend: `src/pages/api/admin/kpi.ts`, UI: **brak**
 
 ### User Roles (admin)
 
-- [ ] `GET /api/admin/user-roles` — backend: **brak**, UI: **brak**
-- [ ] `POST /api/admin/user-roles` — backend: **brak**, UI: **brak**
-- [ ] `DELETE /api/admin/user-roles/:user_id/:role` — backend: **brak**, UI: **brak**
+- [ ] `GET /api/admin/user-roles` — backend: `src/pages/api/admin/user-roles.ts`, UI: **brak**
+- [ ] `POST /api/admin/user-roles` — backend: `src/pages/api/admin/user-roles.ts`, UI: **brak**
+- [ ] `DELETE /api/admin/user-roles/:user_id/:role` — backend: `src/pages/api/admin/user-roles/[userId]/[role].ts`, UI: **brak**
 
 ### Dodatkowe endpointy obecne w repo (poza `.ai/api-plan.md`)
 
