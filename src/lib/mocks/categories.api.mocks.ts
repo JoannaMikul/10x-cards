@@ -11,12 +11,12 @@ export interface CategoriesApiMock {
   description: string;
   status: number;
   request: {
-    method: "GET" | "POST" | "PATCH";
+    method: "GET" | "POST" | "PATCH" | "DELETE";
     url: string;
     headers?: Record<string, string>;
     body?: CreateCategoryCommand | UpdateCategoryCommand;
   };
-  response: CategoryListResponse | CategoryDTO | ApiErrorResponse<CategoryErrorCode>;
+  response: CategoryListResponse | CategoryDTO | ApiErrorResponse<CategoryErrorCode> | null;
 }
 
 export const categoriesApiMocks: CategoriesApiMock[] = [
@@ -611,6 +611,117 @@ export const categoriesApiMocks: CategoriesApiMock[] = [
       error: {
         code: "db_error",
         message: "A database error occurred while updating the category.",
+      },
+    },
+  },
+  {
+    description: "204 No Content – successful category deletion",
+    status: 204,
+    request: {
+      method: "DELETE",
+      url: "/api/categories/1",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: null,
+  },
+  {
+    description: "400 Bad Request – invalid category ID parameter",
+    status: 400,
+    request: {
+      method: "DELETE",
+      url: "/api/categories/not-a-number",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Invalid category ID parameter.",
+      },
+    },
+  },
+  {
+    description: "401 Unauthorized – user not authenticated",
+    status: 401,
+    request: {
+      method: "DELETE",
+      url: "/api/categories/1",
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authenticated.",
+      },
+    },
+  },
+  {
+    description: "403 Forbidden – user not admin",
+    status: 403,
+    request: {
+      method: "DELETE",
+      url: "/api/categories/1",
+      headers: {
+        Authorization: "Bearer regular-user-token",
+      },
+    },
+    response: {
+      error: {
+        code: "forbidden",
+        message: "Admin privileges required.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – category does not exist",
+    status: 404,
+    request: {
+      method: "DELETE",
+      url: "/api/categories/999",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Category not found.",
+      },
+    },
+  },
+  {
+    description: "409 Conflict – category is in use by flashcards",
+    status: 409,
+    request: {
+      method: "DELETE",
+      url: "/api/categories/1",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "category_in_use",
+        message: "Cannot delete category because it is referenced by flashcards.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error during deletion",
+    status: 500,
+    request: {
+      method: "DELETE",
+      url: "/api/categories/1",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while deleting the category.",
       },
     },
   },

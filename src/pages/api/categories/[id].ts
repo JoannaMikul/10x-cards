@@ -3,7 +3,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 import { DEFAULT_USER_ID, supabaseClient } from "../../../db/supabase.client.ts";
 import { CATEGORY_ERROR_CODES, buildErrorResponse, mapCategoryDbError } from "../../../lib/errors.ts";
-import { updateCategoryById } from "../../../lib/services/categories.service.ts";
+import { updateCategoryById, deleteCategoryById } from "../../../lib/services/categories.service.ts";
 import type { UpdateCategoryCommand } from "../../../types";
 import { categoryIdParamSchema, updateCategoryBodySchema } from "../../../lib/validation/categories.schema.ts";
 
@@ -57,7 +57,6 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
-  // Validate path parameter
   const paramValidationResult = categoryIdParamSchema.safeParse(params);
   if (!paramValidationResult.success) {
     const descriptor = buildErrorResponse(400, CATEGORY_ERROR_CODES.INVALID_QUERY, "Invalid category ID parameter.");
@@ -77,7 +76,6 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
 
   const { id } = paramValidationResult.data;
 
-  // Check admin privileges
   try {
     const isAdmin = await checkAdminStatus(supabase);
     if (!isAdmin) {
@@ -106,7 +104,6 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
-  // Parse and validate request body
   let body: unknown;
   try {
     body = await request.json();
@@ -146,7 +143,6 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
 
   const command: UpdateCategoryCommand = validationResult.data;
 
-  // Update category
   try {
     const category = await updateCategoryById(supabase, id, command);
 
@@ -181,7 +177,6 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
-    // Handle not found error
     if (error instanceof Error && error.message.includes("not found")) {
       const descriptor = buildErrorResponse(404, CATEGORY_ERROR_CODES.NOT_FOUND, "Category not found.");
       recordCategoriesEvent({
@@ -211,6 +206,149 @@ export const PATCH: APIRoute = async ({ locals, params, request }) => {
         userId: locals.user.id,
         categoryId: id,
         command: serializeUpdateCommand(command),
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+};
+
+export const DELETE: APIRoute = async ({ locals, params }) => {
+  const supabase = locals.supabase ?? supabaseClient;
+
+  if (!supabase) {
+    const descriptor = buildErrorResponse(
+      500,
+      CATEGORY_ERROR_CODES.UNEXPECTED_ERROR,
+      "Supabase client is not available in the current context."
+    );
+    recordCategoriesEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.UNEXPECTED_ERROR,
+      details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, CATEGORY_ERROR_CODES.UNAUTHORIZED, "User not authenticated.");
+    recordCategoriesEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.UNAUTHORIZED,
+      details: { reason: "user_not_authenticated" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const paramValidationResult = categoryIdParamSchema.safeParse(params);
+  if (!paramValidationResult.success) {
+    const descriptor = buildErrorResponse(400, CATEGORY_ERROR_CODES.INVALID_QUERY, "Invalid category ID parameter.");
+    recordCategoriesEvent({
+      severity: "info",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.INVALID_QUERY,
+      details: {
+        reason: "invalid_id_param",
+        userId: locals.user.id,
+        params,
+        issues: paramValidationResult.error.issues,
+      },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const { id } = paramValidationResult.data;
+
+  try {
+    const isAdmin = await checkAdminStatus(supabase);
+    if (!isAdmin) {
+      const descriptor = buildErrorResponse(403, CATEGORY_ERROR_CODES.FORBIDDEN, "Admin privileges required.");
+      recordCategoriesEvent({
+        severity: "error",
+        status: descriptor.status,
+        code: CATEGORY_ERROR_CODES.FORBIDDEN,
+        details: { reason: "user_not_admin", userId: locals.user.id, categoryId: id },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+  } catch (error) {
+    const descriptor = buildErrorResponse(500, CATEGORY_ERROR_CODES.DB_ERROR, "Failed to verify admin privileges.");
+    recordCategoriesEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.DB_ERROR,
+      details: {
+        reason: "admin_check_failed",
+        userId: locals.user.id,
+        categoryId: id,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  try {
+    await deleteCategoryById(supabase, id);
+
+    recordCategoriesEvent({
+      severity: "info",
+      status: 204,
+      code: "category_deleted",
+      details: {
+        reason: "category_deleted_successfully",
+        userId: locals.user.id,
+        categoryId: id,
+      },
+    });
+
+    return new Response(null, { status: 204 });
+  } catch (error) {
+    if (isPostgrestError(error)) {
+      const descriptor = mapCategoryDbError(error);
+      recordCategoriesEvent({
+        severity: "error",
+        status: descriptor.status,
+        code: descriptor.body.error.code,
+        details: {
+          reason: "postgrest_error",
+          userId: locals.user.id,
+          categoryId: id,
+          db_code: error.code,
+        },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    if (error instanceof Error && error.message.includes("not found")) {
+      const descriptor = buildErrorResponse(404, CATEGORY_ERROR_CODES.NOT_FOUND, "Category not found.");
+      recordCategoriesEvent({
+        severity: "info",
+        status: descriptor.status,
+        code: CATEGORY_ERROR_CODES.NOT_FOUND,
+        details: {
+          reason: "category_not_found",
+          userId: locals.user.id,
+          categoryId: id,
+        },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    const descriptor = buildErrorResponse(
+      500,
+      CATEGORY_ERROR_CODES.UNEXPECTED_ERROR,
+      "Unexpected error while deleting category."
+    );
+    recordCategoriesEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.UNEXPECTED_ERROR,
+      details: {
+        reason: "unexpected_delete_error",
+        userId: locals.user.id,
+        categoryId: id,
         message: error instanceof Error ? error.message : String(error),
       },
     });

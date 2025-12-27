@@ -27,6 +27,7 @@ export const CATEGORY_ERROR_CODES = {
   SLUG_TAKEN: "slug_taken",
   NAME_TAKEN: "name_taken",
   CONSTRAINT_VIOLATION: "constraint_violation",
+  CATEGORY_IN_USE: "category_in_use",
   RATE_LIMIT_EXCEEDED: "rate_limit_exceeded",
   DB_ERROR: "db_error",
   UNEXPECTED_ERROR: "unexpected_error",
@@ -242,6 +243,15 @@ export function mapCategoryDbError(error: PostgrestError): HttpErrorDescriptor<C
       409,
       CATEGORY_ERROR_CODES.CONSTRAINT_VIOLATION,
       "A category with these details already exists."
+    );
+  }
+
+  if (error.code === "23503") {
+    // Foreign key violation - category is in use
+    return buildErrorResponse(
+      409,
+      CATEGORY_ERROR_CODES.CATEGORY_IN_USE,
+      "Cannot delete category because it is referenced by flashcards."
     );
   }
 

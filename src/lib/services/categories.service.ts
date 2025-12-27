@@ -96,6 +96,18 @@ export async function updateCategoryById(
   return mapCategoryRowToDto(data);
 }
 
+export async function deleteCategoryById(supabase: SupabaseClient, id: number): Promise<void> {
+  const { data, error } = await supabase.from("categories").delete().eq("id", id).select("id").maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error(`Category with id ${id} not found`);
+  }
+}
+
 function mapCategoryRowToDto(row: CategorySelect): CategoryDTO {
   return {
     id: row.id,
