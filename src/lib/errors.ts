@@ -273,6 +273,26 @@ export function mapCategoryDbError(error: PostgrestError): HttpErrorDescriptor<C
   );
 }
 
+export const REVIEW_ERROR_CODES = {
+  INVALID_BODY: "invalid_body",
+  UNAUTHORIZED: "unauthorized",
+  CARD_NOT_FOUND: "card_not_found",
+  INVALID_OUTCOME: "invalid_outcome",
+  INVALID_GRADE: "invalid_grade",
+  DB_ERROR: "db_error",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type ReviewErrorCode = (typeof REVIEW_ERROR_CODES)[keyof typeof REVIEW_ERROR_CODES];
+
+export function mapReviewDbError(): HttpErrorDescriptor<ReviewErrorCode> {
+  return buildErrorResponse(
+    500,
+    REVIEW_ERROR_CODES.DB_ERROR,
+    "A database error occurred while processing the review session."
+  );
+}
+
 export const AUTH_ERROR_CODES = {
   INVALID_BODY: "invalid_body",
   INVALID_CREDENTIALS: "invalid_credentials",

@@ -703,20 +703,23 @@
 
 #### POST /api/review-sessions
 
-- **Description:** Persists batch of review outcomes and updates stats using `supermemo` library (SuperMemo 2 algorithm). For each review, calls `supermemo(currentItem, grade)` where grade is mapped from outcome (0-5 scale), then updates review_stats with new interval, repetition, efactor values.
+- **Description:** Processes a batch of review session outcomes and updates flashcard statistics using the SuperMemo 2 algorithm. For each review entry, maps the outcome to a grade (0-5 scale), applies the `supermemo` algorithm to calculate new interval/repetition/efactor values, and persists review events. Database triggers automatically update `review_stats` and calculate `next_review_at`.
+- **Headers:**
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <jwt>` (required)
 - **Request:**
 
 ```json
 {
-  "session_id": "uuid",
-  "started_at": "...",
-  "completed_at": "...",
+  "session_id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+  "started_at": "2025-12-27T09:00:00.000Z",
+  "completed_at": "2025-12-27T09:15:00.000Z",
   "reviews": [
     {
-      "card_id": "uuid",
+      "card_id": "13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
       "outcome": "good",
-      "grade": 4,
-      "response_time_ms": 4200,
+      "grade": 3,
+      "response_time_ms": 2500,
       "prev_interval_days": 3,
       "next_interval_days": 5,
       "was_learning_step": false,
@@ -726,9 +729,56 @@
 }
 ```
 
-- **Response:** `201 Created` with summary `{ "logged": 10 }`.
-- **Validation:** `outcome ∈ review_outcome`, `grade ∈ 0..5` (required), numeric ranges for intervals/time.
-- **Algorithm Integration:** Uses `supermemo` library with current `{interval, repetition, efactor}` from review_stats, applies new grade, updates database with returned values and calculates `next_review_at = now() + interval_days`.
+- **Validation:**
+  - `session_id`: UUID (required)
+  - `started_at`, `completed_at`: ISO date strings (required)
+  - `reviews`: array with minimum 1 element, maximum 100 elements
+  - Each review:
+    - `card_id`: UUID (required)
+    - `outcome`: enum `review_outcome` ∈ {`fail`, `hard`, `good`, `easy`, `again`} (required)
+    - `grade`: integer 0-5 (required)
+    - `response_time_ms`: integer ≥ 0 (optional)
+    - `prev_interval_days`: integer ≥ 0 (optional)
+    - `next_interval_days`: integer ≥ 0 (optional)
+    - `was_learning_step`: boolean (optional)
+    - `payload`: arbitrary JSON (optional)
+- **Business Logic:**
+  - Outcome-to-grade mapping: `again`→0, `fail`→1, `hard`→2, `good`→3, `easy`→4
+  - Fetches current review stats for all cards in batch
+  - Validates card ownership before processing
+  - Applies SuperMemo 2 algorithm: `supermemo({interval, repetition, efactor}, grade)`
+  - Inserts review events which trigger automatic `review_stats` updates
+- **Success Response:** `201 Created`
+
+```json
+{
+  "logged": 2
+}
+```
+
+- **Error Contract:**
+
+| Status | `error.code`       | Trigger                                               |
+| ------ | ------------------ | ----------------------------------------------------- |
+| 400    | `invalid_body`     | Invalid JSON / Zod schema validation failure          |
+| 401    | `unauthorized`     | Missing/invalid Supabase JWT                          |
+| 404    | `card_not_found`   | One or more cards don't exist or aren't owned by user |
+| 500    | `db_error`         | PostgREST/PostgreSQL failure                          |
+| 500    | `unexpected_error` | Runtime exception                                     |
+
+- **Example Error:**
+
+```json
+{
+  "error": {
+    "code": "card_not_found",
+    "message": "One or more cards not found or not owned by user."
+  }
+}
+```
+
+- **Observability:** Logs every 4xx/5xx response via `recordReviewSessionEvent` (`scope: "api/review-sessions"`).
+- **Mocks:** Contract examples live in `src/lib/mocks/review-sessions.api.mocks.ts`.
 
 #### GET /api/review-events
 
