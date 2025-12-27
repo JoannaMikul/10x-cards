@@ -23,6 +23,7 @@ export const CATEGORY_ERROR_CODES = {
   INVALID_BODY: "invalid_body",
   UNAUTHORIZED: "unauthorized",
   FORBIDDEN: "forbidden",
+  NOT_FOUND: "not_found",
   SLUG_TAKEN: "slug_taken",
   NAME_TAKEN: "name_taken",
   CONSTRAINT_VIOLATION: "constraint_violation",

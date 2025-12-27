@@ -158,3 +158,32 @@ export const createCategoryBodySchema = z.object({
 });
 
 export type CreateCategoryBodySchema = z.infer<typeof createCategoryBodySchema>;
+
+export const categoryIdParamSchema = z.object({
+  id: z
+    .string()
+    .regex(/^\d+$/, "Category ID must be a valid positive integer.")
+    .transform((val) => parseInt(val, 10))
+    .refine((val) => val > 0, "Category ID must be a positive integer."),
+});
+
+export type CategoryIdParamSchema = z.infer<typeof categoryIdParamSchema>;
+
+const updateCategoryNameSchema = createCategoryNameSchema.optional();
+const updateCategorySlugSchema = createCategorySlugSchema.optional();
+const updateCategoryDescriptionSchema = createCategoryDescriptionSchema.optional();
+const updateCategoryColorSchema = z.union([createCategoryColorSchema, z.null()]).optional();
+
+export const updateCategoryBodySchema = z
+  .object({
+    name: updateCategoryNameSchema,
+    slug: updateCategorySlugSchema,
+    description: updateCategoryDescriptionSchema,
+    color: updateCategoryColorSchema,
+  })
+  .refine(
+    (data) => Object.values(data).some((value) => value !== undefined),
+    "At least one field must be provided for update."
+  );
+
+export type UpdateCategoryBodySchema = z.infer<typeof updateCategoryBodySchema>;

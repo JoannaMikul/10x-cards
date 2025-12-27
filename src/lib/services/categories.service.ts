@@ -1,6 +1,6 @@
 import type { Tables } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { CategoryDTO, CreateCategoryCommand } from "../../types";
+import type { CategoryDTO, CreateCategoryCommand, UpdateCategoryCommand } from "../../types";
 import type { CategoriesQuery } from "../validation/categories.schema.ts";
 import { escapeIlikePattern } from "../utils/search.ts";
 
@@ -68,6 +68,29 @@ export async function createCategory(supabase: SupabaseClient, command: CreateCa
 
   if (!data) {
     throw new Error("Failed to create category: no data returned from database");
+  }
+
+  return mapCategoryRowToDto(data);
+}
+
+export async function updateCategoryById(
+  supabase: SupabaseClient,
+  id: number,
+  patch: UpdateCategoryCommand
+): Promise<CategoryDTO> {
+  const { data, error } = await supabase
+    .from("categories")
+    .update(patch)
+    .eq("id", id)
+    .select(CATEGORY_COLUMNS)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error(`Category with id ${id} not found`);
   }
 
   return mapCategoryRowToDto(data);
