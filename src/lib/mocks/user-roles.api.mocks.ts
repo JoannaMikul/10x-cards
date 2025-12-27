@@ -5,7 +5,7 @@ export interface UserRolesApiMock {
   description: string;
   status: number;
   request: {
-    method: "GET" | "POST";
+    method: "GET" | "POST" | "DELETE";
     url: string;
     headers?: Record<string, string>;
     body?: CreateUserRoleCommand;
@@ -315,6 +315,140 @@ export const userRolesApiMocks: UserRolesApiMock[] = [
       error: {
         code: "unexpected_error",
         message: "Unexpected error while creating user role.",
+      },
+    },
+  },
+
+  // DELETE /api/admin/user-roles/:user_id/:role mocks
+  {
+    description: "204 No Content – successfully revoked admin role",
+    status: 204,
+    request: {
+      method: "DELETE",
+      url: "/api/admin/user-roles/550e8400-e29b-41d4-a716-446655440003/admin",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: null,
+  },
+  {
+    description: "400 Bad Request – invalid path parameters (invalid UUID)",
+    status: 400,
+    request: {
+      method: "DELETE",
+      url: "/api/admin/user-roles/invalid-uuid/admin",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_path_params",
+        message: "Invalid path parameters.",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid path parameters (invalid role)",
+    status: 400,
+    request: {
+      method: "DELETE",
+      url: "/api/admin/user-roles/550e8400-e29b-41d4-a716-446655440003/superuser",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_path_params",
+        message: "Invalid path parameters.",
+      },
+    },
+  },
+  {
+    description: "401 Unauthorized – user not authenticated",
+    status: 401,
+    request: {
+      method: "DELETE",
+      url: "/api/admin/user-roles/550e8400-e29b-41d4-a716-446655440003/admin",
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authenticated.",
+      },
+    },
+  },
+  {
+    description: "403 Forbidden – user not admin",
+    status: 403,
+    request: {
+      method: "DELETE",
+      url: "/api/admin/user-roles/550e8400-e29b-41d4-a716-446655440003/admin",
+      headers: {
+        Authorization: "Bearer regular-user-token",
+      },
+    },
+    response: {
+      error: {
+        code: "insufficient_permissions",
+        message: "Admin privileges required.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – user does not have this role",
+    status: 404,
+    request: {
+      method: "DELETE",
+      url: "/api/admin/user-roles/550e8400-e29b-41d4-a716-446655440004/admin",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "role_not_found",
+        message: "User does not have this role.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error during role deletion",
+    status: 500,
+    request: {
+      method: "DELETE",
+      url: "/api/admin/user-roles/550e8400-e29b-41d4-a716-446655440003/admin",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "Failed to delete user role.",
+        details: {
+          code: "23503",
+          message: 'update or delete on table "user_roles" violates foreign key constraint',
+        },
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – unexpected error during role deletion",
+    status: 500,
+    request: {
+      method: "DELETE",
+      url: "/api/admin/user-roles/550e8400-e29b-41d4-a716-446655440003/admin",
+      headers: {
+        Authorization: "Bearer admin-token",
+      },
+    },
+    response: {
+      error: {
+        code: "unexpected_error",
+        message: "Unexpected error while deleting user role.",
       },
     },
   },

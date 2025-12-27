@@ -22,3 +22,22 @@ export const createUserRoleSchema = z.object({
 });
 
 export type CreateUserRoleSchema = z.infer<typeof createUserRoleSchema>;
+
+// Schema for path parameters in user role operations (DELETE /api/admin/user-roles/:user_id/:role)
+const userRolePathParamsUserIdSchema = z
+  .string()
+  .uuid("User ID must be a valid UUID.")
+  .transform((value) => value.trim());
+
+const userRolePathParamsRoleSchema = z.enum(USER_ROLE_VALUES, {
+  errorMap: () => ({
+    message: `Role must be one of: ${USER_ROLE_VALUES.join(", ")}.`,
+  }),
+});
+
+export const userRolePathParamsSchema = z.object({
+  userId: userRolePathParamsUserIdSchema,
+  role: userRolePathParamsRoleSchema,
+});
+
+export type UserRolePathParamsSchema = z.infer<typeof userRolePathParamsSchema>;

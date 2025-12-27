@@ -320,7 +320,9 @@ export const USER_ROLES_ERROR_CODES = {
   UNAUTHORIZED: "unauthorized",
   INSUFFICIENT_PERMISSIONS: "insufficient_permissions",
   INVALID_BODY: "invalid_body",
+  INVALID_PATH_PARAMS: "invalid_path_params",
   ROLE_EXISTS: "role_exists",
+  ROLE_NOT_FOUND: "role_not_found",
   DB_ERROR: "db_error",
   UNEXPECTED_ERROR: "unexpected_error",
 } as const;

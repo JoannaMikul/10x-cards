@@ -87,6 +87,42 @@ export async function createUserRole(supabase: SupabaseClient, cmd: CreateUserRo
 }
 
 /**
+ * Deletes a user role assignment.
+ * This function first checks if the role exists before attempting to delete it.
+ *
+ * @param supabase - Supabase client instance
+ * @param userId - ID of the user whose role should be removed
+ * @param role - Role to remove from the user
+ * @throws UserRoleServiceError with code "role_not_found" if the user doesn't have this role
+ * @throws Error if database operations fail
+ */
+export async function deleteUserRole(supabase: SupabaseClient, userId: string, role: string): Promise<void> {
+  // Check if the role exists for this user
+  const { data: existingRole, error: checkError } = await supabase
+    .from("user_roles")
+    .select("user_id, role")
+    .eq("user_id", userId)
+    .eq("role", role)
+    .single();
+
+  if (checkError && checkError.code !== "PGRST116") {
+    // PGRST116 is "not found" error, which is expected if role doesn't exist
+    throw new Error(`Failed to check existing role: ${checkError.message}`);
+  }
+
+  if (!existingRole) {
+    throw new UserRoleServiceError("role_not_found", "User does not have this role");
+  }
+
+  // Delete the role assignment
+  const { error: deleteError } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
+
+  if (deleteError) {
+    throw new Error(`Failed to delete user role: ${deleteError.message}`);
+  }
+}
+
+/**
  * Maps a database row to UserRoleDTO.
  * @param row - Database row from user_roles table
  * @returns UserRoleDTO

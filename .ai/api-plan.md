@@ -928,12 +928,12 @@
 - **Success codes:** `200 OK`.
 - **Errors:**
 
-| Status | `error.code`          | Notes                                                                 |
-| ------ | --------------------- | --------------------------------------------------------------------- |
-| 401    | `unauthorized`        | User not authenticated or JWT invalid                                 |
-| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)       |
-| 500    | `db_error`            | PostgREST/PostgreSQL failure; response includes `{ code, message }`  |
-| 500    | `unexpected_error`    | Runtime issues (missing Supabase client, unexpected exception)       |
+| Status | `error.code`               | Notes                                                                |
+|--------|----------------------------|----------------------------------------------------------------------|
+| 401    | `unauthorized`             | User not authenticated or JWT invalid                                |
+| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)      |
+| 500    | `db_error`                 | PostgREST/PostgreSQL failure; response includes `{ code, message }` |
+| 500    | `unexpected_error`         | Runtime issues (missing Supabase client, unexpected exception)      |
 
 - **Security considerations:** Endpoint returns sensitive information about admin role assignments. Access is strictly limited to administrators via both application-level checks and Row Level Security (RLS) policies on the `user_roles` table.
 - **Performance:** Simple SELECT query on `user_roles` table with no joins or complex filtering. Uses database index on `(user_id, role)` for efficient access.
@@ -966,20 +966,48 @@
   - Only administrators can grant admin roles
 - **Errors:**
 
-| Status | `error.code`              | Trigger                                                                 |
-| ------ | ------------------------- | ----------------------------------------------------------------------- |
-| 400    | `invalid_body`            | Invalid JSON or Zod schema validation failure (invalid UUID, wrong role) |
-| 401    | `unauthorized`            | Missing/invalid JWT or user not authenticated                           |
-| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)          |
-| 409    | `role_exists`             | User already has the admin role                                         |
-| 500    | `db_error`                | PostgREST/PostgreSQL failure; response includes `{ code, message }`     |
-| 500    | `unexpected_error`        | Runtime issues (missing Supabase client, unexpected exception)          |
+| Status | `error.code`               | Trigger                                                                |
+|--------|---------------------------|------------------------------------------------------------------------|
+| 400    | `invalid_body`            | Invalid JSON or Zod schema validation failure (invalid UUID, wrong role)|
+| 401    | `unauthorized`            | Missing/invalid JWT or user not authenticated                          |
+| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)         |
+| 409    | `role_exists`             | User already has the admin role                                        |
+| 500    | `db_error`                | PostgREST/PostgreSQL failure; response includes `{ code, message }`    |
+| 500    | `unexpected_error`        | Runtime issues (missing Supabase client, unexpected exception)         |
 
 - **Observability:** Every 4xx/5xx response is logged via `recordUserRolesEvent` (`scope: "api/admin/user-roles"`, includes `userId`, `targetUserId`, `role`).
 
 #### DELETE /api/admin/user-roles/:user_id/:role
 
-- Removes role; `204 No Content`.
+- **Description:** Removes an administrator role from a specified user. Requires admin privileges for access. The operation is atomic and includes validation to ensure the role exists before removal. This endpoint allows administrators to revoke admin roles from other users, preventing privilege escalation and maintaining proper access control.
+- **Headers:**
+  - `Authorization: Bearer <jwt>` (required)
+  - `Accept: application/json`
+- **Path parameters:**
+  - `user_id`: UUID string (required) – ID of the user whose role should be removed
+  - `role`: string (required) – Role to remove, currently only "admin" is supported
+- **Request body:** none (empty request)
+- **Success Response:** `204 No Content` (empty body)
+- **Authorization:** Requires admin privileges (`is_admin()` RPC returns true)
+- **Security considerations:**
+  - Endpoint prevents privilege escalation through strict validation
+  - Uses Row Level Security (RLS) on `user_roles` table
+  - Only administrators can revoke admin roles
+  - Logs all role removal operations for audit purposes
+- **Errors:**
+
+| Status | `error.code`               | Trigger                                                                |
+|--------|---------------------------|------------------------------------------------------------------------|
+| 400    | `invalid_path_params`      | Invalid UUID format for `user_id` or unsupported role value            |
+| 401    | `unauthorized`             | Missing/invalid JWT or user not authenticated                          |
+| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)         |
+| 404    | `role_not_found`           | User does not have the specified role                                  |
+| 500    | `db_error`                 | PostgREST/PostgreSQL failure; response includes `{ code, message }`    |
+| 500    | `unexpected_error`         | Runtime issues (missing Supabase client, unexpected exception)         |
+
+- **Performance:** Simple DELETE query on `user_roles` table with foreign key check. Uses database index on `(user_id, role)` for efficient access.
+- **Observability:** Every 4xx/5xx response is logged via `recordUserRolesEvent` (`scope: "api/admin/user-roles/[userId]/[role]"`, includes `userId`, `targetUserId`, `role`).
+- **Mocks:** Contract fixtures (204 success, 400 invalid params, 401 unauthorized, 403 forbidden, 404 not found, 500 db error, 500 unexpected error) live in `src/lib/mocks/user-roles.api.mocks.ts`.
 
 ## 3. Authentication and Authorization
 
