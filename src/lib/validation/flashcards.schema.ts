@@ -29,11 +29,14 @@ const jsonSchema: z.ZodType<Json> = z.lazy(() =>
   z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(jsonSchema), z.record(jsonSchema)])
 );
 
-const tagIdsSchema = z
-  .array(positiveIntSchema)
+const tagIdsArraySchema = z
+  .array(positiveIntSchema, {
+    invalid_type_error: "Tag IDs must be an array of numbers.",
+  })
   .max(50, "Tag selection cannot exceed 50 entries.")
-  .refine((values) => new Set(values).size === values.length, "Tag IDs must be unique.")
-  .optional();
+  .refine((values) => new Set(values).size === values.length, "Tag IDs must be unique.");
+
+const tagIdsSchema = tagIdsArraySchema.optional();
 
 export const createFlashcardSchema = z.object({
   front: z
@@ -227,3 +230,9 @@ export type FlashcardIdParamPayload = z.infer<typeof flashcardIdParamSchema>;
 export function parseFlashcardId(params: FlashcardIdParamPayload): string {
   return params.id;
 }
+
+export const setFlashcardTagsSchema = z.object({
+  tag_ids: tagIdsArraySchema,
+});
+
+export type SetFlashcardTagsPayload = z.infer<typeof setFlashcardTagsSchema>;

@@ -17,6 +17,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "../
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Checkbox } from "../ui/checkbox";
 import { FormError } from "../common/FormError";
+import { cn } from "../../lib/utils";
 
 const MAX_TAGS = 50;
 const NO_CATEGORY_VALUE = "no-category";
@@ -259,7 +260,12 @@ export function FlashcardFormModal({
                   return (
                     <label
                       key={tag.id}
-                      className="flex cursor-pointer select-none items-center gap-2 rounded-full border px-3 py-1 text-sm"
+                      className={cn(
+                        "flex cursor-pointer select-none items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors",
+                        checked
+                          ? "border-primary bg-primary/10 text-primary shadow-sm dark:bg-primary/20 dark:text-primary-foreground"
+                          : "border-border text-foreground hover:border-foreground/60 dark:text-foreground"
+                      )}
                     >
                       <Checkbox
                         checked={checked}

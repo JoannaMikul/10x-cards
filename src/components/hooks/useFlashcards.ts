@@ -8,6 +8,7 @@ import type {
   FlashcardListResponse,
   FlashcardsFilters,
   FlashcardsViewState,
+  TagDTO,
   UpdateFlashcardCommand,
 } from "../../types";
 import { createDefaultFlashcardsFilters } from "../flashcards/constants";
@@ -79,6 +80,7 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
     hasMore: false,
     aggregates: undefined,
   });
+  const listStateRef = useRef(listState);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -224,53 +226,102 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
     [fetchFlashcards, filters.sort]
   );
 
-  const updateFlashcard = useCallback(async (id: string, payload: UpdateFlashcardCommand) => {
-    try {
-      const response = await fetch(`/api/flashcards/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+  const updateFlashcard = useCallback(
+    async (id: string, payload: UpdateFlashcardCommand) => {
+      const { tag_ids, ...rest } = payload;
+      const basePayload = sanitizeBaseUpdatePayload(rest);
+      const shouldPatch = Object.keys(basePayload).length > 0;
 
-      if (!response.ok) {
-        if (response.status === 401) {
-          redirectToLogin();
+      try {
+        let updatedCard: FlashcardDTO | null = null;
+
+        if (shouldPatch) {
+          const response = await fetch(`/api/flashcards/${id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(basePayload),
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              redirectToLogin();
+              return;
+            }
+
+            const errorData = await parseApiError(response);
+            toast.error("Failed to update flashcard", {
+              description: errorData.error.message,
+            });
+            throw errorData;
+          }
+
+          updatedCard = await response.json();
+        } else {
+          const snapshot = listStateRef.current.items.find((item) => item.id === id);
+          updatedCard = snapshot ? { ...snapshot } : null;
+        }
+
+        if (tag_ids !== undefined) {
+          const response = await fetch(`/api/flashcards/${id}/tags`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ tag_ids }),
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              redirectToLogin();
+              return;
+            }
+
+            const errorData = await parseApiError(response);
+            toast.error("Failed to update flashcard tags", {
+              description: errorData.error.message,
+            });
+            throw errorData;
+          }
+
+          const updatedTags: TagDTO[] = await response.json();
+          if (updatedCard) {
+            updatedCard = { ...updatedCard, tags: updatedTags };
+          }
+        }
+
+        if (!updatedCard) {
+          await fetchFlashcards({ cursor: null, append: false, preserveItems: true });
+          toast.success("Flashcard updated");
           return;
         }
 
-        const errorData = await parseApiError(response);
+        const nextCard = updatedCard;
+        setListState((prev) => ({
+          ...prev,
+          items: prev.items.map((item) => (item.id === id ? nextCard : item)),
+        }));
+
+        toast.success("Flashcard updated");
+      } catch (error) {
+        if (isApiError(error)) {
+          throw error;
+        }
+        const fallbackError: ApiErrorResponse = {
+          error: {
+            code: "network_error",
+            message: error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE,
+          },
+        };
         toast.error("Failed to update flashcard", {
-          description: errorData.error.message,
+          description: fallbackError.error.message,
         });
-        throw errorData;
+        throw fallbackError;
       }
-
-      const updated: FlashcardDTO = await response.json();
-
-      setListState((prev) => ({
-        ...prev,
-        items: prev.items.map((item) => (item.id === id ? updated : item)),
-      }));
-
-      toast.success("Flashcard updated");
-    } catch (error) {
-      if (isApiError(error)) {
-        throw error;
-      }
-      const fallbackError: ApiErrorResponse = {
-        error: {
-          code: "network_error",
-          message: error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE,
-        },
-      };
-      toast.error("Failed to update flashcard", {
-        description: fallbackError.error.message,
-      });
-      throw fallbackError;
-    }
-  }, []);
+    },
+    [fetchFlashcards]
+  );
 
   const deleteFlashcard = useCallback(
     async (id: string) => {
@@ -375,6 +426,10 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
     },
     [filters.includeDeleted]
   );
+
+  useEffect(() => {
+    listStateRef.current = listState;
+  }, [listState]);
 
   useEffect(() => {
     fetchFlashcards();
@@ -513,4 +568,18 @@ function decrementAggregates(
 
 function isApiError(error: unknown): error is ApiErrorResponse {
   return Boolean(error && typeof error === "object" && "error" in error);
+}
+
+type BaseUpdatePayload = Omit<UpdateFlashcardCommand, "tag_ids">;
+
+function sanitizeBaseUpdatePayload(payload: BaseUpdatePayload): Partial<BaseUpdatePayload> {
+  const next: Partial<Record<keyof BaseUpdatePayload, BaseUpdatePayload[keyof BaseUpdatePayload]>> = {};
+  (Object.keys(payload) as (keyof BaseUpdatePayload)[]).forEach((key) => {
+    const value = payload[key];
+    if (value === undefined) {
+      return;
+    }
+    next[key] = value;
+  });
+  return next as Partial<BaseUpdatePayload>;
 }

@@ -11,6 +11,7 @@ import type {
   TagDTO,
   FlashcardAggregatesDTO,
   ReviewStatsSnapshotDTO,
+  SetFlashcardTagsCommand,
 } from "../../types";
 import { FLASHCARD_ERROR_CODES } from "../errors.ts";
 import type { FlashcardsQuery } from "../validation/flashcards.schema.ts";
@@ -19,13 +20,15 @@ import { encodeBase64 } from "../utils/base64.ts";
 type FlashcardReferenceErrorCode =
   | typeof FLASHCARD_ERROR_CODES.CATEGORY_NOT_FOUND
   | typeof FLASHCARD_ERROR_CODES.SOURCE_NOT_FOUND
-  | typeof FLASHCARD_ERROR_CODES.TAG_NOT_FOUND;
+  | typeof FLASHCARD_ERROR_CODES.TAG_NOT_FOUND
+  | typeof FLASHCARD_ERROR_CODES.NOT_FOUND;
 
 type FlashcardRow = Tables<"flashcards">;
 type TagRow = Tables<"tags">;
 const FLASHCARD_COLUMNS =
   "id, front, back, origin, metadata, category_id, content_source_id, owner_id, created_at, updated_at, deleted_at, front_back_fingerprint";
 const SOFT_DELETE_FLASHCARD_RPC = "soft_delete_flashcard";
+const SET_FLASHCARD_TAGS_RPC = "set_flashcard_tags";
 type RpcInvoker = (
   fn: string,
   params?: Record<string, unknown>
@@ -129,6 +132,25 @@ async function ensureContentSourceExists(supabase: SupabaseClient, sourceId: num
         content_source_id: sourceId,
       }
     );
+  }
+}
+
+async function ensureFlashcardAccessible(supabase: SupabaseClient, userId: string, cardId: string): Promise<void> {
+  const { count, error } = await supabase
+    .from("flashcards")
+    .select("id", { head: true, count: "exact" })
+    .eq("id", cardId)
+    .eq("owner_id", userId)
+    .is("deleted_at", null);
+
+  if (error) {
+    throw error;
+  }
+
+  if (!count) {
+    throw new FlashcardReferenceError(FLASHCARD_ERROR_CODES.NOT_FOUND, "Flashcard not found.", {
+      card_id: cardId,
+    });
   }
 }
 
@@ -507,10 +529,7 @@ async function computeFlashcardAggregates(
   }
 
   const buildBaseQuery = () => {
-    const builder = supabase
-      .from("flashcards")
-      .select("origin", { count: "exact", head: true })
-      .eq("owner_id", userId);
+    const builder = supabase.from("flashcards").select("origin", { count: "exact", head: true }).eq("owner_id", userId);
 
     applyFlashcardsFilters(builder, query, {
       includeSearch: false,
@@ -704,4 +723,37 @@ export async function softDeleteFlashcard(supabase: SupabaseClient, userId: stri
     }
     throw error;
   }
+}
+
+export async function setFlashcardTags(
+  supabase: SupabaseClient,
+  userId: string,
+  cardId: string,
+  cmd: SetFlashcardTagsCommand
+): Promise<TagDTO[]> {
+  await ensureFlashcardAccessible(supabase, userId, cardId);
+
+  const tagIds = cmd.tag_ids ?? [];
+  if (tagIds.length > 0) {
+    await ensureTagsExist(supabase, tagIds);
+  }
+
+  const client = supabase as SupabaseClient & { rpc: RpcInvoker };
+  const { data, error } = await client.rpc(SET_FLASHCARD_TAGS_RPC, {
+    p_owner_id: userId,
+    p_card_id: cardId,
+    p_tag_ids: tagIds,
+  });
+
+  if (error) {
+    if (error.code === "P0001" && error.message === "flashcard_not_found") {
+      throw new FlashcardReferenceError(FLASHCARD_ERROR_CODES.NOT_FOUND, "Flashcard not found.", {
+        card_id: cardId,
+      });
+    }
+    throw error;
+  }
+
+  const rows = (data ?? []) as TagRow[];
+  return rows.map(mapTagRowToDto);
 }
