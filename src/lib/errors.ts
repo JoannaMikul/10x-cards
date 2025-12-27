@@ -98,6 +98,17 @@ export const CANDIDATE_ACCEPT_ERROR_CODES = {
 
 export type CandidateAcceptErrorCode = (typeof CANDIDATE_ACCEPT_ERROR_CODES)[keyof typeof CANDIDATE_ACCEPT_ERROR_CODES];
 
+export const GENERATION_ERROR_LOGS_ERROR_CODES = {
+  INVALID_QUERY: "invalid_query",
+  UNAUTHORIZED: "unauthorized",
+  FORBIDDEN: "forbidden",
+  DB_ERROR: "db_error",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type GenerationErrorLogsErrorCode =
+  (typeof GENERATION_ERROR_LOGS_ERROR_CODES)[keyof typeof GENERATION_ERROR_LOGS_ERROR_CODES];
+
 export interface HttpErrorDescriptor<TCode extends string = string> {
   status: number;
   body: ApiErrorResponse<TCode>;
