@@ -942,9 +942,40 @@
 
 #### POST /api/admin/user-roles
 
-- **Request:** `{ "user_id": "uuid", "role": "admin" }`.
-- **Response:** `201 Created`.
-- **Errors:** `409 role_exists`.
+- **Description:** Grants an administrator role to a specified user. Requires admin privileges for access. The operation is atomic and includes validation to prevent duplicate role assignments.
+- **Headers:**
+  - `Content-Type: application/json`
+  - `Authorization: Bearer <jwt>` (required)
+- **Request body:**
+
+```json
+{
+  "user_id": "uuid",
+  "role": "admin"
+}
+```
+
+- **Validation:**
+  - `user_id`: valid UUID string (required)
+  - `role`: must be "admin" (required, currently only supported role)
+- **Success Response:** `201 Created` (empty body)
+- **Authorization:** Requires admin privileges (`is_admin()` RPC returns true)
+- **Security considerations:**
+  - Endpoint prevents privilege escalation through strict validation
+  - Uses Row Level Security (RLS) on `user_roles` table
+  - Only administrators can grant admin roles
+- **Errors:**
+
+| Status | `error.code`              | Trigger                                                                 |
+| ------ | ------------------------- | ----------------------------------------------------------------------- |
+| 400    | `invalid_body`            | Invalid JSON or Zod schema validation failure (invalid UUID, wrong role) |
+| 401    | `unauthorized`            | Missing/invalid JWT or user not authenticated                           |
+| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)          |
+| 409    | `role_exists`             | User already has the admin role                                         |
+| 500    | `db_error`                | PostgREST/PostgreSQL failure; response includes `{ code, message }`     |
+| 500    | `unexpected_error`        | Runtime issues (missing Supabase client, unexpected exception)          |
+
+- **Observability:** Every 4xx/5xx response is logged via `recordUserRolesEvent` (`scope: "api/admin/user-roles"`, includes `userId`, `targetUserId`, `role`).
 
 #### DELETE /api/admin/user-roles/:user_id/:role
 

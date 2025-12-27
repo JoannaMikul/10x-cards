@@ -1,15 +1,16 @@
 import type { UserRolesErrorCode } from "../errors.ts";
-import type { ApiErrorResponse, UserRoleListResponse } from "../../types";
+import type { ApiErrorResponse, UserRoleListResponse, CreateUserRoleCommand } from "../../types";
 
 export interface UserRolesApiMock {
   description: string;
   status: number;
   request: {
-    method: "GET";
+    method: "GET" | "POST";
     url: string;
     headers?: Record<string, string>;
+    body?: CreateUserRoleCommand;
   };
-  response: UserRoleListResponse | ApiErrorResponse<UserRolesErrorCode>;
+  response: UserRoleListResponse | null | ApiErrorResponse<UserRolesErrorCode>;
 }
 
 export const userRolesApiMocks: UserRolesApiMock[] = [
@@ -152,6 +153,168 @@ export const userRolesApiMocks: UserRolesApiMock[] = [
       error: {
         code: "unexpected_error",
         message: "Unexpected error while retrieving user roles.",
+      },
+    },
+  },
+
+  // POST /api/admin/user-roles mocks
+  {
+    description: "201 Created – successfully granted admin role",
+    status: 201,
+    request: {
+      method: "POST",
+      url: "/api/admin/user-roles",
+      headers: {
+        Authorization: "Bearer admin-token",
+        "Content-Type": "application/json",
+      },
+      body: {
+        user_id: "550e8400-e29b-41d4-a716-446655440004",
+        role: "admin",
+      },
+    },
+    response: null,
+  },
+  {
+    description: "400 Bad Request – invalid body (invalid UUID)",
+    status: 400,
+    request: {
+      method: "POST",
+      url: "/api/admin/user-roles",
+      headers: {
+        Authorization: "Bearer admin-token",
+        "Content-Type": "application/json",
+      },
+      body: {
+        user_id: "invalid-uuid",
+        role: "admin",
+      } as CreateUserRoleCommand,
+    },
+    response: {
+      error: {
+        code: "invalid_body",
+        message: "Invalid request body.",
+        details: {
+          issues: [
+            {
+              message: "User ID must be a valid UUID.",
+              path: ["user_id"],
+            },
+          ],
+        },
+      },
+    },
+  },
+  {
+    description: "401 Unauthorized – user not authenticated",
+    status: 401,
+    request: {
+      method: "POST",
+      url: "/api/admin/user-roles",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: {
+        user_id: "550e8400-e29b-41d4-a716-446655440004",
+        role: "admin",
+      },
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authenticated.",
+      },
+    },
+  },
+  {
+    description: "403 Forbidden – user not admin",
+    status: 403,
+    request: {
+      method: "POST",
+      url: "/api/admin/user-roles",
+      headers: {
+        Authorization: "Bearer regular-user-token",
+        "Content-Type": "application/json",
+      },
+      body: {
+        user_id: "550e8400-e29b-41d4-a716-446655440004",
+        role: "admin",
+      },
+    },
+    response: {
+      error: {
+        code: "insufficient_permissions",
+        message: "Admin privileges required.",
+      },
+    },
+  },
+  {
+    description: "409 Conflict – role already exists",
+    status: 409,
+    request: {
+      method: "POST",
+      url: "/api/admin/user-roles",
+      headers: {
+        Authorization: "Bearer admin-token",
+        "Content-Type": "application/json",
+      },
+      body: {
+        user_id: "550e8400-e29b-41d4-a716-446655440001",
+        role: "admin",
+      },
+    },
+    response: {
+      error: {
+        code: "role_exists",
+        message: "User already has this role.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error during role creation",
+    status: 500,
+    request: {
+      method: "POST",
+      url: "/api/admin/user-roles",
+      headers: {
+        Authorization: "Bearer admin-token",
+        "Content-Type": "application/json",
+      },
+      body: {
+        user_id: "550e8400-e29b-41d4-a716-446655440004",
+        role: "admin",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "Failed to create user role.",
+        details: {
+          code: "23505",
+          message: 'duplicate key value violates unique constraint "user_roles_pkey"',
+        },
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – unexpected error during role creation",
+    status: 500,
+    request: {
+      method: "POST",
+      url: "/api/admin/user-roles",
+      headers: {
+        Authorization: "Bearer admin-token",
+        "Content-Type": "application/json",
+      },
+      body: {
+        user_id: "550e8400-e29b-41d4-a716-446655440004",
+        role: "admin",
+      },
+    },
+    response: {
+      error: {
+        code: "unexpected_error",
+        message: "Unexpected error while creating user role.",
       },
     },
   },

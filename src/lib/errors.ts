@@ -319,6 +319,8 @@ export type AnalyticsErrorCode = (typeof ANALYTICS_ERROR_CODES)[keyof typeof ANA
 export const USER_ROLES_ERROR_CODES = {
   UNAUTHORIZED: "unauthorized",
   INSUFFICIENT_PERMISSIONS: "insufficient_permissions",
+  INVALID_BODY: "invalid_body",
+  ROLE_EXISTS: "role_exists",
   DB_ERROR: "db_error",
   UNEXPECTED_ERROR: "unexpected_error",
 } as const;

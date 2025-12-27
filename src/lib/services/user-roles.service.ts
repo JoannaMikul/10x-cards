@@ -1,6 +1,17 @@
 import type { Tables } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { UserRoleDTO, UserRoleListResponse } from "../../types";
+import type { CreateUserRoleCommand, UserRoleDTO, UserRoleListResponse } from "../../types";
+import type { UserRolesErrorCode } from "../errors.ts";
+
+export class UserRoleServiceError extends Error {
+  readonly code: UserRolesErrorCode;
+
+  constructor(code: UserRolesErrorCode, message: string) {
+    super(message);
+    this.name = "UserRoleServiceError";
+    this.code = code;
+  }
+}
 
 type UserRoleRow = Tables<"user_roles">;
 type UserRoleSelect = Pick<UserRoleRow, "user_id" | "role" | "granted_at">;
@@ -35,6 +46,44 @@ export async function getUserRoles(supabase: SupabaseClient): Promise<UserRoleLi
       has_more: false,
     },
   };
+}
+
+/**
+ * Creates a new user role assignment.
+ * This function checks if the role already exists before creating a new assignment.
+ *
+ * @param supabase - Supabase client instance
+ * @param cmd - Command containing user_id and role to assign
+ * @throws Error with code "role_exists" if the user already has this role
+ * @throws Error if database operations fail
+ */
+export async function createUserRole(supabase: SupabaseClient, cmd: CreateUserRoleCommand): Promise<void> {
+  // Check if the role already exists for this user
+  const { data: existingRole, error: checkError } = await supabase
+    .from("user_roles")
+    .select("user_id, role")
+    .eq("user_id", cmd.user_id)
+    .eq("role", cmd.role)
+    .single();
+
+  if (checkError && checkError.code !== "PGRST116") {
+    // PGRST116 is "not found" error, which is expected if role doesn't exist
+    throw new Error(`Failed to check existing role: ${checkError.message}`);
+  }
+
+  if (existingRole) {
+    throw new UserRoleServiceError("role_exists", "User already has this role");
+  }
+
+  // Insert the new role assignment
+  const { error: insertError } = await supabase.from("user_roles").insert({
+    user_id: cmd.user_id,
+    role: cmd.role,
+  });
+
+  if (insertError) {
+    throw new Error(`Failed to create user role: ${insertError.message}`);
+  }
 }
 
 /**
