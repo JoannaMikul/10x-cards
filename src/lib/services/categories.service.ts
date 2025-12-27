@@ -1,6 +1,6 @@
 import type { Tables } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { CategoryDTO } from "../../types";
+import type { CategoryDTO, CreateCategoryCommand } from "../../types";
 import type { CategoriesQuery } from "../validation/categories.schema.ts";
 import { escapeIlikePattern } from "../utils/search.ts";
 
@@ -48,6 +48,29 @@ export async function listCategories(supabase: SupabaseClient, query: Categories
     hasMore,
     nextCursorId,
   };
+}
+
+export async function createCategory(supabase: SupabaseClient, command: CreateCategoryCommand): Promise<CategoryDTO> {
+  const { data, error } = await supabase
+    .from("categories")
+    .insert({
+      name: command.name,
+      slug: command.slug,
+      description: command.description,
+      color: command.color,
+    })
+    .select(CATEGORY_COLUMNS)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error("Failed to create category: no data returned from database");
+  }
+
+  return mapCategoryRowToDto(data);
 }
 
 function mapCategoryRowToDto(row: CategorySelect): CategoryDTO {

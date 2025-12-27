@@ -20,7 +20,12 @@ export type GenerationErrorCode = (typeof GENERATION_ERROR_CODES)[keyof typeof G
 
 export const CATEGORY_ERROR_CODES = {
   INVALID_QUERY: "invalid_query",
+  INVALID_BODY: "invalid_body",
   UNAUTHORIZED: "unauthorized",
+  FORBIDDEN: "forbidden",
+  SLUG_TAKEN: "slug_taken",
+  NAME_TAKEN: "name_taken",
+  CONSTRAINT_VIOLATION: "constraint_violation",
   RATE_LIMIT_EXCEEDED: "rate_limit_exceeded",
   DB_ERROR: "db_error",
   UNEXPECTED_ERROR: "unexpected_error",
@@ -217,6 +222,32 @@ export function mapAcceptCandidateDbError(error: PostgrestError): HttpErrorDescr
     500,
     CANDIDATE_ACCEPT_ERROR_CODES.DB_ERROR,
     "A database error occurred while accepting the generation candidate."
+  );
+}
+
+export function mapCategoryDbError(error: PostgrestError): HttpErrorDescriptor<CategoryErrorCode> {
+  if (error.code === "23505") {
+    // Unique constraint violation - try to determine which field
+    if (matchesSignature(error, "categories_slug_key")) {
+      return buildErrorResponse(409, CATEGORY_ERROR_CODES.SLUG_TAKEN, "A category with this slug already exists.");
+    }
+
+    if (matchesSignature(error, "categories_name_key")) {
+      return buildErrorResponse(409, CATEGORY_ERROR_CODES.NAME_TAKEN, "A category with this name already exists.");
+    }
+
+    // Fallback for other unique constraints
+    return buildErrorResponse(
+      409,
+      CATEGORY_ERROR_CODES.CONSTRAINT_VIOLATION,
+      "A category with these details already exists."
+    );
+  }
+
+  return buildErrorResponse(
+    500,
+    CATEGORY_ERROR_CODES.DB_ERROR,
+    "A database error occurred while creating the category."
   );
 }
 

@@ -123,3 +123,38 @@ export function buildCategoriesQuery(payload: CategoriesQuerySchema): Categories
       }
     : rest;
 }
+
+// Schema for creating a new category (POST /api/categories)
+const createCategoryNameSchema = z
+  .string()
+  .min(1, "Category name cannot be empty.")
+  .max(255, "Category name cannot exceed 255 characters.")
+  .transform((value) => value.trim());
+
+const createCategorySlugSchema = z
+  .string()
+  .min(1, "Category slug cannot be empty.")
+  .regex(/^[a-z0-9-]+$/, "Category slug must contain only lowercase letters, numbers, and hyphens.")
+  .max(255, "Category slug cannot exceed 255 characters.");
+
+const createCategoryDescriptionSchema = z
+  .string()
+  .optional()
+  .transform((value) => (value ? value.trim() : undefined));
+
+const createCategoryColorSchema = z
+  .string()
+  .optional()
+  .refine(
+    (value) => !value || /^#[0-9A-Fa-f]{6}$/.test(value),
+    "Category color must be a valid hex color (e.g., #FF0000)."
+  );
+
+export const createCategoryBodySchema = z.object({
+  name: createCategoryNameSchema,
+  slug: createCategorySlugSchema,
+  description: createCategoryDescriptionSchema,
+  color: createCategoryColorSchema,
+});
+
+export type CreateCategoryBodySchema = z.infer<typeof createCategoryBodySchema>;

@@ -2,16 +2,17 @@ import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
-import { CATEGORY_ERROR_CODES, buildErrorResponse, type CategoryErrorCode } from "../../lib/errors.ts";
-import { listCategories } from "../../lib/services/categories.service.ts";
+import { CATEGORY_ERROR_CODES, buildErrorResponse, mapCategoryDbError } from "../../lib/errors.ts";
+import { createCategory, listCategories } from "../../lib/services/categories.service.ts";
 import type { CategoriesQuery } from "../../lib/validation/categories.schema.ts";
 import {
   InvalidCategoryCursorError,
   buildCategoriesQuery,
   categoriesQuerySchema,
+  createCategoryBodySchema,
 } from "../../lib/validation/categories.schema.ts";
 import { encodeBase64 } from "../../lib/utils/base64.ts";
-import type { CategoryListResponse } from "../../types";
+import type { CategoryListResponse, CreateCategoryCommand } from "../../types";
 
 export const prerender = false;
 
@@ -23,6 +24,21 @@ interface RawCategoryQueryParams {
   limit?: string;
   cursor?: string;
   sort?: string;
+}
+
+/**
+ * Checks if the current user has admin privileges.
+ * @param supabase Supabase client instance
+ * @returns Promise resolving to true if user is admin, throws error otherwise
+ */
+async function checkAdminStatus(supabase: NonNullable<typeof supabaseClient>): Promise<boolean> {
+  const { data, error } = await supabase.rpc("is_admin");
+
+  if (error) {
+    throw new Error(`Failed to verify admin privileges: ${error.message}`);
+  }
+
+  return data === true;
 }
 
 export const GET: APIRoute = async ({ locals, url }) => {
@@ -188,11 +204,170 @@ function serializeStructuredQuery(query: CategoriesQuery): Record<string, string
 interface CategoryEventPayload {
   severity: "info" | "error";
   status: number;
-  code: CategoryErrorCode;
+  code: string;
   details?: Record<string, unknown>;
 }
 
 /* eslint-disable no-console */
+export const POST: APIRoute = async ({ locals, request }) => {
+  const supabase = locals.supabase ?? supabaseClient;
+
+  if (!supabase) {
+    const descriptor = buildErrorResponse(
+      500,
+      CATEGORY_ERROR_CODES.UNEXPECTED_ERROR,
+      "Supabase client is not available in the current context."
+    );
+    recordCategoriesEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.UNEXPECTED_ERROR,
+      details: { reason: "missing_supabase_client" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  if (!locals.user) {
+    const descriptor = buildErrorResponse(401, CATEGORY_ERROR_CODES.UNAUTHORIZED, "User not authenticated.");
+    recordCategoriesEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.UNAUTHORIZED,
+      details: { reason: "user_not_authenticated" },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  // Check admin privileges
+  try {
+    const isAdmin = await checkAdminStatus(supabase);
+    if (!isAdmin) {
+      const descriptor = buildErrorResponse(403, CATEGORY_ERROR_CODES.FORBIDDEN, "Admin privileges required.");
+      recordCategoriesEvent({
+        severity: "error",
+        status: descriptor.status,
+        code: CATEGORY_ERROR_CODES.FORBIDDEN,
+        details: { reason: "user_not_admin", userId: locals.user.id },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+  } catch (error) {
+    const descriptor = buildErrorResponse(500, CATEGORY_ERROR_CODES.DB_ERROR, "Failed to verify admin privileges.");
+    recordCategoriesEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.DB_ERROR,
+      details: {
+        reason: "admin_check_failed",
+        userId: locals.user.id,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  // Parse and validate request body
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    const descriptor = buildErrorResponse(400, CATEGORY_ERROR_CODES.INVALID_BODY, "Request body must be valid JSON.");
+    recordCategoriesEvent({
+      severity: "info",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.INVALID_BODY,
+      details: { reason: "invalid_json_body", userId: locals.user.id },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const validationResult = createCategoryBodySchema.safeParse(body);
+  if (!validationResult.success) {
+    const issues = validationResult.error.issues.map((issue) => ({
+      message: issue.message,
+      path: issue.path,
+    }));
+    const descriptor = buildErrorResponse(400, CATEGORY_ERROR_CODES.INVALID_BODY, "Request body validation failed.", {
+      issues,
+    });
+    recordCategoriesEvent({
+      severity: "info",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.INVALID_BODY,
+      details: {
+        reason: "body_validation_failed",
+        userId: locals.user.id,
+        issues,
+      },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+
+  const command: CreateCategoryCommand = validationResult.data;
+
+  // Create category
+  try {
+    const category = await createCategory(supabase, command);
+
+    recordCategoriesEvent({
+      severity: "info",
+      status: 201,
+      code: "category_created",
+      details: {
+        reason: "category_created_successfully",
+        userId: locals.user.id,
+        categoryId: category.id,
+        categorySlug: category.slug,
+      },
+    });
+
+    return jsonResponse(201, category);
+  } catch (error) {
+    if (isPostgrestError(error)) {
+      const descriptor = mapCategoryDbError(error);
+      recordCategoriesEvent({
+        severity: "error",
+        status: descriptor.status,
+        code: descriptor.body.error.code,
+        details: {
+          reason: "postgrest_error",
+          userId: locals.user.id,
+          command: serializeCreateCommand(command),
+          db_code: error.code,
+        },
+      });
+      return jsonResponse(descriptor.status, descriptor.body);
+    }
+
+    const descriptor = buildErrorResponse(
+      500,
+      CATEGORY_ERROR_CODES.UNEXPECTED_ERROR,
+      "Unexpected error while creating category."
+    );
+    recordCategoriesEvent({
+      severity: "error",
+      status: descriptor.status,
+      code: CATEGORY_ERROR_CODES.UNEXPECTED_ERROR,
+      details: {
+        reason: "unexpected_create_error",
+        userId: locals.user.id,
+        command: serializeCreateCommand(command),
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+    return jsonResponse(descriptor.status, descriptor.body);
+  }
+};
+
+function serializeCreateCommand(command: CreateCategoryCommand): Record<string, string | undefined> {
+  return {
+    name: command.name,
+    slug: command.slug,
+    description: command.description ?? undefined,
+    color: command.color ?? undefined,
+  };
+}
+
 function recordCategoriesEvent(payload: CategoryEventPayload): void {
   const entry = {
     scope: CATEGORY_EVENT_SCOPE,
