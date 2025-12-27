@@ -305,3 +305,13 @@ export const AUTH_ERROR_CODES = {
 } as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
+
+export const ANALYTICS_ERROR_CODES = {
+  INVALID_QUERY: "invalid_query",
+  UNAUTHORIZED: "unauthorized",
+  FORBIDDEN: "forbidden",
+  DB_ERROR: "db_error",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type AnalyticsErrorCode = (typeof ANALYTICS_ERROR_CODES)[keyof typeof ANALYTICS_ERROR_CODES];

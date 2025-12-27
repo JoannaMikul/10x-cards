@@ -869,8 +869,12 @@
 
 #### GET /api/admin/kpi
 
-- **Description:** Returns metrics required in PRD (acceptance rate of AI cards, AI/manual ratio, generation volume).
-- **Query:** `range` (`7d|30d|custom` with `from/to`), `group_by` (`day|category|origin`).
+- **Description:** Returns key performance indicators (KPIs) for flashcard generation and usage including AI acceptance rate, AI/manual ratio, and trend data. Requires admin privileges. AI acceptance rate is calculated as the ratio of accepted generation candidates to total candidates within the specified date range.
+- **Query params:**
+  - `range` (optional string) – Time range filter: `'7d'` (default), `'30d'`, or `'custom'`
+  - `group_by` (optional string) – Grouping criteria: `'day'` (default), `'category'`, `'origin'` (currently only `'day'` is implemented)
+  - `from` (optional string) – Start date for custom range (ISO string, required when `range='custom'`)
+  - `to` (optional string) – End date for custom range (ISO string, required when `range='custom'`)
 - **Response:**
 
 ```json
@@ -882,7 +886,12 @@
 }
 ```
 
-- **Errors:** `403 forbidden`.
+- **Success codes:** `200 OK`.
+- **Errors:**
+  - `400 invalid_query` – Invalid or missing query parameters
+  - `403 forbidden` – User does not have admin privileges
+  - `500 db_error` – Database query failure
+  - `500 unexpected_error` – Runtime error
 
 ### User Roles (admin)
 
@@ -946,4 +955,4 @@
 - **Business Logic Highlights:**
   - Accepting candidate automatically sets flashcard `origin` to `ai-full` unless `origin_override`.
   - `POST /review-sessions` triggers SuperMemo 2 algorithm via `supermemo` library for each review, updating `efactor`, `interval`, and calculating `next_review_at = now() + interval_days`.
-  - `GET /api/admin/kpi` reads from materialized view refreshed by cron to avoid heavy joins at request time; includes caching headers.
+  - `GET /api/admin/kpi` calculates KPIs in real-time from `flashcards` and `generation_candidates` tables with date range filtering; AI acceptance rate computed as `(accepted_candidates) / (total_candidates)` within the specified time range.
