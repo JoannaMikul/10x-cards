@@ -315,3 +315,12 @@ export const ANALYTICS_ERROR_CODES = {
 } as const;
 
 export type AnalyticsErrorCode = (typeof ANALYTICS_ERROR_CODES)[keyof typeof ANALYTICS_ERROR_CODES];
+
+export const USER_ROLES_ERROR_CODES = {
+  UNAUTHORIZED: "unauthorized",
+  INSUFFICIENT_PERMISSIONS: "insufficient_permissions",
+  DB_ERROR: "db_error",
+  UNEXPECTED_ERROR: "unexpected_error",
+} as const;
+
+export type UserRolesErrorCode = (typeof USER_ROLES_ERROR_CODES)[keyof typeof USER_ROLES_ERROR_CODES];

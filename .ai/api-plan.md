@@ -897,7 +897,48 @@
 
 #### GET /api/admin/user-roles
 
-- Lists admin assignments for audit.
+- **Description:** Returns a complete list of all user role assignments in the system for audit purposes. Provides administrators with visibility into current admin role assignments across the platform, sorted by grant date in descending order (most recent first). The endpoint does not implement pagination as the number of admin roles is expected to remain small.
+- **Authorization:** Requires admin privileges (`is_admin()` RPC returns true). Only authenticated administrators can access this endpoint.
+- **Headers:**
+  - `Authorization: Bearer <jwt>` (required)
+  - `Accept: application/json`
+- **Response:**
+
+```json
+{
+  "data": [
+    {
+      "user_id": "550e8400-e29b-41d4-a716-446655440001",
+      "role": "admin",
+      "granted_at": "2024-12-27T10:00:00.000Z"
+    },
+    {
+      "user_id": "550e8400-e29b-41d4-a716-446655440002",
+      "role": "admin",
+      "granted_at": "2024-12-27T09:30:00.000Z"
+    }
+  ],
+  "page": {
+    "next_cursor": null,
+    "has_more": false
+  }
+}
+```
+
+- **Success codes:** `200 OK`.
+- **Errors:**
+
+| Status | `error.code`          | Notes                                                                 |
+| ------ | --------------------- | --------------------------------------------------------------------- |
+| 401    | `unauthorized`        | User not authenticated or JWT invalid                                 |
+| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)       |
+| 500    | `db_error`            | PostgREST/PostgreSQL failure; response includes `{ code, message }`  |
+| 500    | `unexpected_error`    | Runtime issues (missing Supabase client, unexpected exception)       |
+
+- **Security considerations:** Endpoint returns sensitive information about admin role assignments. Access is strictly limited to administrators via both application-level checks and Row Level Security (RLS) policies on the `user_roles` table.
+- **Performance:** Simple SELECT query on `user_roles` table with no joins or complex filtering. Uses database index on `(user_id, role)` for efficient access.
+- **Observability:** Every 4xx/5xx response is logged via `recordUserRolesEvent` (`scope: "api/admin/user-roles"`, `userId` from JWT).
+- **Mocks:** Contract fixtures (200 success, 200 empty, 401 unauthorized, 403 forbidden, 500 db_error, 500 unexpected_error) live in `src/lib/mocks/user-roles.api.mocks.ts`.
 
 #### POST /api/admin/user-roles
 
