@@ -19,6 +19,7 @@ interface FlashcardItemProps {
   onRestore: (card: FlashcardDTO) => void;
   onToggleSelectForReview: (cardId: string) => void;
   onStartReviewFromCard?: (card: FlashcardDTO) => void;
+  canRestore?: boolean;
 }
 
 function FlashcardItemComponent({
@@ -32,6 +33,7 @@ function FlashcardItemComponent({
   onRestore,
   onToggleSelectForReview,
   onStartReviewFromCard,
+  canRestore = false,
 }: FlashcardItemProps) {
   const isDeleted = Boolean(card.deleted_at);
   const tags = card.tags ?? [];
@@ -101,7 +103,7 @@ function FlashcardItemComponent({
             {isDeleted && (
               <div className="flex min-w-[120px] flex-col gap-1">
                 <span className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Status</span>
-                <Badge variant="destructive" className="flex items-center gap-1">
+                <Badge variant="destructive">
                   <AlertTriangleIcon className="size-3" /> Deleted
                 </Badge>
               </div>
@@ -153,7 +155,7 @@ function FlashcardItemComponent({
               <TrashIcon className="size-4" /> Delete
             </Button>
           )}
-          {isDeleted && (
+          {isDeleted && canRestore && (
             <Button variant="ghost" size="sm" onClick={() => onRestore(card)}>
               <RotateCcwIcon className="size-4" /> Restore
             </Button>

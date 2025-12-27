@@ -19,6 +19,7 @@ interface FlashcardListProps {
   onStartReviewFromCard?: (card: FlashcardDTO) => void;
   categories?: CategoryDTO[];
   sources?: SourceDTO[];
+  canRestore?: boolean;
 }
 
 export function FlashcardList({
@@ -35,6 +36,7 @@ export function FlashcardList({
   onStartReviewFromCard,
   categories = [],
   sources = [],
+  canRestore = false,
 }: FlashcardListProps) {
   const selectedSet = useMemo(() => new Set(selectedForReview), [selectedForReview]);
 
@@ -86,6 +88,7 @@ export function FlashcardList({
               onRestore={onRestore}
               onToggleSelectForReview={onToggleSelectForReview}
               onStartReviewFromCard={onStartReviewFromCard}
+              canRestore={canRestore}
             />
           );
         })}

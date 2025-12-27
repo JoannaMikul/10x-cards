@@ -277,7 +277,27 @@
 
 #### POST /api/flashcards/:id/restore
 
-- Clears `deleted_at`; admin can restore any card.
+- **Purpose:** Restores a soft-deleted card (clears `deleted_at`, refreshes `updated_at`) and returns the full `FlashcardDTO` with tags plus the owner's `review_stats` snapshot.
+- **Authorization:** `Authorization: Bearer <jwt>`; the route is **admin-only**.
+- **Body:** none (empty request).
+- **Flow:**
+  1. Guards ensure `locals.supabase` exists and the user is authenticated.
+  2. Validate `id` with `flashcardIdParamSchema`.
+  3. Verify admin privileges via `supabase.rpc("is_admin")`; `false` → `401 unauthorized`.
+  4. Call `restoreFlashcard`, which executes the SQL function `restore_flashcard(p_card_id uuid)` and, on success, fetches the card, tags, and owner review stats.
+- **Success:** `200 OK` + `FlashcardDTO` (with `deleted_at = null`).
+- **Errors:**
+
+| Status | `error.code`       | Scenario                                                                          |
+| ------ | ------------------ | --------------------------------------------------------------------------------- |
+| 400    | `invalid_query`    | Path parameter is not a valid UUID                                                |
+| 401    | `unauthorized`     | Missing session or user is not an admin                                           |
+| 404    | `not_found`        | Card does not exist or is not soft-deleted                                        |
+| 500    | `db_error`         | PostgREST/PostgreSQL failure during RPC (e.g., `is_admin` or `restore_flashcard`) |
+| 500    | `unexpected_error` | Any other runtime exception                                                       |
+
+- **Observability:** All 4xx/5xx responses are logged via `recordRestoreEvent` (scope `api/flashcards/[id]/restore`, payload includes `userId`, `cardId`, DB details).
+- **Mocks:** Contract scenarios for 200 / 401 (no auth) / 401 (non-admin) / 404 / 500 live in `src/lib/mocks/flashcards.api.mocks.ts`.
 
 ### Card Tags
 

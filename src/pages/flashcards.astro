@@ -81,6 +81,8 @@ async function fetchIsAdmin(): Promise<boolean> {
   return (data ?? []).some((role) => role.role === "admin");
 }
 
+export const prerender = false;
+
 const [categories, tagsCatalog, sources, canShowDeleted] = await Promise.all([
   fetchCategories(),
   fetchTagsCatalog(),

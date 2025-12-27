@@ -33,7 +33,6 @@ export interface FiltersControlsProps {
   tags?: TagDTO[];
   sources?: SourceDTO[];
   aggregates?: FlashcardAggregatesDTO;
-  canShowDeleted?: boolean;
   onChange: (next: FlashcardsFilters) => void;
   onReset: () => void;
 }
@@ -86,7 +85,6 @@ export function FiltersForm({
   tags = [],
   sources = [],
   aggregates,
-  canShowDeleted,
   onChange,
   onReset,
   layout = "sidebar",
@@ -146,10 +144,6 @@ export function FiltersForm({
     }
 
     emitChange({ tagIds: [...filters.tagIds, tagId] });
-  };
-
-  const handleIncludeDeletedToggle = (checked: boolean) => {
-    emitChange({ includeDeleted: checked });
   };
 
   const filterItemClass = "min-w-[180px] lg:flex-1";
@@ -231,22 +225,6 @@ export function FiltersForm({
             </SelectContent>
           </Select>
         </Field>
-
-        {canShowDeleted && (
-          <Field className={`${filterItemClass} max-w-[260px]`} orientation="horizontal">
-            <FieldLabel>Show deleted</FieldLabel>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="include-deleted"
-                checked={Boolean(filters.includeDeleted)}
-                onCheckedChange={(checked) => handleIncludeDeletedToggle(Boolean(checked))}
-              />
-              <label htmlFor="include-deleted" className="text-sm text-muted-foreground">
-                Include deleted cards
-              </label>
-            </div>
-          </Field>
-        )}
 
         <Field className={filterItemClass}>
           <FieldLabel>Sort order</FieldLabel>

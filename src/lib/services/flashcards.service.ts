@@ -28,6 +28,7 @@ type TagRow = Tables<"tags">;
 const FLASHCARD_COLUMNS =
   "id, front, back, origin, metadata, category_id, content_source_id, owner_id, created_at, updated_at, deleted_at, front_back_fingerprint";
 const SOFT_DELETE_FLASHCARD_RPC = "soft_delete_flashcard";
+const RESTORE_FLASHCARD_RPC = "restore_flashcard";
 const SET_FLASHCARD_TAGS_RPC = "set_flashcard_tags";
 type RpcInvoker = (
   fn: string,
@@ -47,6 +48,20 @@ export class FlashcardReferenceError extends Error {
     this.name = "FlashcardReferenceError";
     this.code = code;
     this.details = details;
+  }
+}
+
+export class FlashcardNotFoundError extends Error {
+  constructor(message = "Flashcard not found.") {
+    super(message);
+    this.name = "FlashcardNotFoundError";
+  }
+}
+
+export class FlashcardUnauthorizedError extends Error {
+  constructor(message = "Not authorized to restore flashcards.") {
+    super(message);
+    this.name = "FlashcardUnauthorizedError";
   }
 }
 
@@ -723,6 +738,33 @@ export async function softDeleteFlashcard(supabase: SupabaseClient, userId: stri
     }
     throw error;
   }
+}
+
+export async function restoreFlashcard(supabase: SupabaseClient, cardId: string): Promise<FlashcardDTO> {
+  const client = supabase as SupabaseClient & { rpc: RpcInvoker };
+  const { error } = await client.rpc(RESTORE_FLASHCARD_RPC, {
+    p_card_id: cardId,
+  });
+
+  if (error) {
+    if (error.code === "P0001" && error.message === "flashcard_not_found") {
+      throw new FlashcardNotFoundError();
+    }
+    if (error.code === "P0001" && error.message === "not_admin") {
+      throw new FlashcardUnauthorizedError();
+    }
+    throw error;
+  }
+
+  const [row, tags] = await Promise.all([fetchFlashcardRow(supabase, cardId), fetchTagsForCard(supabase, cardId)]);
+  const reviewStats = await fetchReviewStatsSnapshot(supabase, row.owner_id, cardId);
+  const flashcard = mapFlashcardRowToDto(row, tags);
+
+  if (reviewStats) {
+    flashcard.review_stats = reviewStats;
+  }
+
+  return flashcard;
 }
 
 export async function setFlashcardTags(

@@ -683,4 +683,91 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
       },
     },
   },
+
+  // POST /api/flashcards/:id/restore mocks
+  {
+    description: "200 OK – restore soft-deleted flashcard",
+    status: 200,
+    request: {
+      method: "POST",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999/restore",
+      headers: {
+        Authorization: "Bearer <admin-jwt>",
+      },
+    },
+    response: {
+      ...baseCard,
+      deleted_at: null,
+      updated_at: "2025-12-20T09:00:00.000Z",
+    },
+  },
+  {
+    description: "401 Unauthorized – missing authentication",
+    status: 401,
+    request: {
+      method: "POST",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999/restore",
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authenticated.",
+      },
+    },
+  },
+  {
+    description: "401 Unauthorized – user is not an admin",
+    status: 401,
+    request: {
+      method: "POST",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999/restore",
+      headers: {
+        Authorization: "Bearer <non-admin-jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authorized to restore cards.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – card does not exist or is not deleted",
+    status: 404,
+    request: {
+      method: "POST",
+      url: "/api/flashcards/99999999-9999-9999-9999-999999999999/restore",
+      headers: {
+        Authorization: "Bearer <admin-jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Flashcard not found.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error during restore",
+    status: 500,
+    request: {
+      method: "POST",
+      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999/restore",
+      headers: {
+        Authorization: "Bearer <admin-jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while restoring the flashcard.",
+        details: {
+          code: "XX000",
+          message: "unexpected db failure",
+        },
+      },
+    },
+  },
 ];

@@ -1,5 +1,4 @@
-import { ChevronDownIcon, ChevronUpIcon, FilterIcon, PlayIcon, PlusIcon, ShuffleIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useId } from "react";
 import type {
   CategoryDTO,
   CreateFlashcardCommand,
@@ -12,7 +11,6 @@ import type {
   TagDTO,
   UpdateFlashcardCommand,
 } from "../../types";
-import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Separator } from "../ui/separator";
 import { Toaster } from "../ui/sonner";
@@ -23,7 +21,7 @@ import { FlashcardFormModal } from "./FlashcardFormModal";
 import { FlashcardList } from "./FlashcardList";
 import { FlashcardsFiltersProvider, useFlashcardsFilters } from "./FlashcardsFiltersContext";
 import { FiltersForm } from "./FiltersSidebar";
-import { SearchInput } from "./SearchInput";
+import { FlashcardsToolbar } from "./FlashcardsToolbar";
 import { cn } from "../../lib/utils";
 
 interface FlashcardsPageProps {
@@ -85,6 +83,7 @@ function FlashcardsPageContent({
     mode: "manual",
   });
   const [areFiltersExpanded, setAreFiltersExpanded] = useState(false);
+  const includeDeletedCheckboxId = useId();
 
   const filtersSignature = useMemo(() => JSON.stringify(filters), [filters]);
   useEffect(() => {
@@ -155,6 +154,20 @@ function FlashcardsPageContent({
     }));
   }, []);
 
+  const handleIncludeDeletedToggle = useCallback(
+    (checked: boolean) => {
+      handleFiltersChange({
+        ...filters,
+        includeDeleted: checked,
+      });
+    },
+    [filters, handleFiltersChange]
+  );
+
+  const toggleFiltersExpansion = useCallback(() => {
+    setAreFiltersExpanded((prev) => !prev);
+  }, []);
+
   const handleOpenCreateModal = () => {
     setFormState({
       open: true,
@@ -200,7 +213,12 @@ function FlashcardsPageContent({
     });
   };
 
+  const canRestoreCards = canShowDeleted;
+
   const handleRequestRestore = (card: FlashcardDTO) => {
+    if (!canRestoreCards) {
+      return;
+    }
     setConfirmState({
       open: true,
       mode: "restore",
@@ -275,51 +293,22 @@ function FlashcardsPageContent({
       </div>
 
       <div className="sticky top-0 z-20 w-full rounded-none border border-border/60 bg-muted p-4 shadow-md">
-        <div className="flex justify-between items-stretch gap-4">
-          <div className="flex-1 space-y-6 min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="w-full flex-1 min-w-[240px] max-w-full">
-                <SearchInput
-                  value={filters.search}
-                  onChange={handleSearchChange}
-                  onDebouncedChange={handleSearchDebouncedChange}
-                  placeholder="Search by front or back…"
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 justify-between">
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={() => setAreFiltersExpanded(!areFiltersExpanded)}>
-                  {areFiltersExpanded ? (
-                    <ChevronUpIcon className="mr-2 size-4" />
-                  ) : (
-                    <ChevronDownIcon className="mr-2 size-4" />
-                  )}
-                  {areFiltersExpanded ? "Hide filters" : "Show filters"}
-                </Button>
-                <Button variant="outline" className="md:hidden" onClick={() => setFiltersDrawerOpen(true)}>
-                  <FilterIcon className="mr-2 size-4" />
-                  Filters
-                </Button>
-                <Button variant="outline" onClick={handleSelectionModeToggle}>
-                  <ShuffleIcon className="mr-2 size-4" />
-                  {selectionState.mode === "manual" ? "Use all filtered" : "Use manual selection"}
-                </Button>
-              </div>
-              <Separator orientation="vertical" className="hidden md:block h-6 bg-border/70" />
-              <div className="flex flex-wrap items-center gap-2">
-                <Button variant="outline" onClick={handleOpenCreateModal}>
-                  <PlusIcon className="mr-2 size-4" />
-                  Add flashcard
-                </Button>
-                <Button className="self-end" onClick={handleStartReview} disabled={!canStartReview}>
-                  <PlayIcon className="mr-2 size-4" />
-                  Review flashcards
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <FlashcardsToolbar
+          searchValue={filters.search ?? ""}
+          includeDeleted={Boolean(filters.includeDeleted)}
+          canShowDeleted={canShowDeleted}
+          includeDeletedCheckboxId={includeDeletedCheckboxId}
+          canStartReview={canStartReview}
+          isManualSelectionMode={selectionState.mode === "manual"}
+          areFiltersExpanded={areFiltersExpanded}
+          onSearchChange={handleSearchChange}
+          onSearchDebouncedChange={handleSearchDebouncedChange}
+          onCreateClick={handleOpenCreateModal}
+          onSelectionModeToggle={handleSelectionModeToggle}
+          onStartReview={handleStartReview}
+          onToggleFilters={toggleFiltersExpansion}
+          onIncludeDeletedToggle={handleIncludeDeletedToggle}
+        />
 
         {areFiltersExpanded && (
           <>
@@ -332,7 +321,6 @@ function FlashcardsPageContent({
               tags={filterTags}
               sources={sources}
               aggregates={state.aggregates}
-              canShowDeleted={canShowDeleted}
               onChange={handleFiltersChange}
               onReset={handleResetFilters}
               layout="panel"
@@ -359,7 +347,7 @@ function FlashcardsPageContent({
             </p>
           </div>
           {filters.includeDeleted && (
-            <Badge variant="outline" className="mt-3">
+            <Badge variant="default" className="mt-3">
               Showing deleted cards
             </Badge>
           )}
@@ -381,6 +369,7 @@ function FlashcardsPageContent({
           onStartReviewFromCard={handleStartReviewFromCard}
           categories={categories}
           sources={sources}
+          canRestore={canRestoreCards}
         />
       </div>
 
@@ -392,7 +381,6 @@ function FlashcardsPageContent({
         tags={filterTags}
         sources={sources}
         aggregates={state.aggregates}
-        canShowDeleted={canShowDeleted}
         onChange={(next) => {
           handleFiltersChange(next);
         }}

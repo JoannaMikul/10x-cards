@@ -1,3 +1,172 @@
+## API Endpoint Implementation Plan: POST /api/flashcards/:id/restore
+
+### 1. Przegląd punktu końcowego
+
+- **Cel**: Przywrócenie (od-soft-delete) flashcard poprzez wyczyszczenie pola `deleted_at` w tabeli `flashcards`.
+- **Zakres uprawnień**: **Tylko admin** (zgodnie ze specyfikacją: „admin can restore any card”). UI również sugeruje, że widok usuniętych kart jest przeznaczony dla adminów (`canShowDeleted` na stronie `src/pages/flashcards.astro`).
+- **Kontrakt**:
+  - Sukces: `200 OK` + zwrot przywróconej karty jako `FlashcardDTO`.
+  - Błędy: `ApiErrorResponse` z kodami zgodnymi z `FLASHCARD_ERROR_CODES`.
+
+### 2. Szczegóły żądania
+
+- **Metoda HTTP**: `POST`
+- **Ścieżka**: `/api/flashcards/:id/restore`
+- **Nagłówki**:
+  - **Wymagane**: `Authorization: Bearer <jwt>` (w obecnym kodzie API flashcards konsekwentnie wymaga `locals.user`; endpoint restore powinien iść tą samą ścieżką)
+  - **Opcjonalne**: `Accept: application/json`
+- **Parametry**:
+  - **Wymagane**:
+    - `id` (path) – UUID identyfikujący flashcard.
+  - **Opcjonalne**: brak
+- **Request body**: brak (puste body; endpoint nie powinien akceptować danych wejściowych poza `id`).
+
+### 3. Wykorzystywane typy (DTO i Command modele)
+
+- **DTO**:
+  - `FlashcardDTO` (z `src/types.ts`) – odpowiedź sukcesu.
+  - `ApiErrorResponse<FlashcardErrorCode>` (z `src/types.ts` + `src/lib/errors.ts`) – odpowiedzi błędów.
+- **Command modele**:
+  - Proponowane: `RestoreFlashcardCommand = Record<string, never>` (opcjonalne; tylko dla spójności warstwy „command”, bo body nie istnieje).
+
+### 4. Szczegóły odpowiedzi
+
+- **200 OK**:
+  - Zwraca obiekt `FlashcardDTO` po przywróceniu (`deleted_at: null`), wraz z `tags`.
+  - `review_stats`:
+    - Zalecenie: zwracać snapshot dla **właściciela karty** (`owner_id`), a nie dla admina wykonującego operację (admin często przywraca cudze karty).
+- **400 Bad Request**:
+  - `error.code = "invalid_query"` gdy `id` nie jest poprawnym UUID / nie przechodzi walidacji Zod.
+- **401 Unauthorized**:
+  - `error.code = "unauthorized"` gdy brak sesji (`locals.user`) lub gdy użytkownik nie ma uprawnień admina.
+- **404 Not Found**:
+  - `error.code = "not_found"` gdy:
+    - karta nie istnieje, lub
+    - karta istnieje, ale nie jest w stanie soft-delete (np. `deleted_at IS NULL`) – w praktyce „nie ma czego przywracać”.
+- **500 Internal Server Error**:
+  - `error.code = "db_error"` dla błędów PostgREST/PostgreSQL,
+  - `error.code = "unexpected_error"` dla pozostałych wyjątków runtime.
+
+### 5. Przepływ danych
+
+1. **Astro API Route**: `src/pages/api/flashcards/[id]/restore/index.ts` (do utworzenia).
+2. **Guard rails / preconditions**:
+   - `locals.supabase` musi być dostępne (zgodnie z regułami: używać klienta z `context.locals`, nie importować globalnego klienta).
+   - `locals.user` musi istnieć (inaczej `401 unauthorized`).
+   - **Admin check**:
+     - `supabase.rpc("is_admin")` → `true` wymagane.
+3. **Walidacja parametrów**:
+   - Zod: `flashcardIdParamSchema.safeParse(params)` + `parseFlashcardId(...)` (istnieją w `src/lib/validation/flashcards.schema.ts`).
+4. **Warstwa serwisowa**:
+   - Dodać `restoreFlashcard(...)` w `src/lib/services/flashcards.service.ts`.
+   - Operacja powinna:
+     - wykonać przywrócenie (clear `deleted_at`, update `updated_at`),
+     - następnie pobrać i zmapować rekord do `FlashcardDTO` (razem z tagami i opcjonalnie review stats).
+5. **Odpowiedź**:
+   - `200` + JSON `FlashcardDTO`.
+6. **Observability**:
+   - Każdy `4xx/5xx` logować jako zdarzenie JSON (analogicznie do `recordFlashcardsEvent` używanego w `src/pages/api/flashcards.ts` i `src/pages/api/flashcards/[id]/index.ts`).
+
+### 6. Względy bezpieczeństwa
+
+- **Autentykacja**:
+  - Endpoint wymaga użytkownika w `locals.user` (brak → `401`).
+- **Autoryzacja (admin-only)**:
+  - Weryfikacja admina w API (np. `supabase.rpc("is_admin")`).
+  - Dodatkowa obrona w głąb (defense-in-depth): przywracanie realizowane przez funkcję SQL, która również weryfikuje admina.
+- **RLS i dostęp do soft-deleted**:
+  - RLS dla `flashcards` ukrywa rekordy z `deleted_at NOT NULL` przed nie-adminami (patrz migracja `20251130110905_init_schema.sql`).
+  - Dzięki temu nawet sama możliwość „znalezienia” kart do przywrócenia jest ograniczona do adminów (spójne z wymaganiem).
+- **Ryzyka**:
+  - **Bypass przez bezpośrednie wywołanie RPC**: jeśli dodamy funkcję `restore_flashcard`, musi ona sama weryfikować admina (nie można polegać wyłącznie na sprawdzaniu w API).
+  - **Enumeracja zasobów**: endpoint admin-only; dla nie-adminów zwracać `401` bez ujawniania, czy karta istnieje.
+
+### 7. Wydajność
+
+- **Operacje DB**:
+  - Minimalnie: 1x restore (UPDATE/RPC) + 1x SELECT flashcard + 1x SELECT tags (+ opcjonalnie 1x SELECT review_stats).
+  - Zalecenie: równoległe pobieranie tagów i review stats po udanym restore.
+- **Indeksy**:
+  - Operacja restore jest po PK (`flashcards.id`), więc koszt jest niski.
+- **Idempotencja**:
+  - Przywrócenie ma semantykę „zmiany stanu”; rekomendowane zachowanie:
+    - jeśli `deleted_at` już jest `NULL`, zwrócić `404 not_found` (brak zasobu do przywrócenia) lub ewentualnie `200` (idempotent).
+    - W projekcie preferowane jest spójne i przewidywalne mapowanie na `404` dla „nie można znaleźć/nie ma stanu docelowego” – decyzję trzeba ujednolicić z zespołem (patrz sekcja błędów).
+
+### 8. Kroki implementacji
+
+#### 8.1. Warstwa DB (Supabase migrations)
+
+- **Dodać migrację** np. `supabase/migrations/YYYYMMDDHHMMSS_restore_flashcard_function.sql`:
+  - Funkcja: `public.restore_flashcard(p_card_id uuid) returns void`
+  - `language plpgsql`, `security definer`, `set search_path = public`
+  - Logika:
+    - jeśli `public.is_admin()` jest `false` → `raise exception using errcode='P0001', message='not_admin'`
+    - `update public.flashcards set deleted_at = null, updated_at = now() where id = p_card_id and deleted_at is not null;`
+    - jeśli `not found` → `raise exception using errcode='P0001', message='flashcard_not_found'`
+  - Uprawnienia:
+    - `revoke all on function public.restore_flashcard(uuid) from public;`
+    - `grant execute on function public.restore_flashcard(uuid) to authenticated;`
+
+#### 8.2. Warstwa serwisowa (`src/lib/services/flashcards.service.ts`)
+
+- **Dodać stałą** RPC np. `const RESTORE_FLASHCARD_RPC = "restore_flashcard";`
+- **Dodać funkcję** `restoreFlashcard(supabase: SupabaseClient, cardId: string): Promise<FlashcardDTO>`:
+  - Wywołuje `supabase.rpc(RESTORE_FLASHCARD_RPC, { p_card_id: cardId })`.
+  - Mapowanie błędów RPC:
+    - `P0001` + `flashcard_not_found` → rzucić `new Error("Flashcard not found")` (API zamieni na `404`).
+    - `P0001` + `not_admin` → rzucić błąd rozpoznawalny jako `401` (np. `new Error("Not authorized")`) lub wystawić dedykowany error typu (preferowane).
+    - inne → propagować jako `PostgrestError` (API mapuje przez `mapFlashcardDbError`).
+  - Po udanym RPC:
+    - pobrać rekord flashcard (z `fetchFlashcardRow`) oraz tagi (z `fetchTagsForCard`) i zmapować do `FlashcardDTO`;
+    - dla `review_stats` pobrać snapshot dla `owner_id` z rekordu.
+
+#### 8.3. Walidacja (`src/lib/validation/flashcards.schema.ts`)
+
+- Reużyć istniejące:
+  - `flashcardIdParamSchema`
+  - `parseFlashcardId`
+- Nie dodawać body schema (endpoint nie przyjmuje body).
+
+#### 8.4. API Route (Astro)
+
+- **Utworzyć plik**: `src/pages/api/flashcards/[id]/restore/index.ts`
+  - `export const prerender = false`
+  - `export const POST: APIRoute = async ({ locals, params }) => { ... }`
+- **Kroki w handlerze**:
+  1. Guard: `locals.supabase` istnieje → inaczej `500 unexpected_error`
+  2. Auth: `locals.user` istnieje → inaczej `401 unauthorized`
+  3. Admin check:
+     - `const { data, error } = await supabase.rpc("is_admin")`
+     - jeśli error → `500 db_error` (lub `unexpected_error`, zależnie od klasy błędu)
+     - jeśli `data !== true` → `401 unauthorized`
+  4. Walidacja `params.id` przez `flashcardIdParamSchema` → błąd: `400 invalid_query`
+  5. Wywołanie serwisu: `restoreFlashcard(supabase, cardId)`
+  6. Sukces: `200` + JSON `FlashcardDTO`
+  7. Obsługa błędów:
+     - `Error("Flashcard not found")` → `404 not_found`
+     - `PostgrestError` → `mapFlashcardDbError(...)` (w praktyce dla restore spodziewane głównie `500 db_error`)
+     - pozostałe → `500 unexpected_error`
+  8. Logowanie zdarzeń (structured JSON) dla 4xx/5xx i (opcjonalnie) dla 200:
+     - `scope` np. `"api/flashcards/[id]/restore"`
+     - `userId` = `locals.user.id`
+     - `cardId` = `params.id`
+
+#### 8.5. Mocks kontraktowe
+
+- Zaktualizować `src/lib/mocks/flashcards.api.mocks.ts` o scenariusze dla:
+  - `POST /api/flashcards/:id/restore` → `200 OK` (z `deleted_at: null`)
+  - `401 unauthorized` (brak auth / brak roli admin)
+  - `404 not_found` (nieistniejące ID lub karta nie jest usunięta)
+  - `500 db_error` (symulacja błędu DB)
+
+#### 8.6. Spójność z istniejącą konwencją kodu
+
+- Stosować:
+  - `buildErrorResponse`, `FLASHCARD_ERROR_CODES`, `mapFlashcardDbError` z `src/lib/errors.ts`
+  - wzorce walidacji i logowania z `src/pages/api/flashcards.ts` oraz `src/pages/api/flashcards/[id]/index.ts`
+- Nie importować globalnego klienta Supabase w route’ach; używać `locals.supabase` (zgodnie z regułami backend/astro).
+
 ## API Endpoint Implementation Plan: POST /api/flashcards
 
 ### 1. Przegląd punktu końcowego

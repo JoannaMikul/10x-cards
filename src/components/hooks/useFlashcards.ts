@@ -398,14 +398,28 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
 
         const restored: FlashcardDTO = await response.json();
 
+        let listUpdated = false;
         setListState((prev) => {
-          const wasRemovedFromList = !filters.includeDeleted;
+          const hasCard = prev.items.some((item) => item.id === id);
+          if (!hasCard) {
+            return prev;
+          }
+
+          listUpdated = true;
+          const shouldAdjustAggregates = !filters.includeDeleted;
+
           return {
             ...prev,
             items: prev.items.map((item) => (item.id === id ? restored : item)),
-            aggregates: wasRemovedFromList ? incrementAggregates(prev.aggregates, restored.origin) : prev.aggregates,
+            aggregates: shouldAdjustAggregates
+              ? incrementAggregates(prev.aggregates, restored.origin)
+              : prev.aggregates,
           };
         });
+
+        if (!listUpdated) {
+          await fetchFlashcards({ cursor: null, append: false, preserveItems: true });
+        }
 
         toast.success("Flashcard restored");
       } catch (error) {
@@ -424,7 +438,7 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
         throw fallbackError;
       }
     },
-    [filters.includeDeleted]
+    [fetchFlashcards, filters.includeDeleted]
   );
 
   useEffect(() => {
