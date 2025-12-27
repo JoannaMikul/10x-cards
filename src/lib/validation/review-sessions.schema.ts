@@ -87,3 +87,20 @@ export const reviewEventsQuerySchema = z.object({
 });
 
 export type ReviewEventsQuery = z.infer<typeof reviewEventsQuerySchema>;
+
+export const reviewStatsQuerySchema = z.object({
+  card_id: z.string().uuid("Card ID must be a valid UUID.").optional(),
+  next_review_before: z.string().datetime("Next review before must be a valid ISO date string.").optional(),
+  limit: z
+    .number({
+      invalid_type_error: "Limit must be a number.",
+    })
+    .int("Limit must be an integer.")
+    .min(1, "Limit must be at least 1.")
+    .max(100, "Limit cannot exceed 100.")
+    .default(20)
+    .optional(),
+  cursor: z.string().optional(),
+});
+
+export type ReviewStatsQuery = z.infer<typeof reviewStatsQuerySchema>;

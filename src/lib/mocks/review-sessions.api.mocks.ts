@@ -1,4 +1,4 @@
-import type { ApiErrorResponse } from "../../types";
+import type { ApiErrorResponse, ReviewStatsListResponse } from "../../types";
 import type { ReviewErrorCode } from "../errors.ts";
 
 export interface ReviewSessionsApiMock {
@@ -11,6 +11,18 @@ export interface ReviewSessionsApiMock {
     body?: Record<string, unknown>;
   };
   response: { logged: number } | ApiErrorResponse<ReviewErrorCode> | null;
+}
+
+export interface ReviewStatsApiMock {
+  description: string;
+  status: number;
+  request: {
+    method: "GET";
+    url: string;
+    headers?: Record<string, string>;
+    query?: Record<string, string>;
+  };
+  response: ReviewStatsListResponse | ApiErrorResponse<ReviewErrorCode> | null;
 }
 
 const baseReviewSessionRequest = {
@@ -456,6 +468,263 @@ export const reviewEventsApiMocks: ReviewEventsApiMock[] = [
     request: {
       method: "GET",
       url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while processing the review session.",
+      },
+    },
+  },
+];
+
+// Review Stats API Mocks
+const baseReviewStatsResponse: ReviewStatsListResponse = {
+  data: [
+    {
+      card_id: "13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      user_id: "user-123",
+      total_reviews: 15,
+      successes: 12,
+      consecutive_successes: 3,
+      last_outcome: "good",
+      last_interval_days: 5,
+      next_review_at: "2025-12-28T10:00:00.000Z",
+      last_reviewed_at: "2025-12-27T09:30:00.000Z",
+      aggregates: {
+        average_interval: 3.5,
+        success_rate: 0.8,
+        current_streak: 3,
+      },
+    },
+    {
+      card_id: "24e4fd1e-9247-4e47-b1c3-7c98b9f1g000",
+      user_id: "user-123",
+      total_reviews: 8,
+      successes: 6,
+      consecutive_successes: 2,
+      last_outcome: "easy",
+      last_interval_days: 12,
+      next_review_at: "2026-01-02T14:00:00.000Z",
+      last_reviewed_at: "2025-12-27T09:35:00.000Z",
+      aggregates: {
+        average_interval: 4.2,
+        success_rate: 0.75,
+        current_streak: 2,
+      },
+    },
+  ],
+  page: {
+    next_cursor: "2025-12-28T10:00:00.000Z",
+    has_more: true,
+  },
+};
+
+const reviewStatsResponseWithCursor: ReviewStatsListResponse = {
+  data: [
+    {
+      card_id: "35f5fe2f-a258-5f58-c2d4-8da9c2g2h111",
+      user_id: "user-123",
+      total_reviews: 22,
+      successes: 18,
+      consecutive_successes: 5,
+      last_outcome: "easy",
+      last_interval_days: 8,
+      next_review_at: "2025-12-30T11:00:00.000Z",
+      last_reviewed_at: "2025-12-27T10:00:00.000Z",
+      aggregates: {
+        average_interval: 6.1,
+        success_rate: 0.82,
+        current_streak: 5,
+      },
+    },
+  ],
+  page: {
+    next_cursor: null,
+    has_more: false,
+  },
+};
+
+export const reviewStatsApiMocks: ReviewStatsApiMock[] = [
+  {
+    description: "200 OK – successful review stats fetch with default pagination",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: baseReviewStatsResponse,
+  },
+  {
+    description: "200 OK – review stats filtered by card_id",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        card_id: "13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      },
+    },
+    response: {
+      data: [baseReviewStatsResponse.data[0]],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    },
+  },
+  {
+    description: "200 OK – review stats with custom limit",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        limit: "5",
+      },
+    },
+    response: baseReviewStatsResponse,
+  },
+  {
+    description: "200 OK – review stats with cursor pagination",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        cursor: "2025-12-28T10:00:00.000Z",
+      },
+    },
+    response: reviewStatsResponseWithCursor,
+  },
+  {
+    description: "200 OK – review stats filtered by next_review_before",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        next_review_before: "2025-12-30T00:00:00.000Z",
+      },
+    },
+    response: baseReviewStatsResponse,
+  },
+  {
+    description: "200 OK – empty review stats response",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      data: [],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid card_id format",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        card_id: "invalid-uuid",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Card ID must be a valid UUID.",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid next_review_before date",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        next_review_before: "invalid-date",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Next review before must be a valid ISO date string.",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – limit too high",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        limit: "150",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Limit cannot exceed 100.",
+      },
+    },
+  },
+  {
+    description: "401 Unauthorized – missing authentication",
+    status: 401,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authenticated.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error",
+    status: 500,
+    request: {
+      method: "GET",
+      url: "/api/review-stats",
       headers: {
         Authorization: "Bearer <jwt>",
       },

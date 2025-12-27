@@ -782,11 +782,88 @@
 
 #### GET /api/review-events
 
-- Lists user’s events; filters `card_id`, `from/to`, `limit`, `cursor`.
+- **Description:** Returns paginated review events for authenticated user. Shows historical review session data including outcomes, response times, and SuperMemo algorithm adjustments. Useful for analyzing learning patterns and review performance over time.
+
+- **Query params:**
+  - `card_id` (optional UUID) – filter events for specific flashcard
+  - `from` (optional ISO date) – filter events from this date onward
+  - `to` (optional ISO date) – filter events up to this date
+  - `limit` (optional int) – page size, defaults to `20`, bounded to `1..100`
+  - `cursor` (optional string) – for cursor-based pagination, uses `reviewed_at` timestamp
+
+- **Response example:**
+
+```json
+{
+  "data": [
+    {
+      "id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+      "card_id": "13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      "user_id": "user-123",
+      "outcome": "good",
+      "payload": { "deck": "networking", "difficulty": "medium" },
+      "prev_interval_days": 3,
+      "next_interval_days": 5,
+      "response_time_ms": 2500,
+      "reviewed_at": "2025-12-27T09:30:00.000Z",
+      "was_learning_step": false
+    }
+  ],
+  "page": {
+    "next_cursor": "2025-12-27T09:30:00.000Z",
+    "has_more": true
+  }
+}
+```
+
+- **Errors:**
+  - `400 invalid_query` – malformed query parameters (invalid UUID, bad date format, limit out of bounds)
+  - `401 unauthorized` – missing/invalid JWT
+  - `500 db_error` – database errors
 
 #### GET /api/review-stats
 
-- Returns aggregated stats for user; filters `card_id`, `next_review_before`.
+- **Description:** Returns paginated review statistics for authenticated user. Shows current state of spaced repetition data for flashcards, including SuperMemo algorithm parameters and review history. Useful for dashboard views and filtering cards by review status.
+
+- **Query params:**
+  - `card_id` (optional UUID) – filter stats for specific flashcard
+  - `next_review_before` (optional ISO date) – filter stats for cards due before this date
+  - `limit` (optional int) – page size, defaults to `20`, bounded to `1..100`
+  - `cursor` (optional string) – for cursor-based pagination, uses `next_review_at` timestamp
+
+- **Response example:**
+
+```json
+{
+  "data": [
+    {
+      "card_id": "13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      "user_id": "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+      "total_reviews": 15,
+      "successes": 12,
+      "consecutive_successes": 3,
+      "last_outcome": "good",
+      "last_interval_days": 5,
+      "next_review_at": "2025-12-28T10:00:00.000Z",
+      "last_reviewed_at": "2025-12-27T09:30:00.000Z",
+      "aggregates": {
+        "average_interval": 3.5,
+        "success_rate": 0.8,
+        "current_streak": 3
+      }
+    }
+  ],
+  "page": {
+    "next_cursor": "2025-12-28T10:00:00.000Z",
+    "has_more": true
+  }
+}
+```
+
+- **Errors:**
+  - `400 invalid_query` – malformed query parameters (invalid UUID, bad date format, limit out of bounds)
+  - `401 unauthorized` – missing/invalid JWT
+  - `500 db_error` – database errors
 
 ### Analytics KPI (admin)
 

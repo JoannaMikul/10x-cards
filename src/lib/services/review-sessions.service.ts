@@ -2,8 +2,8 @@ import { supermemo } from "supermemo";
 
 import type { Json, Tables, Enums } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { CreateReviewSessionCommand, ReviewEventListResponse } from "../../types";
-import type { ReviewEventsQuery } from "../validation/review-sessions.schema.ts";
+import type { CreateReviewSessionCommand, ReviewEventListResponse, ReviewStatsListResponse } from "../../types";
+import type { ReviewEventsQuery, ReviewStatsQuery } from "../validation/review-sessions.schema.ts";
 import { REVIEW_ERROR_CODES } from "../errors.ts";
 
 type ReviewEventRow = Tables<"review_events">;
@@ -250,6 +250,69 @@ export async function getReviewEvents(
 
   // Generate next cursor from the last item
   const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].reviewed_at : null;
+
+  return {
+    data: items,
+    page: {
+      next_cursor: nextCursor,
+      has_more: hasMore,
+    },
+  };
+}
+
+export async function getReviewStats(
+  supabase: SupabaseClient,
+  userId: string,
+  query: ReviewStatsQuery
+): Promise<ReviewStatsListResponse> {
+  const { card_id, next_review_before, limit = 20, cursor } = query;
+
+  // Build the base query with RLS filtering (user_id is handled by RLS)
+  let dbQuery = supabase
+    .from("review_stats")
+    .select("*", { count: "exact" })
+    .eq("user_id", userId) // Explicit filter for safety, though RLS should handle this
+    .order("next_review_at", { ascending: true })
+    .limit(limit + 1); // Fetch one extra to determine if there are more results
+
+  // Apply optional filters
+  if (card_id) {
+    dbQuery = dbQuery.eq("card_id", card_id);
+  }
+
+  if (next_review_before) {
+    dbQuery = dbQuery.lt("next_review_at", next_review_before);
+  }
+
+  // Apply cursor-based pagination
+  if (cursor) {
+    // For cursor pagination, we need to use the next_review_at from the cursor
+    // Since we're ordering by next_review_at ASC, we want stats after the cursor
+    dbQuery = dbQuery.gt("next_review_at", cursor);
+  }
+
+  const { data, error } = await dbQuery;
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return {
+      data: [],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    };
+  }
+
+  // Check if there are more results
+  const hasMore = data.length > limit;
+  const items = hasMore ? data.slice(0, limit) : data;
+
+  // Generate next cursor from the last item
+  const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].next_review_at : null;
 
   return {
     data: items,
