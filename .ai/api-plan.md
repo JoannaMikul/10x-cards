@@ -13,8 +13,10 @@
 - `generation_candidates` → `generation_candidates`.
 - `generation_error_logs` → `generation_error_logs` (admin diagnostics).
 - `review_events` → `review_events`.
-- `review_stats` → `review_stats`.
+- `review_stats` → `review_stats` (includes SuperMemo 2 parameters: efactor, interval, repetition).
 - `analytics_kpi` → materialized/admin views combining `flashcards`, `generation_candidates`, `review_events`.
+
+**Spaced Repetition Algorithm:** Uses `supermemo` library (<https://www.npmjs.com/package/supermemo>) implementing SuperMemo 2 algorithm. Core parameters: `efactor` (easiness factor 1.3-2.5), `interval` (days until next review), `repetition` (review count). Grade scale: 0-5 (5=perfect response, 0=complete blackout).
 
 ## 2. Endpoints
 
@@ -701,7 +703,7 @@
 
 #### POST /api/review-sessions
 
-- **Description:** Persists batch of review outcomes and updates stats trigger-side.
+- **Description:** Persists batch of review outcomes and updates stats using `supermemo` library (SuperMemo 2 algorithm). For each review, calls `supermemo(currentItem, grade)` where grade is mapped from outcome (0-5 scale), then updates review_stats with new interval, repetition, efactor values.
 - **Request:**
 
 ```json
@@ -713,6 +715,7 @@
     {
       "card_id": "uuid",
       "outcome": "good",
+      "grade": 4,
       "response_time_ms": 4200,
       "prev_interval_days": 3,
       "next_interval_days": 5,
@@ -724,7 +727,8 @@
 ```
 
 - **Response:** `201 Created` with summary `{ "logged": 10 }`.
-- **Validation:** `outcome ∈ review_outcome`, numeric ranges for intervals/time.
+- **Validation:** `outcome ∈ review_outcome`, `grade ∈ 0..5` (required), numeric ranges for intervals/time.
+- **Algorithm Integration:** Uses `supermemo` library with current `{interval, repetition, efactor}` from review_stats, applies new grade, updates database with returned values and calculates `next_review_at = now() + interval_days`.
 
 #### GET /api/review-events
 
@@ -800,8 +804,11 @@
   - `POST /accept` updates both candidate and flashcard in transaction to ensure `accepted_card_id` uniqueness.
 - **Review Events/Stats:**
   - `outcome` enum `review_outcome`.
+  - `grade` required integer 0-5 (SuperMemo 2 scale: 5=perfect, 4=good, 3=ok, 2=difficult, 1=wrong, 0=blackout).
   - Non-negative integers for response time and intervals.
-  - `review_stats` maintained by DB triggers; API only exposes R/O aggregates except admin overrides.
+  - `review_stats` includes SuperMemo parameters: `efactor` (1.3-2.5), `total_reviews` (repetition), `last_interval_days` (interval).
+  - Algorithm updates via `supermemo` library; `next_review_at` calculated as `now() + interval_days`.
+  - `review_stats` maintained by API logic with DB triggers for consistency; API exposes R/O aggregates except admin overrides.
 
 - **User Roles/Admin Endpoints:**
   - Only admins may mutate; attempts by non-admin receive `403`.
@@ -811,5 +818,5 @@
   - Database `CHECK` violations mapped to `422 unprocessable_entity`.
 - **Business Logic Highlights:**
   - Accepting candidate automatically sets flashcard `origin` to `ai-full` unless `origin_override`.
-  - `POST /review-sessions` triggers scheduling by writing `next_review_at`.
+  - `POST /review-sessions` triggers SuperMemo 2 algorithm via `supermemo` library for each review, updating `efactor`, `interval`, and calculating `next_review_at = now() + interval_days`.
   - `GET /api/admin/kpi` reads from materialized view refreshed by cron to avoid heavy joins at request time; includes caching headers.

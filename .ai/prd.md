@@ -15,13 +15,13 @@ Profesjonaliści uczący się nowych zagadnień teoretycznych i językowych rezy
 3. Recenzja fiszek generowanych: ekran przeglądu kandydatów z możliwością akceptacji, odrzucenia, edycji i ponownego zapisania treści; automatyczna walidacja pytania (<=200 znaków) i odpowiedzi (<=500 znaków) po stronie frontu, backendu i bazy oraz blokada duplikatów względem istniejących fiszek użytkownika.
 4. Ręczne zarządzanie fiszkami: formularz dodawania fiszek od podstaw z tymi samymi limitami i walidacją, możliwość edycji i usuwania już zapisanych kart.
 5. Lista fiszek: widok tabelaryczny/kafelkowy z paginacją, wyszukiwaniem, filtrowaniem po kategoriach i tagach, prezentacją metadanych, możliwością szybkiej edycji w modalach oraz integracją przycisku rozpoczęcia sesji powtórek.
-6. Integracja modułu powtórek: wywołanie gotowego algorytmu spaced repetition z listy fiszek, przekazanie wymaganych danych, obsługa wyników sesji oraz zachowanie stanu kart po powrocie.
+6. Integracja modułu powtórek: wywołanie gotowego algorytmu spaced repetition z listy fiszek, przekazanie wymaganych danych, obsługa wyników sesji oraz zachowanie stanu kart po powrocie. Używa się biblioteki `supermemo` (algorytm SuperMemo 2) z parametrami: `interval` (dni do następnej recenzji), `repetition` (liczba recenzji), `efactor` (współczynnik łatwości 1.3-2.5). Oceny odpowiedzi: 0-5 (5=perfekcyjna, 0=całkowity blackout).
 7. Dashboard KPI: osobny widok raportujący odsetek zaakceptowanych fiszek AI i udział AI w tworzeniu fiszek na użytkownika oraz inne podstawowe miary aktywności.
 8. Testy i jakość: zestaw testów funkcjonalnych E2E i integracyjnych pokrywających główne scenariusze oraz wdrożenie standardowych praktyk bezpieczeństwa (walidacja, autoryzacja, sanitacja wejścia, obsługa błędów, logowanie).
 
 ## 4. Granice produktu
 
-Zakres MVP nie obejmuje tworzenia dedykowanego algorytmu spaced repetition (wykorzystujemy istniejący moduł), importu plików w formatach innych niż zwykły tekst, współdzielenia zestawów fiszek między użytkownikami, integracji z zewnętrznymi platformami edukacyjnymi ani aplikacji mobilnych. Nie implementujemy timerów ani limitów czasowych w procesie recenzji fiszek. Otwarta pozostaje decyzja dotycząca wyboru konkretnej biblioteki do integracji algorytmu powtórek; wymaga to analizy kompatybilności z technologiami frontendu i backendu.
+Zakres MVP nie obejmuje tworzenia dedykowanego algorytmu spaced repetition (wykorzystujemy istniejący moduł), importu plików w formatach innych niż zwykły tekst, współdzielenia zestawów fiszek między użytkownikami, integracji z zewnętrznymi platformami edukacyjnymi ani aplikacji mobilnych. Nie implementujemy timerów ani limitów czasowych w procesie recenzji fiszek. Do integracji algorytmu powtórek używamy biblioteki `supermemo` (https://www.npmjs.com/package/supermemo) implementującej algorytm SuperMemo 2.
 
 ## 5. Historyjki użytkowników
 
@@ -116,8 +116,9 @@ Opis: Jako użytkownik chcę uruchomić sesję powtórek bezpośrednio z listy f
 Kryteria akceptacji:
 
 - Z listy fiszek można wybrać zakres kart i zainicjować algorytm powtórek.
-- Aplikacja przekazuje dane do istniejącego modułu spaced repetition i odbiera wyniki sesji.
-- Postęp sesji aktualizuje stan fiszek (np. poziom trudności) i jest zapisywany dla przyszłych powtórek.
+- Aplikacja przekazuje dane do modułu spaced repetition (biblioteka `supermemo`) i odbiera wyniki sesji.
+- Każda recenzja fiszki wymaga oceny odpowiedzi w skali 0-5 zgodnie z algorytmem SuperMemo 2.
+- Postęp sesji aktualizuje parametry algorytmu (efactor, interval, repetition) i jest zapisywany dla przyszłych powtórek.
 
 ID: US-010
 Tytuł: Monitorowanie wskaźników KPI
