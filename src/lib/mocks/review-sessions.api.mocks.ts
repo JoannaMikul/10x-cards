@@ -205,3 +205,266 @@ export const reviewSessionsApiMocks: ReviewSessionsApiMock[] = [
     },
   },
 ];
+
+// Review Events API Mocks
+
+export interface ReviewEventsApiMock {
+  description: string;
+  status: number;
+  request: {
+    method: "GET";
+    url: string;
+    headers?: Record<string, string>;
+    query?: Record<string, string>;
+  };
+  response:
+    | { data: unknown[]; page: { next_cursor: string | null; has_more: boolean } }
+    | ApiErrorResponse<ReviewErrorCode>
+    | null;
+}
+
+const baseReviewEvent = {
+  id: "a1b2c3d4-5678-90ab-cdef-1234567890ab",
+  card_id: "13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+  user_id: "user-123",
+  outcome: "good" as const,
+  payload: { deck: "networking" },
+  prev_interval_days: 3,
+  next_interval_days: 5,
+  response_time_ms: 2500,
+  reviewed_at: "2025-12-27T09:00:00.000Z",
+  was_learning_step: false,
+};
+
+export const reviewEventsApiMocks: ReviewEventsApiMock[] = [
+  {
+    description: "200 OK – successful review events list",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      data: [
+        baseReviewEvent,
+        {
+          ...baseReviewEvent,
+          id: "b2c3d4e5-6789-01bc-def0-1234567890bc",
+          outcome: "easy",
+          reviewed_at: "2025-12-27T08:45:00.000Z",
+        },
+      ],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    },
+  },
+  {
+    description: "200 OK – review events with card filter",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        card_id: "13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      },
+    },
+    response: {
+      data: [baseReviewEvent],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    },
+  },
+  {
+    description: "200 OK – review events with date range",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        from: "2025-12-27T00:00:00.000Z",
+        to: "2025-12-27T23:59:59.999Z",
+      },
+    },
+    response: {
+      data: [baseReviewEvent],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    },
+  },
+  {
+    description: "200 OK – review events with limit",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        limit: "5",
+      },
+    },
+    response: {
+      data: [baseReviewEvent],
+      page: {
+        next_cursor: "2025-12-27T09:00:00.000Z",
+        has_more: true,
+      },
+    },
+  },
+  {
+    description: "200 OK – review events with pagination",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        cursor: "2025-12-27T09:00:00.000Z",
+        limit: "10",
+      },
+    },
+    response: {
+      data: [
+        {
+          ...baseReviewEvent,
+          id: "c3d4e5f6-7890-12cd-ef01-234567890cde",
+          reviewed_at: "2025-12-27T08:30:00.000Z",
+        },
+      ],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    },
+  },
+  {
+    description: "200 OK – empty results",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        card_id: "99999999-9999-9999-9999-999999999999", // non-existent card
+      },
+    },
+    response: {
+      data: [],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid card_id UUID",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        card_id: "invalid-uuid",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Card ID must be a valid UUID.",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid date format",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        from: "invalid-date",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "From date must be a valid ISO date string.",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid limit",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+      query: {
+        limit: "200", // exceeds max 100
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Limit cannot exceed 100.",
+      },
+    },
+  },
+  {
+    description: "401 Unauthorized – missing authentication",
+    status: 401,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+    },
+    response: {
+      error: {
+        code: "unauthorized",
+        message: "User not authenticated.",
+      },
+    },
+  },
+  {
+    description: "500 Internal Server Error – database error",
+    status: 500,
+    request: {
+      method: "GET",
+      url: "/api/review-events",
+      headers: {
+        Authorization: "Bearer <jwt>",
+      },
+    },
+    response: {
+      error: {
+        code: "db_error",
+        message: "A database error occurred while processing the review session.",
+      },
+    },
+  },
+];

@@ -69,3 +69,21 @@ export const createReviewSessionSchema = z.object({
 });
 
 export type CreateReviewSessionPayload = z.infer<typeof createReviewSessionSchema>;
+
+export const reviewEventsQuerySchema = z.object({
+  card_id: z.string().uuid("Card ID must be a valid UUID.").optional(),
+  from: z.string().datetime("From date must be a valid ISO date string.").optional(),
+  to: z.string().datetime("To date must be a valid ISO date string.").optional(),
+  limit: z
+    .number({
+      invalid_type_error: "Limit must be a number.",
+    })
+    .int("Limit must be an integer.")
+    .min(1, "Limit must be at least 1.")
+    .max(100, "Limit cannot exceed 100.")
+    .default(20)
+    .optional(),
+  cursor: z.string().optional(),
+});
+
+export type ReviewEventsQuery = z.infer<typeof reviewEventsQuerySchema>;

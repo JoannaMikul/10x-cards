@@ -274,6 +274,7 @@ export function mapCategoryDbError(error: PostgrestError): HttpErrorDescriptor<C
 }
 
 export const REVIEW_ERROR_CODES = {
+  INVALID_QUERY: "invalid_query",
   INVALID_BODY: "invalid_body",
   UNAUTHORIZED: "unauthorized",
   CARD_NOT_FOUND: "card_not_found",
