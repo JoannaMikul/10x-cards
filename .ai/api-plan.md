@@ -18,12 +18,12 @@
 
 ## 2. Endpoints
 
-### Auth Session (Supabase-native)
+### Authentication & Authorization (Supabase)
 
-- **Method/Path:** `POST /auth/v1/token`, `POST /auth/v1/signup`, etc. (handled by Supabase; not proxied).
-- **Description:** Client obtains JWT; the API validates `Authorization: Bearer <supabase access token>` on every request.
-- **Success:** `200 OK` with Supabase session payload.
-- **Errors:** Standard Supabase Auth errors (`400 invalid_credentials`, `429 rate_limit_exceeded`).
+- **Scope:** Supabase Auth endpoints (e.g. `/auth/v1/*`) are **out of scope** for this API plan (client talks to Supabase directly; we do not proxy them).
+- **How requests are authenticated:** protected `/api/*` routes expect `Authorization: Bearer <supabase access token>`; the backend validates the token using Supabase and derives `userId` from it.
+- **How access is authorized:** primarily via Postgres **RLS policies**; selected endpoints may additionally enforce app-level roles (e.g. “admin – planned”).
+- **Public routes:** endpoints explicitly marked as public do not require a JWT (see notes in each endpoint section).
 
 ### Categories
 

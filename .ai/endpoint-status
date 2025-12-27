@@ -1,0 +1,78 @@
+## Status endpointów (wg `.ai/api-plan.md`)
+
+Checkbox oznacza: **endpoint jest zaimplementowany w backendzie i jest wywoływany przez UI**.
+
+### Authentication & Authorization (Supabase)
+
+- (info) Endpointy Supabase Auth (np. `/auth/v1/*`) są **poza zakresem** `src/pages/api/*` tej aplikacji (klient komunikuje się z Supabase bezpośrednio; nie proxy’ujemy tego w backendzie).
+
+### Categories
+
+- [ ] `GET /api/categories` — backend: `src/pages/api/categories.ts`, UI: **brak użycia** (w `src` nie ma wywołań `/api/categories`, poza mockami)
+- [ ] `POST /api/categories` (admin – planned) — backend: **brak**, UI: **brak**
+- [ ] `PATCH /api/categories/:id` (admin) — backend: **brak**, UI: **brak**
+- [ ] `DELETE /api/categories/:id` (admin) — backend: **brak**, UI: **brak**
+
+### Tags
+
+- [x] `GET /api/tags` — backend: `src/pages/api/tags.ts`, UI: `src/components/hooks/useTagsCatalog.ts`
+
+### Sources
+
+- [ ] `GET /api/sources` — backend: `src/pages/api/sources.ts`, UI: **brak użycia** (w `src` nie ma wywołań `/api/sources`, poza mockami)
+
+### Flashcards
+
+- [x] `GET /api/flashcards` — backend: `src/pages/api/flashcards.ts`, UI: `src/components/hooks/useFlashcards.ts`
+- [x] `POST /api/flashcards` — backend: `src/pages/api/flashcards.ts`, UI: `src/components/hooks/useFlashcards.ts`
+- [ ] `GET /api/flashcards/:id` — backend: `src/pages/api/flashcards/[id]/index.ts`, UI: **brak użycia**
+- [x] `PATCH /api/flashcards/:id` — backend: `src/pages/api/flashcards/[id]/index.ts`, UI: `src/components/hooks/useFlashcards.ts`
+- [x] `DELETE /api/flashcards/:id` — backend: `src/pages/api/flashcards/[id]/index.ts`, UI: `src/components/hooks/useFlashcards.ts`
+- [x] `POST /api/flashcards/:id/restore` — backend: `src/pages/api/flashcards/[id]/restore/index.ts`, UI: `src/components/hooks/useFlashcards.ts` (przycisk „Restore” m.in. w `src/components/flashcards/FlashcardItem.tsx`)
+
+### Card Tags
+
+- [x] `PUT /api/flashcards/:id/tags` — backend: `src/pages/api/flashcards/[id]/tags.ts`, UI: `src/components/hooks/useFlashcards.ts`
+
+### Generations
+
+- [x] `POST /api/generations` — backend: `src/pages/api/generations.ts`, UI: `src/components/hooks/useGeneration.ts`
+- [x] `GET /api/generations` — backend: `src/pages/api/generations.ts`, UI: `src/components/hooks/useGenerationsList.ts` (wywołanie: `/api/generations?all=true`)
+- [x] `GET /api/generations/:id` — backend: `src/pages/api/generations/[id].ts`, UI: `src/components/hooks/useGeneration.ts`
+- [x] `PATCH /api/generations/:id` — backend: `src/pages/api/generations/[id].ts`, UI: `src/components/hooks/useGeneration.ts`
+- [x] `POST /api/generations/process` (endpoint techniczny, uruchamia przetwarzanie) — backend: `src/pages/api/generations/process.ts`, UI: `src/components/hooks/useGeneration.ts`
+
+### Generation Candidates
+
+- [x] `GET /api/generation-candidates` — backend: `src/pages/api/generation-candidates.ts`, UI: `src/components/hooks/useCandidates.ts`
+- [x] `PATCH /api/generation-candidates/:id` — backend: `src/pages/api/generation-candidates/[id].ts`, UI: `src/components/hooks/useCandidates.ts`
+- [x] `POST /api/generation-candidates/:id/accept` — backend: `src/pages/api/generation-candidates/[id]/accept.ts`, UI: `src/components/hooks/useCandidates.ts`
+- [x] `POST /api/generation-candidates/:id/reject` — backend: `src/pages/api/generation-candidates/[id]/reject.ts`, UI: `src/components/hooks/useCandidates.ts`
+
+### Generation Error Logs (admin)
+
+- [ ] `GET /api/admin/generation-error-logs` — backend: **brak**, UI: **brak**
+
+### Review Sessions & Events
+
+- [ ] `POST /api/review-sessions` — backend: **brak**, UI: **brak**
+- [ ] `GET /api/review-events` — backend: **brak**, UI: **brak**
+- [ ] `GET /api/review-stats` — backend: **brak**, UI: **brak**
+
+### Analytics KPI (admin)
+
+- [ ] `GET /api/admin/kpi` — backend: **brak**, UI: **brak**
+
+### User Roles (admin)
+
+- [ ] `GET /api/admin/user-roles` — backend: **brak**, UI: **brak**
+- [ ] `POST /api/admin/user-roles` — backend: **brak**, UI: **brak**
+- [ ] `DELETE /api/admin/user-roles/:user_id/:role` — backend: **brak**, UI: **brak**
+
+### Dodatkowe endpointy obecne w repo (poza `.ai/api-plan.md`)
+
+- [x] `POST /api/auth/login` — backend: `src/pages/api/auth/login.ts`, UI: `src/components/auth/LoginForm.tsx`
+- [x] `POST /api/auth/register` — backend: `src/pages/api/auth/register.ts`, UI: `src/components/auth/RegisterForm.tsx`
+- [x] `POST /api/auth/logout` — backend: `src/pages/api/auth/logout.ts`, UI: `src/components/auth/AuthStatus.tsx`, `src/components/layout/AppSidebar.tsx`
+- [x] `POST /api/auth/reset-password` — backend: `src/pages/api/auth/reset-password.ts`, UI: `src/components/auth/ResetPasswordForm.tsx`
+- [x] `POST /api/auth/update-password` — backend: `src/pages/api/auth/update-password.ts`, UI: `src/components/auth/UpdatePasswordForm.tsx`
