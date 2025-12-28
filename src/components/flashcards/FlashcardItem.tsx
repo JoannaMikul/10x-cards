@@ -114,7 +114,7 @@ function FlashcardItemComponent({
           </div>
         </div>
 
-        <div className="flex flex-wrap items-start gap-4 sm:flex-nowrap sm:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:justify-between">
           <div className="min-w-0 flex-1 space-y-1">
             <p className="text-xs uppercase tracking-wide text-muted-foreground/70">Tags</p>
             {tags.length > 0 ? (
@@ -134,12 +134,25 @@ function FlashcardItemComponent({
             )}
           </div>
           <div className="min-w-[160px] shrink-0 sm:text-right">
-            <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:items-end">
-              <MetadataRow label="Next review" value={nextReviewLabel} align="end" />
+            <div
+              className={`flex flex-row gap-3 items-center text-sm text-muted-foreground ${
+                !card.review_stats?.last_reviewed_at ? "justify-end" : ""
+              }`}
+            >
+              <MetadataRow
+                label="Next review"
+                value={nextReviewLabel}
+                className={card.review_stats?.last_reviewed_at ? "pr-3 border-r border-muted-foreground/30" : ""}
+              />
               {card.review_stats?.last_reviewed_at && (
-                <MetadataRow label="Last reviewed" value={formatRelativeDate(card.review_stats.last_reviewed_at)} />
+                <>
+                  <MetadataRow
+                    label="Last reviewed"
+                    value={formatRelativeDate(card.review_stats.last_reviewed_at)}
+                    className={card.deleted_at ? "pr-3 border-r border-muted-foreground/30" : ""}
+                  />
+                </>
               )}
-              {card.deleted_at && <MetadataRow label="Deleted at" value={formatRelativeDate(card.deleted_at)} />}
             </div>
           </div>
         </div>
@@ -174,9 +187,19 @@ function FlashcardItemComponent({
   );
 }
 
-function MetadataRow({ label, value, align = "start" }: { label: string; value: string; align?: "start" | "end" }) {
+function MetadataRow({
+  label,
+  value,
+  align = "start",
+  className,
+}: {
+  label: string;
+  value: string;
+  align?: "start" | "end";
+  className?: string;
+}) {
   return (
-    <div className={cn("flex flex-col", align === "end" && "items-end text-right")}>
+    <div className={cn("flex flex-col", align === "end" && "items-end text-right", className)}>
       <span className="text-xs uppercase tracking-wide text-muted-foreground/70">{label}</span>
       <span className="text-sm font-medium text-foreground">{value}</span>
     </div>
@@ -203,16 +226,15 @@ function formatRelativeDate(dateInput: string | null | undefined): string {
 }
 
 function formatAbsoluteDate(dateInput: string | null | undefined): string {
+  console.log("dateInput", dateInput);
   if (!dateInput) {
     return "Not scheduled";
   }
   const date = new Date(dateInput);
-  return date.toLocaleString(undefined, {
+  return date.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
   });
 }
 

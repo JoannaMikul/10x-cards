@@ -1,0 +1,49 @@
+---
+import Layout from "../layouts/Layout.astro";
+import ReviewsPage from "../components/reviews/ReviewsPage.tsx";
+import type { ReviewSessionConfig } from "../types";
+import { prepareReviewSession } from "../lib/services/review-sessions.service.ts";
+import { supabaseClient } from "../db/supabase.client.ts";
+
+const supabase = Astro.locals.supabase ?? supabaseClient;
+const userId = Astro.locals.user?.id ?? null;
+
+if (!userId) {
+  return Astro.redirect("/auth/login?returnTo=/reviews");
+}
+
+const url = new URL(Astro.request.url);
+const searchParams = url.searchParams;
+
+const params = {
+  cardIds: searchParams.get("cardIds") ?? undefined,
+  mode: searchParams.get("mode") ?? undefined,
+  q: searchParams.get("q") ?? undefined,
+  categoryId: searchParams.get("categoryId") ?? undefined,
+  sourceId: searchParams.get("sourceId") ?? undefined,
+  tagIds: searchParams.get("tagIds") ?? undefined,
+  origin: searchParams.get("origin") ?? undefined,
+  showDeleted: searchParams.get("showDeleted") ?? undefined,
+  sort: searchParams.get("sort") ?? undefined,
+};
+
+let initialConfig: ReviewSessionConfig;
+let errorMessage: string | undefined;
+
+try {
+  initialConfig = await prepareReviewSession(supabase, userId, params);
+} catch (error) {
+  console.error("[reviews] Failed to load review configuration", error);
+  errorMessage =
+    error instanceof Error ? error.message : "An unexpected error occurred while loading your review session.";
+  initialConfig = { cards: [] };
+}
+---
+
+<Layout title="Reviews - 10x-cards">
+  <main class="min-h-[calc(100vh-3rem)] bg-background pr-6 pl-6">
+    <div class="max-w-4xl mx-auto">
+      <ReviewsPage client:load {initialConfig} error={errorMessage} />
+    </div>
+  </main>
+</Layout>

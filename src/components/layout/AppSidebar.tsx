@@ -1,5 +1,5 @@
 import React from "react";
-import { FileText, CheckSquare, Users, LogOut } from "lucide-react";
+import { FileText, CheckSquare, Users, RotateCcw, LogOut } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -88,6 +88,21 @@ export function AppSidebar({ currentUser, children }: AppSidebarProps) {
                       </div>
                       <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
                         Flashcards
+                      </span>
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
+                  >
+                    <a href="/reviews" className="flex items-center gap-2 transition-all duration-300 ease-in-out">
+                      <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
+                        <RotateCcw className="w-4 h-4 transition-all duration-300 ease-in-out" />
+                      </div>
+                      <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
+                        Reviews
                       </span>
                     </a>
                   </SidebarMenuButton>

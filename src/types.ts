@@ -200,7 +200,7 @@ export interface FlashcardFormState {
 
 export interface FlashcardSelectionState {
   selectedIds: string[];
-  mode: "all-filtered" | "manual";
+  mode: "all-filtered" | "manual" | "due-for-review" | "all-cards" | "due-for-review-fallback";
 }
 
 export interface CreateFlashcardCommand {
@@ -547,4 +547,38 @@ export interface OpenRouterServiceConfig {
   defaultModel: string;
   defaultParams?: OpenRouterModelParams;
   httpClient?: typeof fetch;
+}
+
+export type ReviewOutcomeUi = ReviewEventDTO["outcome"];
+
+export type Grade0to5 = 0 | 1 | 2 | 3 | 4 | 5;
+
+export interface ReviewCardViewModel {
+  card: FlashcardDTO;
+  index: number;
+}
+
+export interface ReviewSessionEntryViewModel {
+  cardId: string;
+  outcome: ReviewOutcomeUi;
+  grade: Grade0to5;
+  responseTimeMs?: number;
+  wasLearningStep?: boolean;
+  payload?: Json;
+}
+
+export interface ReviewSessionState {
+  sessionId: string;
+  cards: ReviewCardViewModel[];
+  currentIndex: number;
+  startedAt: IsoDateString;
+  completedAt?: IsoDateString;
+  entries: ReviewSessionEntryViewModel[];
+  status: "idle" | "in-progress" | "submitting" | "completed" | "error";
+  error?: ApiErrorResponse;
+}
+
+export interface ReviewSessionConfig {
+  selection?: FlashcardSelectionState;
+  cards: FlashcardDTO[];
 }

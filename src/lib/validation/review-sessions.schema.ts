@@ -4,9 +4,6 @@ import type { Enums, Json } from "../../db/database.types.ts";
 
 const REVIEW_OUTCOMES = ["fail", "hard", "good", "easy", "again"] as const satisfies readonly Enums<"review_outcome">[];
 
-const GRADE_MIN = 0;
-const GRADE_MAX = 5;
-
 const jsonSchema: z.ZodType<Json> = z.lazy(() =>
   z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(jsonSchema), z.record(jsonSchema)])
 );
@@ -24,14 +21,6 @@ export const createReviewSessionSchema = z.object({
             message: `Outcome must be one of: ${REVIEW_OUTCOMES.join(", ")}.`,
           }),
         }),
-        grade: z
-          .number({
-            required_error: "Grade is required.",
-            invalid_type_error: "Grade must be a number.",
-          })
-          .int("Grade must be an integer.")
-          .min(GRADE_MIN, `Grade must be at least ${GRADE_MIN}.`)
-          .max(GRADE_MAX, `Grade must be at most ${GRADE_MAX}.`),
         response_time_ms: z
           .number({
             invalid_type_error: "Response time must be a number.",
@@ -75,14 +64,12 @@ export const reviewEventsQuerySchema = z.object({
   from: z.string().datetime("From date must be a valid ISO date string.").optional(),
   to: z.string().datetime("To date must be a valid ISO date string.").optional(),
   limit: z
-    .number({
-      invalid_type_error: "Limit must be a number.",
-    })
-    .int("Limit must be an integer.")
-    .min(1, "Limit must be at least 1.")
-    .max(100, "Limit cannot exceed 100.")
-    .default(20)
-    .optional(),
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 20))
+    .refine((val) => val >= 1 && val <= 100, {
+      message: "Limit must be between 1 and 100.",
+    }),
   cursor: z.string().optional(),
 });
 
@@ -92,14 +79,12 @@ export const reviewStatsQuerySchema = z.object({
   card_id: z.string().uuid("Card ID must be a valid UUID.").optional(),
   next_review_before: z.string().datetime("Next review before must be a valid ISO date string.").optional(),
   limit: z
-    .number({
-      invalid_type_error: "Limit must be a number.",
-    })
-    .int("Limit must be an integer.")
-    .min(1, "Limit must be at least 1.")
-    .max(100, "Limit cannot exceed 100.")
-    .default(20)
-    .optional(),
+    .string()
+    .optional()
+    .transform((val) => (val ? parseInt(val, 10) : 20))
+    .refine((val) => val >= 1 && val <= 100, {
+      message: "Limit must be between 1 and 100.",
+    }),
   cursor: z.string().optional(),
 });
 

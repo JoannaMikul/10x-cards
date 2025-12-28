@@ -928,9 +928,9 @@
 - **Success codes:** `200 OK`.
 - **Errors:**
 
-| Status | `error.code`               | Notes                                                                |
-|--------|----------------------------|----------------------------------------------------------------------|
-| 401    | `unauthorized`             | User not authenticated or JWT invalid                                |
+| Status | `error.code`               | Notes                                                               |
+| ------ | -------------------------- | ------------------------------------------------------------------- |
+| 401    | `unauthorized`             | User not authenticated or JWT invalid                               |
 | 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)      |
 | 500    | `db_error`                 | PostgREST/PostgreSQL failure; response includes `{ code, message }` |
 | 500    | `unexpected_error`         | Runtime issues (missing Supabase client, unexpected exception)      |
@@ -966,14 +966,14 @@
   - Only administrators can grant admin roles
 - **Errors:**
 
-| Status | `error.code`               | Trigger                                                                |
-|--------|---------------------------|------------------------------------------------------------------------|
-| 400    | `invalid_body`            | Invalid JSON or Zod schema validation failure (invalid UUID, wrong role)|
-| 401    | `unauthorized`            | Missing/invalid JWT or user not authenticated                          |
-| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)         |
-| 409    | `role_exists`             | User already has the admin role                                        |
-| 500    | `db_error`                | PostgREST/PostgreSQL failure; response includes `{ code, message }`    |
-| 500    | `unexpected_error`        | Runtime issues (missing Supabase client, unexpected exception)         |
+| Status | `error.code`               | Trigger                                                                  |
+| ------ | -------------------------- | ------------------------------------------------------------------------ |
+| 400    | `invalid_body`             | Invalid JSON or Zod schema validation failure (invalid UUID, wrong role) |
+| 401    | `unauthorized`             | Missing/invalid JWT or user not authenticated                            |
+| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)           |
+| 409    | `role_exists`              | User already has the admin role                                          |
+| 500    | `db_error`                 | PostgREST/PostgreSQL failure; response includes `{ code, message }`      |
+| 500    | `unexpected_error`         | Runtime issues (missing Supabase client, unexpected exception)           |
 
 - **Observability:** Every 4xx/5xx response is logged via `recordUserRolesEvent` (`scope: "api/admin/user-roles"`, includes `userId`, `targetUserId`, `role`).
 
@@ -996,14 +996,14 @@
   - Logs all role removal operations for audit purposes
 - **Errors:**
 
-| Status | `error.code`               | Trigger                                                                |
-|--------|---------------------------|------------------------------------------------------------------------|
-| 400    | `invalid_path_params`      | Invalid UUID format for `user_id` or unsupported role value            |
-| 401    | `unauthorized`             | Missing/invalid JWT or user not authenticated                          |
-| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)         |
-| 404    | `role_not_found`           | User does not have the specified role                                  |
-| 500    | `db_error`                 | PostgREST/PostgreSQL failure; response includes `{ code, message }`    |
-| 500    | `unexpected_error`         | Runtime issues (missing Supabase client, unexpected exception)         |
+| Status | `error.code`               | Trigger                                                             |
+| ------ | -------------------------- | ------------------------------------------------------------------- |
+| 400    | `invalid_path_params`      | Invalid UUID format for `user_id` or unsupported role value         |
+| 401    | `unauthorized`             | Missing/invalid JWT or user not authenticated                       |
+| 403    | `insufficient_permissions` | User authenticated but not admin (`is_admin()` returned false)      |
+| 404    | `role_not_found`           | User does not have the specified role                               |
+| 500    | `db_error`                 | PostgREST/PostgreSQL failure; response includes `{ code, message }` |
+| 500    | `unexpected_error`         | Runtime issues (missing Supabase client, unexpected exception)      |
 
 - **Performance:** Simple DELETE query on `user_roles` table with foreign key check. Uses database index on `(user_id, role)` for efficient access.
 - **Observability:** Every 4xx/5xx response is logged via `recordUserRolesEvent` (`scope: "api/admin/user-roles/[userId]/[role]"`, includes `userId`, `targetUserId`, `role`).

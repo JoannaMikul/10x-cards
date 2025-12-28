@@ -52,7 +52,7 @@ export function FlashcardList({
   const showEmptyState = !loading && items.length === 0 && !error;
 
   return (
-    <section aria-label="Flashcard list" aria-live="polite" className="space-y-4">
+    <section aria-label="Flashcard list" aria-live="polite" className="space-y-4 pr-6 pl-6">
       {error && (
         <Alert variant="destructive">
           <AlertTitle>Cannot load flashcards</AlertTitle>
