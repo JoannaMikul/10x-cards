@@ -8,10 +8,10 @@ Checkbox oznacza: **endpoint jest zaimplementowany w backendzie i jest wywoływa
 
 ### Categories
 
-- [ ] `GET /api/categories` — backend: `src/pages/api/categories.ts`, UI: **brak użycia** (w `src` nie ma wywołań `/api/categories`, poza mockami)
-- [ ] `POST /api/categories` (admin) — backend: `src/pages/api/categories.ts`, UI: **brak**
-- [ ] `PATCH /api/categories/:id` (admin) — backend: `src/pages/api/categories/[id].ts`, UI: **brak**
-- [ ] `DELETE /api/categories/:id` (admin) — backend: `src/pages/api/categories/[id].ts`, UI: **brak**
+- [x] `GET /api/categories` — backend: `src/pages/api/categories.ts`, UI: `src/components/admin/categories/useAdminCategories.ts` (wywołanie z parametrami search, limit, sort, cursor)
+- [x] `POST /api/categories` (admin) — backend: `src/pages/api/categories.ts`, UI: `src/components/admin/categories/useAdminCategories.ts`
+- [x] `PATCH /api/categories/:id` (admin) — backend: `src/pages/api/categories/[id].ts`, UI: `src/components/admin/categories/useAdminCategories.ts`
+- [x] `DELETE /api/categories/:id` (admin) — backend: `src/pages/api/categories/[id].ts`, UI: `src/components/admin/categories/useAdminCategories.ts`
 
 ### Tags
 

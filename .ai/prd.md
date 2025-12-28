@@ -137,7 +137,7 @@ Implementacja:
 - **Strona**: `/admin/kpi` w `src/pages/admin/kpi.astro`
 - **Hook zarządzania stanem**: `useAdminKpiDashboard` w `src/components/hooks/useAdminKpiDashboard.ts`
 
-❌ ID: US-011
+✅ ID: US-011
 Tytuł: Zarządzanie kategoriami (admin)
 Opis: Jako administrator chcę zarządzać globalnymi kategoriami, aby utrzymywać spójną taksonomię dla wszystkich użytkowników.
 Kryteria akceptacji:
@@ -147,6 +147,13 @@ Kryteria akceptacji:
 - Administrator może usuwać kategorie, które nie są używane przez żadne fiszki.
 - Walidacja zapewnia unikalność nazw i slugów oraz poprawność formatu koloru (hex).
 - Wszystkie operacje są logowane w celach audytu.
+
+Implementacja:
+
+- **Frontend**: Komponenty w folderze `src/components/admin/categories/` (AdminCategoriesPage, CategoriesList, CategoryFormModal, CategoryToolbar, useAdminCategories)
+- **Backend**: Endpointy API w `src/pages/api/categories/` i `src/pages/api/categories/[id].ts`
+- **Strona**: `/admin/categories` w `src/pages/admin/categories.astro`
+- **Hook zarządzania stanem**: `useAdminCategories` w `src/components/admin/categories/useAdminCategories.ts`
 
 ❌ ID: US-012
 Tytuł: Zarządzanie rolami administratorów (admin)
