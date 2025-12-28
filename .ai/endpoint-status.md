@@ -65,9 +65,9 @@ Checkbox oznacza: **endpoint jest zaimplementowany w backendzie i jest wywoływa
 
 ### User Roles (admin)
 
-- [ ] `GET /api/admin/user-roles` — backend: `src/pages/api/admin/user-roles.ts`, UI: **brak**
-- [ ] `POST /api/admin/user-roles` — backend: `src/pages/api/admin/user-roles.ts`, UI: **brak**
-- [ ] `DELETE /api/admin/user-roles/:user_id/:role` — backend: `src/pages/api/admin/user-roles/[userId]/[role].ts`, UI: **brak**
+- [x] `GET /api/admin/user-roles` — backend: `src/pages/api/admin/user-roles.ts`, UI: `src/components/admin/admins/useAdminUsers.ts`
+- [x] `POST /api/admin/user-roles` — backend: `src/pages/api/admin/user-roles.ts`, UI: `src/components/admin/admins/useAdminUsers.ts`
+- [x] `DELETE /api/admin/user-roles/:user_id/:role` — backend: `src/pages/api/admin/user-roles/[userId]/[role].ts`, UI: `src/components/admin/admins/useAdminUsers.ts`
 
 ### Dodatkowe endpointy obecne w repo (poza `.ai/api-plan.md`)
 

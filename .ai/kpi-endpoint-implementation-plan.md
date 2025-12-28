@@ -1,9 +1,11 @@
 # API Endpoint Implementation Plan: GET /api/admin/kpi
 
 ## 1. Przegląd punktu końcowego
+
 Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 10x-cards. Dostarcza metryk dotyczących akceptacji kart generowanych przez AI, stosunku kart AI do kart manualnych oraz wolumenu generacji. Dane są agregowane z tabel `flashcards`, `generation_candidates` oraz opcjonalnie `review_events` w zależności od parametrów filtrowania.
 
 ## 2. Szczegóły żądania
+
 - **Metoda HTTP:** GET
 - **Struktura URL:** `/api/admin/kpi`
 - **Parametry:**
@@ -15,6 +17,7 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
     - `to`: Data ISO string (wymagane gdy `range=custom`)
 
 ## 3. Wykorzystywane typy
+
 - **DTOs:**
   - `AnalyticsKpiResponse` - główna struktura odpowiedzi
   - `AnalyticsTotalsDTO` - podsumowanie całkowite
@@ -22,8 +25,10 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
 - **Command Modele:** Brak (endpoint tylko do odczytu)
 
 ## 4. Szczegóły odpowiedzi
+
 - **Kod statusu sukcesu:** 200 OK
 - **Struktura odpowiedzi:**
+
 ```json
 {
   "ai_acceptance_rate": 0.78,
@@ -44,6 +49,7 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
 ```
 
 ## 5. Przepływ danych
+
 1. **Walidacja parametrów** - sprawdzenie poprawności `range`, `group_by`, dat `from/to`
 2. **Sprawdzenie uprawnień** - weryfikacja roli administratora przez funkcję `is_admin()`
 3. **Wywołanie service** - delegacja do `analytics.service.ts` z parametrami
@@ -52,6 +58,7 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
 6. **Obsługa błędów** - przechwytywanie i logowanie wyjątków
 
 ## 6. Względy bezpieczeństwa
+
 - **Autoryzacja:** Endpoint dostępny wyłącznie dla użytkowników z rolą administratora
 - **Walidacja danych:** Wszystkie parametry wejściowe walidowane schematem Zod
 - **SQL Injection:** Użycie parametrizowanych zapytań Supabase
@@ -59,11 +66,13 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
 - **RLS Bypass:** Service używa funkcji SECURITY DEFINER dla dostępu do danych wszystkich użytkowników
 
 ## 7. Obsługa błędów
+
 - **400 Bad Request:** Nieprawidłowe parametry (`range`, `group_by`, `from`, `to`)
 - **403 Forbidden:** Brak uprawnień administratora
 - **500 Internal Server Error:** Błędy bazy danych lub przetwarzania
 
 ## 8. Rozważania dotyczące wydajności
+
 - **Indeksy:** Wykorzystanie istniejących indeksów na `created_at` w tabelach `flashcards` i `generation_candidates`
 - **Cache:** Brak cache'a - dane KPI wymagają aktualności
 - **Optymalizacja zapytań:** Użycie CTE (Common Table Expressions) dla złożonych agregacji
@@ -73,11 +82,13 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
 ## 9. Etapy wdrożenia
 
 ### Etapa 1: Przygotowanie schematów walidacji
+
 1. Utworzyć `src/lib/validation/admin-kpi.schema.ts`
 2. Zaimplementować schemat Zod dla parametrów `range`, `group_by`, `from`, `to`
 3. Dodać reguły walidacji zakresów dat (maksymalnie 90 dni)
 
 ### Etapa 2: Implementacja service
+
 1. Utworzyć `src/lib/services/analytics.service.ts`
 2. Zaimplementować funkcję `getKpiMetrics()` przyjmującą parametry filtrowania
 3. Dodać funkcję pomocniczą `calculateAiAcceptanceRate()` dla obliczania współczynnika akceptacji
@@ -85,6 +96,7 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
 5. Dodać funkcję `calculateTotals()` dla podsumowania całkowitego
 
 ### Etapa 3: Implementacja endpointu API
+
 1. Utworzyć `src/pages/api/admin/kpi.ts`
 2. Dodać `export const prerender = false`
 3. Zaimplementować funkcję `GET()` z obsługą parametrów query
@@ -95,6 +107,7 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
 8. Dodać obsługę błędów z odpowiednimi kodami statusu
 
 ### Etapa 4: Testowanie i optymalizacja
+
 1. Dodać testy jednostkowe dla `analytics.service.ts`
 2. Przetestować endpoint z różnymi parametrami
 3. Zweryfikować wydajność zapytań przy dużych zbiorach danych
@@ -102,6 +115,7 @@ Endpoint zwraca kluczowe wskaźniki wydajności (KPI) wymagane w PRD aplikacji 1
 5. Przeprowadzić testy obciążeniowe dla różnych zakresów dat
 
 ### Etapa 5: Dokumentacja i deployment
+
 1. Zaktualizować dokumentację API w `.ai/api-plan.md`
 2. Dodać komentarze JSDoc do wszystkich funkcji
 3. Przeprowadzić code review

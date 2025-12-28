@@ -155,7 +155,7 @@ Implementacja:
 - **Strona**: `/admin/categories` w `src/pages/admin/categories.astro`
 - **Hook zarządzania stanem**: `useAdminCategories` w `src/components/admin/categories/useAdminCategories.ts`
 
-❌ ID: US-012
+✅ ID: US-012
 Tytuł: Zarządzanie rolami administratorów (admin)
 Opis: Jako administrator chcę zarządzać rolami innych administratorów, aby kontrolować dostęp do funkcji administracyjnych.
 Kryteria akceptacji:
@@ -165,6 +165,13 @@ Kryteria akceptacji:
 - Administrator może odbierać rolę administratora innym administratorom.
 - Operacje przyznawania/odbierania roli są logowane w celach audytu.
 - Walidacja zapobiega duplikatom ról i zapewnia, że przynajmniej jeden administrator pozostaje w systemie.
+
+Implementacja:
+
+- **Frontend**: Komponenty w folderze `src/components/admin/admins/` (AdminAdminsPage, AdminsList, AdminsToolbar, RevokeAdminConfirmDialog, useAdminUsers)
+- **Backend**: Endpointy API w `src/pages/api/admin/user-roles.ts` i `src/pages/api/admin/user-roles/[userId]/[role].ts`
+- **Strona**: `/admin/admins` w `src/pages/admin/admins.astro`
+- **Hook zarządzania stanem**: `useAdminUsers` w `src/components/admin/admins/useAdminUsers.ts`
 
 ❌ ID: US-013
 Tytuł: Diagnostyka błędów generowania (admin)
