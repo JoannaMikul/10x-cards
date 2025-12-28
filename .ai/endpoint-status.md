@@ -55,13 +55,13 @@ Checkbox oznacza: **endpoint jest zaimplementowany w backendzie i jest wywoływa
 
 ### Review Sessions & Events
 
-- [ ] `POST /api/review-sessions` — backend: `src/pages/api/review-sessions.ts`, UI: **brak**
+- [x] `POST /api/review-sessions` — backend: `src/pages/api/review-sessions.ts`, UI: `src/components/hooks/useReviewSession.ts` (używany w `src/components/reviews/ReviewsPage.tsx`)
 - [ ] `GET /api/review-events` — backend: `src/pages/api/review-events.ts`, UI: **brak**
-- [ ] `GET /api/review-stats` — backend: `src/pages/api/review-stats.ts`, UI: **brak**
+- [x] `GET /api/review-stats` — backend: `src/pages/api/review-stats.ts`, UI: `src/components/reviews/StatsSnippet.tsx`
 
 ### Analytics KPI (admin)
 
-- [ ] `GET /api/admin/kpi` — backend: `src/pages/api/admin/kpi.ts`, UI: **brak**
+- [x] `GET /api/admin/kpi` — backend: `src/pages/api/admin/kpi.ts`, UI: `src/components/admin/kpi/KpiDashboardPage.tsx` (hook: `useAdminKpiDashboard`)
 
 ### User Roles (admin)
 

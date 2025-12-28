@@ -42,6 +42,9 @@
   - US‑008 (lista fiszek): `/flashcards` z filtrami, wyszukiwaniem, paginacją.
   - US‑009 (powtórki): `/reviews`, zapis wyników i podgląd statystyk.
   - US‑010 (KPI): `/admin/kpi`, tylko admin.
+  - US‑011 (zarządzanie kategoriami): `/admin/categories`, tylko admin.
+  - US‑012 (zarządzanie administratorami): `/admin/admins`, tylko admin.
+  - US‑013 (diagnostyka błędów): `/admin/generation-errors`, tylko admin.
 
 ## 2. Lista widoków
 
@@ -108,6 +111,33 @@
   - Obsługuje: US‑010
   - Powiązane endpointy API: `GET /api/admin/kpi`.
 
+- **Nazwa widoku**: Zarządzanie kategoriami (admin)
+  - **Ścieżka widoku**: `/admin/categories`
+  - **Główny cel**: Tworzenie, edycja i usuwanie globalnych kategorii z pełną walidacją.
+  - **Kluczowe informacje do wyświetlenia**: Lista kategorii z nazwą, slugiem, opisem, kolorem; formularze create/edit; potwierdzenia usunięcia.
+  - **Kluczowe komponenty widoku**: `CategoriesList`, `CategoryFormModal`, `ConfirmDialog`, `FormError`, `Toasts`.
+  - **UX, dostępność i względy bezpieczeństwa**: Widok tylko dla admin; walidacja unikalności slugów i formatu koloru; blokada usunięcia używanych kategorii; logowanie operacji.
+  - Obsługuje: US‑011
+  - Powiązane endpointy API: `GET /api/admin/categories`, `POST /api/admin/categories`, `GET /api/admin/categories/:id`, `PATCH /api/admin/categories/:id`, `DELETE /api/admin/categories/:id`.
+
+- **Nazwa widoku**: Zarządzanie administratorami (admin)
+  - **Ścieżka widoku**: `/admin/admins`
+  - **Główny cel**: Przyznawanie i odbieranie roli administratora użytkownikom systemu.
+  - **Kluczowe informacje do wyświetlenia**: Lista użytkowników-adminów; wyszukiwanie użytkowników; przyciski grant/revoke; potwierdzenia operacji.
+  - **Kluczowe komponenty widoku**: `AdminsList`, `UserSearch`, `GrantRevokeDialog`, `ConfirmDialog`, `Toasts`.
+  - **UX, dostępność i względy bezpieczeństwa**: Widok tylko dla admin; walidacja zapobiegająca usunięciu ostatniego admina; logowanie wszystkich operacji; wyszukiwanie z filtrowaniem.
+  - Obsługuje: US‑012
+  - Powiązane endpointy API: `GET /api/admin/users`, `POST /api/admin/users/:id/grant-admin`, `POST /api/admin/users/:id/revoke-admin`.
+
+- **Nazwa widoku**: Diagnostyka błędów generowania (admin)
+  - **Ścieżka widoku**: `/admin/generation-errors`
+  - **Główny cel**: Przeglądanie i analiza błędów generowania z filtrowaniem i eksportem.
+  - **Kluczowe informacje do wyświetlenia**: Lista błędów z użytkownikiem, modelem, błędem, hashem tekstu, czasem; filtry zakresu dat i użytkownika; przycisk eksportu.
+  - **Kluczowe komponenty widoku**: `GenerationErrorsList`, `ErrorFilters`, `ExportButton`, `ErrorDetailsModal`, `Toasts`.
+  - **UX, dostępność i względy bezpieczeństwa**: Widok tylko dla admin; paginacja dla wydajności; czytelne prezentowanie błędów; eksport do CSV/JSON.
+  - Obsługuje: US‑013
+  - Powiązane endpointy API: `GET /api/admin/generation-errors`.
+
 - **Nazwa widoku**: 403 Forbidden
   - **Ścieżka widoku**: `/403`
   - **Główny cel**: Jasny komunikat o braku uprawnień i powrót do strony głównej.
@@ -150,7 +180,7 @@
 
 - **Topbar (persistent)**
   - Logo (link do `/` lub `/flashcards` po zalogowaniu).
-  - Linki: `/generator`, `/candidates`, `/flashcards`, `/reviews`, `/admin/kpi` (tylko admin).
+  - Linki: `/generator`, `/candidates`, `/flashcards`, `/reviews`, `/admin/kpi`, `/admin/categories`, `/admin/admins`, `/admin/generation-errors` (tylko admin).
   - `UserMenu`: e‑mail, wyloguj, opcjonalnie link do profilu (future).
   - Mobile: hamburger → menu w `Dialog`/`Sheet`; elementy mają `aria-label` i `sr-only`.
   - A11y: `nav` landmark, focus ring, aktywny stan linku, skip‑link do `main`.
@@ -167,7 +197,7 @@
 
 - **Gating tras**
   - Middleware sprawdza sesję i `isAdmin`; SSR wstrzykuje te informacje do `AuthContext`.
-  - Non‑admin → link `/admin/kpi` ukryty; twarde wejście → 403.
+  - Non‑admin → wszystkie linki `/admin/*` ukryte; twarde wejście → 403.
 
 ## 5. Kluczowe komponenty
 
@@ -197,6 +227,15 @@
 - **KPI (admin)**
   - `KpiCards`, `KpiTrendChart`, `RangePicker`, `RefreshButton`.
 
+- **Zarządzanie kategoriami (admin)**
+  - `CategoriesList`, `CategoryFormModal`, `CategoryItem`, `ColorPicker`.
+
+- **Zarządzanie administratorami (admin)**
+  - `AdminsList`, `UserSearch`, `GrantRevokeDialog`, `UserItem`.
+
+- **Diagnostyka błędów (admin)**
+  - `GenerationErrorsList`, `ErrorFilters`, `ErrorDetailsModal`, `ExportButton`.
+
 - **Konteksty i narzędzia**
   - `AuthProvider` (sesja, `isAdmin`), `ToastsProvider`, `ModalProvider`, `FlashcardsFiltersProvider`.
   - `useFetch` (dedupe, abort, envelope), `usePolling` (interwały, stop conditions), `useUrlQueryState`, `useCursorPagination`.
@@ -209,3 +248,6 @@
   - Fiszki: `GET/POST/GET:id/PATCH:id/DELETE:id/POST:id/restore /api/flashcards`.
   - Powtórki: `POST /api/review-sessions`, `GET /api/review-stats`.
   - KPI (admin): `GET /api/admin/kpi`.
+  - Kategorie (admin): `GET/POST/GET:id/PATCH:id/DELETE:id /api/admin/categories`.
+  - Administratorzy (admin): `GET/POST:grant-admin/POST:revoke-admin /api/admin/users`.
+  - Diagnostyka (admin): `GET /api/admin/generation-errors`.

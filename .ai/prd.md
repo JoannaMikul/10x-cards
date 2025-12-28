@@ -36,7 +36,7 @@ Kryteria akceptacji:
 - Po pomyślnej rejestracji konto aktywuje się automatycznie, użytkownik otrzymuje potwierdzenie i zostaje zalogowany do aplikacji.
 - Próby wywołania API bez ważnej sesji kończą się komunikatem o braku autoryzacji i są logowane w celu monitorowania bezpieczeństwa.
 
-ID: US-001
+✅ ID: US-001
 Tytuł: Logowanie i bezpieczny dostęp
 Opis: Jako zarejestrowany użytkownik chcę logować się przy użyciu e-maila i hasła, aby mieć bezpieczny dostęp do moich fiszek oraz synchronizacji danych.
 Kryteria akceptacji:
@@ -47,7 +47,7 @@ Kryteria akceptacji:
 - Tylko zalogowany użytkownik może wyświetlać, edytować i usuwać fiszki.
 - Nie ma dostępu do fiszek innych użytkowników ani możliwości współdzielenia.
 
-ID: US-002
+✅ ID: US-002
 Tytuł: Wklejanie tekstu do generowania
 Opis: Jako użytkownik chcę wkleić surowy tekst do formularza, aby AI mogła stworzyć z niego propozycje fiszek.
 Kryteria akceptacji:
@@ -56,7 +56,7 @@ Kryteria akceptacji:
 - Przy próbie wysłania tekstu spoza zakresu użytkownik otrzymuje informację o wymaganej długości.
 - Tekst jest automatycznie oczyszczany z niebezpiecznych znaczników przed wysłaniem do backendu.
 
-ID: US-003
+✅ ID: US-003
 Tytuł: Generowanie fiszek przez AI
 Opis: Jako użytkownik chcę uzyskać propozycje fiszek wygenerowanych przez AI, aby skrócić czas przygotowania materiału.
 Kryteria akceptacji:
@@ -65,7 +65,7 @@ Kryteria akceptacji:
 - Po przekroczeniu pięciu prób generowania w ciągu godziny użytkownik otrzymuje komunikat o przekroczeniu limitu i czas pozostały do resetu.
 - Odpowiedź AI zawiera zestaw fiszek składających się z par pytanie-odpowiedź oraz powiązane metadane (sugerowane kategorie, tagi, źródło).
 
-ID: US-004
+✅ ID: US-004
 Tytuł: Recenzja i zapis fiszek z AI
 Opis: Jako użytkownik chcę przejrzeć, edytować, zaakceptować lub odrzucić każdą wygenerowaną fiszkę, aby zachować kontrolę nad jakością materiału.
 Kryteria akceptacji:
@@ -74,7 +74,7 @@ Kryteria akceptacji:
 - System blokuje zapis fiszki, jeśli pytanie przekracza 200 znaków, odpowiedź 500 znaków lub treść duplikuje istniejącą fiszkę użytkownika.
 - Po zaakceptowaniu fiszka trafia do kolekcji z uzupełnionymi metadanymi (autor, źródło, daty, kategorie i tagi) i jest gotowa do powtórek.
 
-ID: US-005
+✅ ID: US-005
 Tytuł: Ręczne dodawanie fiszki
 Opis: Jako użytkownik chcę utworzyć fiszkę ręcznie, gdy potrzebuję doprecyzować pytanie lub materiał nie nadaje się do generowania AI.
 Kryteria akceptacji:
@@ -83,7 +83,7 @@ Kryteria akceptacji:
 - Walidacja jest realizowana na froncie, backendzie i w bazie, a komunikaty błędów wyświetlane są w interfejsie.
 - Po poprawnym zapisie fiszka pojawia się w liście użytkownika bez odświeżania całej strony.
 
-ID: US-006
+✅ ID: US-006
 Tytuł: Edycja istniejącej fiszki
 Opis: Jako użytkownik chcę edytować treść i metadane zapisanej fiszki, aby aktualizować materiał wraz z postępem nauki.
 Kryteria akceptacji:
@@ -92,7 +92,7 @@ Kryteria akceptacji:
 - System ponownie weryfikuje limity znaków i blokady duplikatów przed zapisaniem zmian.
 - Zapisane zmiany są natychmiast widoczne w liście i udostępniane modułowi powtórek.
 
-ID: US-007
+✅ ID: US-007
 Tytuł: Usuwanie fiszki
 Opis: Jako użytkownik chcę usunąć fiszkę, która jest niepotrzebna lub błędna, aby utrzymać porządek w moim zestawie.
 Kryteria akceptacji:
@@ -101,7 +101,7 @@ Kryteria akceptacji:
 - Usunięte fiszki znikają z listy, a moduł powtórek nie udostępnia ich w kolejnych sesjach.
 - System loguje operację w celu audytu (metadane operacji przechowywane dla administratora produktu).
 
-ID: US-008
+✅ ID: US-008
 Tytuł: Przegląd i filtrowanie fiszek
 Opis: Jako użytkownik chcę przeglądać fiszki w liście z wyszukiwaniem, filtrowaniem i paginacją, aby szybko znaleźć potrzebne karty.
 Kryteria akceptacji:
@@ -110,7 +110,7 @@ Kryteria akceptacji:
 - Paginacja utrzymuje wydajność i pamięta ustawienia użytkownika w ramach sesji.
 - Metadane (autor, daty, tagi) są widoczne na liście oraz wykorzystywane do sortowania.
 
-ID: US-009
+✅ ID: US-009
 Tytuł: Rozpoczęcie sesji powtórek
 Opis: Jako użytkownik chcę uruchomić sesję powtórek bezpośrednio z listy fiszek, aby utrzymać rytm nauki.
 Kryteria akceptacji:
@@ -120,16 +120,24 @@ Kryteria akceptacji:
 - Każda recenzja fiszki wymaga oceny odpowiedzi w skali 0-5 zgodnie z algorytmem SuperMemo 2.
 - Postęp sesji aktualizuje parametry algorytmu (efactor, interval, repetition) i jest zapisywany dla przyszłych powtórek.
 
-ID: US-010
+✅ ID: US-010
 Tytuł: Monitorowanie wskaźników KPI
 Opis: Jako menedżer produktu chcę mieć dashboard KPI, aby monitorować skuteczność generowania i wykorzystania fiszek.
 Kryteria akceptacji:
 
 - Dashboard prezentuje co najmniej odsetek zaakceptowanych fiszek AI oraz udział fiszek tworzonych przez AI względem manualnych.
-- Dane są odświeżane w ustalonym interwale i pochodzą z wiarygodnych logów aplikacyjnych.
-- Eksport lub migawka danych do dalszej analizy jest dostępna w formie CSV lub JSON.
+- Dane są odświeżane ręcznie poprzez przycisk „Odśwież" (bez automatycznego pollingu w MVP).
+- Eksport danych do dalszej analizy jest dostępny w formie CSV lub JSON.
+- Dostęp do dashboard wyłącznie dla użytkowników z rolą administratora.
 
-ID: US-011
+Implementacja:
+
+- **Frontend**: Komponenty w folderze `src/components/admin/kpi/` (KpiDashboardPage, KpiCards, KpiTrendChart, itd.)
+- **Backend**: Endpoint API `GET /api/admin/kpi` w `src/pages/api/admin/kpi.ts`
+- **Strona**: `/admin/kpi` w `src/pages/admin/kpi.astro`
+- **Hook zarządzania stanem**: `useAdminKpiDashboard` w `src/components/hooks/useAdminKpiDashboard.ts`
+
+❌ ID: US-011
 Tytuł: Zarządzanie kategoriami (admin)
 Opis: Jako administrator chcę zarządzać globalnymi kategoriami, aby utrzymywać spójną taksonomię dla wszystkich użytkowników.
 Kryteria akceptacji:
@@ -140,7 +148,7 @@ Kryteria akceptacji:
 - Walidacja zapewnia unikalność nazw i slugów oraz poprawność formatu koloru (hex).
 - Wszystkie operacje są logowane w celach audytu.
 
-ID: US-012
+❌ ID: US-012
 Tytuł: Zarządzanie rolami administratorów (admin)
 Opis: Jako administrator chcę zarządzać rolami innych administratorów, aby kontrolować dostęp do funkcji administracyjnych.
 Kryteria akceptacji:
@@ -151,7 +159,7 @@ Kryteria akceptacji:
 - Operacje przyznawania/odbierania roli są logowane w celach audytu.
 - Walidacja zapobiega duplikatom ról i zapewnia, że przynajmniej jeden administrator pozostaje w systemie.
 
-ID: US-013
+❌ ID: US-013
 Tytuł: Diagnostyka błędów generowania (admin)
 Opis: Jako administrator chcę przeglądać logi błędów generowania, aby monitorować jakość systemu AI i diagnozować problemy.
 Kryteria akceptacji:
