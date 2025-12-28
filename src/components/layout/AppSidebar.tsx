@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { FileText, CheckSquare, Users, RotateCcw, LogOut, BarChart3 } from "lucide-react";
+import { FileText, CheckSquare, Users, RotateCcw, LogOut, BarChart3, Settings } from "lucide-react";
 import { useIsAdmin } from "../hooks/useIsAdmin";
 import { SidebarMenuItemComponent, type MenuItemConfig } from "./SidebarMenuItemComponent";
 import {
@@ -33,6 +33,7 @@ const MENU_ITEMS: MenuItemConfig[] = [
   { href: "/flashcards", label: "Flashcards", icon: CheckSquare },
   { href: "/reviews", label: "Reviews", icon: RotateCcw },
   { href: "/admin/kpi", label: "Admin KPI", icon: BarChart3, adminOnly: true },
+  { href: "/admin/categories", label: "Category", icon: Settings, adminOnly: true },
 ];
 
 export const AppSidebar = React.memo<AppSidebarProps>(({ currentUser, children }) => {

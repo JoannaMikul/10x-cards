@@ -332,7 +332,8 @@ export async function listFlashcards(
   const cardIds = items.map((item) => item.id);
   const tagsByCardId = cardIds.length > 0 ? await fetchTagsForCards(supabase, cardIds) : new Map();
 
-  const reviewStatsByCardId = cardIds.length > 0 ? await fetchReviewStatsForCards(supabase, userId, cardIds) : new Map();
+  const reviewStatsByCardId =
+    cardIds.length > 0 ? await fetchReviewStatsForCards(supabase, userId, cardIds) : new Map();
 
   const flashcards = items.map((row) => {
     const tags = tagsByCardId.get(row.id) ?? [];
@@ -700,13 +701,7 @@ async function fetchReviewStatsForCards(
     return new Map();
   }
 
-  type ReviewStatsRow = Tables<"review_stats">;
-
-  const { data, error } = await supabase
-    .from("review_stats")
-    .select("*")
-    .eq("user_id", userId)
-    .in("card_id", cardIds);
+  const { data, error } = await supabase.from("review_stats").select("*").eq("user_id", userId).in("card_id", cardIds);
 
   if (error) {
     throw error;

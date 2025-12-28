@@ -11,6 +11,7 @@ import { PencilLineIcon, TrashIcon, RotateCcwIcon, PlayIcon, AlertTriangleIcon }
 interface FlashcardItemProps {
   card: FlashcardDTO;
   categoryName?: string;
+  categoryColor?: string;
   sourceName?: string;
   sourceKind?: SourceDTO["kind"];
   selected: boolean;
@@ -25,6 +26,7 @@ interface FlashcardItemProps {
 function FlashcardItemComponent({
   card,
   categoryName,
+  categoryColor,
   sourceName,
   sourceKind,
   selected,
@@ -87,7 +89,21 @@ function FlashcardItemComponent({
             {categoryName && (
               <div className="flex min-w-[120px] flex-col gap-1">
                 <span className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Category</span>
-                <Badge variant="outline" className={cn("border-dashed", getCategoryBadgeClass(categoryName))}>
+                <Badge
+                  variant="outline"
+                  className="border-dashed"
+                  style={
+                    categoryColor
+                      ? {
+                          borderColor: categoryColor,
+                          backgroundColor: categoryColor + "1A",
+                        }
+                      : {
+                          borderColor: "rgb(107 114 128 / 0.6)",
+                          backgroundColor: "rgb(107 114 128 / 0.1)",
+                        }
+                  }
+                >
                   {categoryName}
                 </Badge>
               </div>
@@ -226,7 +242,6 @@ function formatRelativeDate(dateInput: string | null | undefined): string {
 }
 
 function formatAbsoluteDate(dateInput: string | null | undefined): string {
-  console.log("dateInput", dateInput);
   if (!dateInput) {
     return "Not scheduled";
   }
@@ -283,20 +298,6 @@ function getSourceBadgeClass(kind?: SourceDTO["kind"]): string {
     default:
       return "";
   }
-}
-
-function getCategoryBadgeClass(name?: string): string {
-  if (!name) {
-    return "";
-  }
-  const normalized = name.trim().toLowerCase();
-  if (normalized === "it") {
-    return "border-[#473472]/60 bg-[#473472]/10 text-[#473472]";
-  }
-  if (normalized === "language") {
-    return "border-[#f97316]/60 bg-[#f97316]/10 text-[#c2410c]";
-  }
-  return "";
 }
 
 export const FlashcardItem = memo(FlashcardItemComponent);

@@ -80,6 +80,7 @@ export function FlashcardList({
               key={card.id}
               card={card}
               categoryName={category?.name}
+              categoryColor={category?.color || undefined}
               sourceName={source?.name}
               sourceKind={source?.kind}
               selected={selectedSet.has(card.id)}

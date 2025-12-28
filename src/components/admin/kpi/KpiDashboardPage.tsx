@@ -58,7 +58,7 @@ export function KpiDashboardPage() {
   };
 
   return (
-    <main className="container mx-auto px-4 py-6 space-y-6" role="main" aria-labelledby="kpi-dashboard-title">
+    <main className="container mx-auto px-0 py-3 space-y-6" role="main" aria-labelledby="kpi-dashboard-title">
       <div aria-live="polite" aria-atomic="true" className="sr-only">
         {state.loading && "Loading KPI data..."}
         {state.error && "Error loading KPI data"}

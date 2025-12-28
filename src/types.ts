@@ -582,3 +582,52 @@ export interface ReviewSessionConfig {
   selection?: FlashcardSelectionState;
   cards: FlashcardDTO[];
 }
+
+export interface AdminCategoryListItemVM {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  color?: string;
+  createdAt: string;
+  updatedAt: string;
+  isDeletable: boolean;
+}
+
+export interface CategoriesAdminViewState {
+  items: AdminCategoryListItemVM[];
+  loading: boolean;
+  error: ApiErrorResponse | null;
+  search: string;
+  sort: "name" | "created_at";
+  nextCursor: string | null;
+  hasMore: boolean;
+  formState: CategoryFormState | null;
+  deleteCandidateId?: number;
+  deleting: boolean;
+  authorizationError?: ApiErrorResponse;
+}
+
+export type CategoryFormMode = "create" | "edit";
+
+export interface CategoryFormValues {
+  name: string;
+  slug: string;
+  description?: string;
+  color?: string;
+}
+
+export interface CategoryFormState {
+  mode: CategoryFormMode;
+  values: CategoryFormValues;
+  categoryId?: number; // Only present in edit mode
+  isSubmitting: boolean;
+  fieldErrors: string[];
+  apiError?: ApiErrorResponse;
+}
+
+export interface DeleteCategoryState {
+  id?: number;
+  isDeleting: boolean;
+  error?: ApiErrorResponse;
+}

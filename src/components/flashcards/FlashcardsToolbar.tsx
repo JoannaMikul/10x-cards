@@ -51,7 +51,7 @@ export function FlashcardsToolbar({
             placeholder="Search by front or back…"
           />
         </div>
-        <Button variant="outline" onClick={onCreateClick}>
+        <Button onClick={onCreateClick}>
           <PlusIcon className="mr-2 size-4" />
           Add flashcard
         </Button>
