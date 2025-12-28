@@ -1,15 +1,14 @@
 import type { APIRoute } from "astro";
-import type { PostgrestError } from "@supabase/supabase-js";
+import type { PostgrestError, User } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../../../../db/supabase.client.ts";
-import { USER_ROLES_ERROR_CODES, buildErrorResponse } from "../../../../../lib/errors.ts";
-import { deleteUserRole, UserRoleServiceError } from "../../../../../lib/services/user-roles.service.ts";
-import { userRolePathParamsSchema } from "../../../../../lib/validation/user-roles.schema.ts";
+import { supabaseClient } from "../../../db/supabase.client.ts";
+import { USER_ROLES_ERROR_CODES, buildErrorResponse } from "../../../lib/errors.ts";
+import type { UserListResponse } from "../../../types";
 
 export const prerender = false;
 
 const JSON_HEADERS = { "Content-Type": "application/json" } as const;
-const USER_ROLES_EVENT_SCOPE = "api/admin/user-roles/[userId]/[role]";
+const USERS_EVENT_SCOPE = "api/admin/users";
 
 /**
  * Checks if the current user has admin privileges.
@@ -27,25 +26,22 @@ async function checkAdminStatus(supabase: NonNullable<typeof supabaseClient>): P
 }
 
 /**
- * DELETE /api/admin/user-roles/[userId]/[role]
+ * GET /api/admin/users
  *
- * Removes an administrator role from a specified user.
+ * Retrieves all users in the system for admin management purposes.
  * Requires admin privileges for access.
  *
- * This endpoint allows administrators to revoke admin roles from other users.
- * The operation is atomic and includes validation to ensure the role exists before removal.
+ * This endpoint provides a complete list of all users in the system,
+ * allowing administrators to manage user roles and permissions.
  *
  * Security considerations:
  * - Requires authenticated user with admin privileges
- * - Uses Row Level Security (RLS) for additional data access control
- * - Prevents privilege escalation through strict validation
- * - Logs all role removal operations for audit purposes
+ * - Returns sensitive user information
  *
  * @param locals - Astro locals containing user and supabase client
- * @param params - URL parameters containing userId and role
- * @returns Response with 204 status on success or error response
+ * @returns Response with users data or error response
  */
-export const DELETE: APIRoute = async ({ locals, params }) => {
+export const GET: APIRoute = async ({ locals }) => {
   const supabase = locals.supabase ?? supabaseClient;
 
   if (!supabase) {
@@ -54,7 +50,7 @@ export const DELETE: APIRoute = async ({ locals, params }) => {
       USER_ROLES_ERROR_CODES.UNEXPECTED_ERROR,
       "Supabase client is not available in the current context."
     );
-    recordUserRolesEvent({
+    recordUsersEvent({
       severity: "error",
       status: descriptor.status,
       code: USER_ROLES_ERROR_CODES.UNEXPECTED_ERROR,
@@ -65,7 +61,7 @@ export const DELETE: APIRoute = async ({ locals, params }) => {
 
   if (!locals.user) {
     const descriptor = buildErrorResponse(401, USER_ROLES_ERROR_CODES.UNAUTHORIZED, "User not authenticated.");
-    recordUserRolesEvent({
+    recordUsersEvent({
       severity: "error",
       status: descriptor.status,
       code: USER_ROLES_ERROR_CODES.UNAUTHORIZED,
@@ -74,26 +70,6 @@ export const DELETE: APIRoute = async ({ locals, params }) => {
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
-  // Validate path parameters
-  const validationResult = userRolePathParamsSchema.safeParse(params);
-  if (!validationResult.success) {
-    const descriptor = buildErrorResponse(400, USER_ROLES_ERROR_CODES.INVALID_PATH_PARAMS, "Invalid path parameters.");
-    recordUserRolesEvent({
-      severity: "error",
-      status: descriptor.status,
-      code: USER_ROLES_ERROR_CODES.INVALID_PATH_PARAMS,
-      details: {
-        reason: "validation_failed",
-        userId: locals.user.id,
-        validationErrors: validationResult.error.issues,
-      },
-    });
-    return jsonResponse(descriptor.status, descriptor.body);
-  }
-
-  const { userId, role } = validationResult.data;
-
-  // Verify admin privileges
   try {
     const isAdmin = await checkAdminStatus(supabase);
     if (!isAdmin) {
@@ -102,106 +78,135 @@ export const DELETE: APIRoute = async ({ locals, params }) => {
         USER_ROLES_ERROR_CODES.INSUFFICIENT_PERMISSIONS,
         "Admin privileges required."
       );
-      recordUserRolesEvent({
+      recordUsersEvent({
         severity: "error",
         status: descriptor.status,
         code: USER_ROLES_ERROR_CODES.INSUFFICIENT_PERMISSIONS,
-        details: { reason: "user_not_admin", userId: locals.user.id, targetUserId: userId, role },
+        details: { reason: "user_not_admin", userId: locals.user.id },
       });
       return jsonResponse(descriptor.status, descriptor.body);
     }
   } catch (error) {
     const descriptor = buildErrorResponse(500, USER_ROLES_ERROR_CODES.DB_ERROR, "Failed to verify admin privileges.");
-    recordUserRolesEvent({
+    recordUsersEvent({
       severity: "error",
       status: descriptor.status,
       code: USER_ROLES_ERROR_CODES.DB_ERROR,
       details: {
         reason: "admin_check_failed",
         userId: locals.user.id,
-        targetUserId: userId,
-        role,
         message: error instanceof Error ? error.message : String(error),
       },
     });
     return jsonResponse(descriptor.status, descriptor.body);
   }
 
-  // Delete the user role
   try {
-    await deleteUserRole(supabase, userId, role);
+    // Get all users from Supabase Auth Admin API
+    // This requires service role key and admin SDK
+    const { createClient } = await import("@supabase/supabase-js");
 
-    recordUserRolesEvent({
-      severity: "info",
-      status: 204,
-      code: "user_role_deleted",
-      details: {
-        reason: "user_role_revoked_successfully",
-        userId: locals.user.id,
-        targetUserId: userId,
-        role,
+    const serviceRoleKey = import.meta.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceRoleKey) {
+      recordUsersEvent({
+        severity: "error",
+        status: 500,
+        code: USER_ROLES_ERROR_CODES.UNEXPECTED_ERROR,
+        details: {
+          reason: "missing_service_role_key",
+          userId: locals.user.id,
+        },
+      });
+      return jsonResponse(500, {
+        error: "Service role key not configured. Cannot retrieve users.",
+      });
+    }
+
+    const supabaseAdmin = createClient(import.meta.env.SUPABASE_URL, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
     });
 
-    return new Response(null, { status: 204 });
-  } catch (error) {
-    // Handle role not found error
-    if (error instanceof UserRoleServiceError && error.code === "role_not_found") {
-      const descriptor = buildErrorResponse(
-        404,
-        USER_ROLES_ERROR_CODES.ROLE_NOT_FOUND,
-        "User does not have this role."
-      );
-      recordUserRolesEvent({
+    const { data: usersData, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+
+    if (usersError) {
+      recordUsersEvent({
         severity: "error",
-        status: descriptor.status,
-        code: USER_ROLES_ERROR_CODES.ROLE_NOT_FOUND,
+        status: 500,
+        code: USER_ROLES_ERROR_CODES.DB_ERROR,
         details: {
-          reason: "role_not_found",
+          reason: "failed_to_list_users",
           userId: locals.user.id,
-          targetUserId: userId,
-          role,
+          error: usersError.message,
         },
       });
-      return jsonResponse(descriptor.status, descriptor.body);
+      return jsonResponse(500, { error: "Failed to retrieve users" });
     }
 
-    // Handle database errors
+    const users = (usersData.users ?? [])
+      .filter((user: User): user is User & { email: string } => Boolean(user.email))
+      .map((user: User & { email: string }) => ({
+        id: user.id,
+        email: user.email,
+        created_at: user.created_at,
+        last_sign_in_at: user.last_sign_in_at,
+      }));
+
+    const result: UserListResponse = {
+      data: users,
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+    };
+
+    recordUsersEvent({
+      severity: "info",
+      status: 200,
+      code: "users_retrieved",
+      details: {
+        reason: "users_retrieved_via_admin_api",
+        userId: locals.user.id,
+        totalUsers: users.length,
+      },
+    });
+
+    return jsonResponse(200, result);
+  } catch (error) {
     if (isPostgrestError(error)) {
-      const descriptor = buildErrorResponse(500, USER_ROLES_ERROR_CODES.DB_ERROR, "Failed to delete user role.", {
-        code: error.code,
-        message: error.message,
-      });
-      recordUserRolesEvent({
+      const descriptor = buildErrorResponse(
+        500,
+        USER_ROLES_ERROR_CODES.DB_ERROR,
+        "Failed to retrieve users from the database.",
+        { code: error.code, message: error.message }
+      );
+      recordUsersEvent({
         severity: "error",
         status: descriptor.status,
         code: USER_ROLES_ERROR_CODES.DB_ERROR,
         details: {
           reason: "postgrest_error",
           userId: locals.user.id,
-          targetUserId: userId,
-          role,
           db_code: error.code,
         },
       });
       return jsonResponse(descriptor.status, descriptor.body);
     }
 
-    // Handle other unexpected errors
     const descriptor = buildErrorResponse(
       500,
       USER_ROLES_ERROR_CODES.UNEXPECTED_ERROR,
-      "Unexpected error while deleting user role."
+      "Unexpected error while retrieving users."
     );
-    recordUserRolesEvent({
+    recordUsersEvent({
       severity: "error",
       status: descriptor.status,
       code: USER_ROLES_ERROR_CODES.UNEXPECTED_ERROR,
       details: {
-        reason: "unexpected_delete_error",
+        reason: "unexpected_fetch_error",
         userId: locals.user.id,
-        targetUserId: userId,
-        role,
         message: error instanceof Error ? error.message : String(error),
       },
     });
@@ -233,7 +238,7 @@ function isPostgrestError(error: unknown): error is PostgrestError {
   );
 }
 
-interface UserRolesEventPayload {
+interface UsersEventPayload {
   severity: "info" | "error";
   status: number;
   code: string;
@@ -247,15 +252,15 @@ interface UserRolesEventPayload {
  * Logs to console with structured JSON format.
  * @param payload Event details including severity, status, and metadata
  */
-function recordUserRolesEvent(payload: UserRolesEventPayload): void {
+function recordUsersEvent(payload: UsersEventPayload): void {
   const entry = {
-    scope: USER_ROLES_EVENT_SCOPE,
+    scope: USERS_EVENT_SCOPE,
     timestamp: new Date().toISOString(),
     userId: payload.userId ?? "unknown",
     ...payload,
   };
 
   const logger = payload.severity === "error" ? console.error : console.info;
-  logger(`[${USER_ROLES_EVENT_SCOPE}]`, JSON.stringify(entry));
+  logger(`[${USERS_EVENT_SCOPE}]`, JSON.stringify(entry));
 }
 /* eslint-enable no-console */

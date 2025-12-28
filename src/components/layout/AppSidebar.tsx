@@ -34,6 +34,7 @@ const MENU_ITEMS: MenuItemConfig[] = [
   { href: "/reviews", label: "Reviews", icon: RotateCcw },
   { href: "/admin/kpi", label: "Admin KPI", icon: BarChart3, adminOnly: true },
   { href: "/admin/categories", label: "Category", icon: Settings, adminOnly: true },
+  { href: "/admin/admins", label: "Administrators", icon: Users, adminOnly: true },
 ];
 
 export const AppSidebar = React.memo<AppSidebarProps>(({ currentUser, children }) => {

@@ -379,7 +379,25 @@ export interface UserRoleDTO {
   granted_at: IsoDateString;
 }
 
+export interface UserDTO {
+  id: string;
+  email: string;
+  created_at: IsoDateString;
+  last_sign_in_at?: IsoDateString | null;
+}
+
 export type UserRoleListResponse = PaginatedResponse<UserRoleDTO>;
+export type UserListResponse = PaginatedResponse<UserDTO>;
+
+export type UserRolesErrorCode =
+  | "unauthorized"
+  | "insufficient_permissions"
+  | "invalid_body"
+  | "invalid_path_params"
+  | "role_exists"
+  | "role_not_found"
+  | "db_error"
+  | "unexpected_error";
 
 export interface CreateUserRoleCommand {
   user_id: UserRoleInsert["user_id"];
@@ -630,4 +648,66 @@ export interface DeleteCategoryState {
   id?: number;
   isDeleting: boolean;
   error?: ApiErrorResponse;
+}
+
+export interface AdminUserRoleListItemVM {
+  userId: string;
+  role: string;
+  grantedAt: string;
+  isSelf?: boolean;
+  isRevocable: boolean;
+}
+
+export interface AdminUserListItemVM {
+  userId: string;
+  email: string;
+  createdAt: string;
+  lastSignInAt?: string | null;
+  hasAdminRole: boolean;
+  grantedAt?: string;
+  isSelf?: boolean;
+  isRevocable: boolean;
+}
+
+export interface UserRolesAdminViewState {
+  items: AdminUserRoleListItemVM[];
+  loading: boolean;
+  error: ApiErrorResponse<UserRolesErrorCode> | null;
+  search: string;
+  nextCursor: string | null;
+  hasMore: boolean;
+  revokeDialogState: RevokeAdminDialogState | null;
+  authorizationError?: ApiErrorResponse<UserRolesErrorCode>;
+  lastStatusCode?: number;
+}
+
+export interface AdminUsersViewState {
+  items: AdminUserListItemVM[];
+  loading: boolean;
+  error: ApiErrorResponse<UserRolesErrorCode> | null;
+  search: string;
+  nextCursor: string | null;
+  hasMore: boolean;
+  revokeDialogState: RevokeAdminDialogState | null;
+  authorizationError?: ApiErrorResponse<UserRolesErrorCode>;
+  lastStatusCode?: number;
+}
+
+export interface RevokeAdminDialogState {
+  open: boolean;
+  userId: string;
+  role: "admin";
+  isSubmitting: boolean;
+  apiError?: ApiErrorResponse<UserRolesErrorCode>;
+  isSelf?: boolean;
+}
+
+export interface UseAdminUsersReturn {
+  state: AdminUsersViewState;
+  loadInitial: () => Promise<void>;
+  searchUsers: (term: string) => void;
+  autoGrantRole: (userId: string) => Promise<void>;
+  openRevokeDialog: (userId: string) => void;
+  confirmRevoke: () => Promise<void>;
+  cancelRevoke: () => void;
 }

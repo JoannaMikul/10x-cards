@@ -363,7 +363,7 @@ export const DELETE: APIRoute = async ({ locals, params }) => {
       cardId,
     });
 
-    return new Response(null, { status: 204, headers: JSON_HEADERS });
+    return new Response(null, { status: 204 });
   } catch (error) {
     if (error instanceof Error && error.message === "Flashcard not found") {
       const descriptor = buildErrorResponse(404, FLASHCARD_ERROR_CODES.NOT_FOUND, "Flashcard not found.");
