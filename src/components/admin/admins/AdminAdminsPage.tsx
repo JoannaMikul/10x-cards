@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAdminUsers } from "./useAdminUsers";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { AdminsToolbar } from "./AdminsToolbar";
@@ -13,27 +13,21 @@ export function AdminAdminsPage() {
   const { state, loadInitial, searchUsers, autoGrantRole, openRevokeDialog, confirmRevoke, cancelRevoke } =
     useAdminUsers();
   const { user: currentUser, loading: currentUserLoading } = useCurrentUser();
+  const hasAttemptedLoadRef = useRef(false);
 
   useEffect(() => {
     if (
-      state.items.length === 0 &&
+      !hasAttemptedLoadRef.current &&
       !state.loading &&
       !state.error &&
       !state.authorizationError &&
       !currentUserLoading &&
       currentUser
     ) {
+      hasAttemptedLoadRef.current = true;
       loadInitial();
     }
-  }, [
-    state.items.length,
-    state.loading,
-    state.error,
-    state.authorizationError,
-    currentUserLoading,
-    currentUser,
-    loadInitial,
-  ]);
+  }, [state.loading, state.error, state.authorizationError, currentUserLoading, currentUser, loadInitial]);
 
   const handleSearchChange = useCallback(
     (search: string) => {
@@ -64,6 +58,16 @@ export function AdminAdminsPage() {
 
   const renderContent = () => {
     if (state.loading && state.items.length === 0) {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-6 w-full" />
+          </div>
+        </div>
+      );
+    }
+
+    if (state.loading && state.items.length > 0) {
       return (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
