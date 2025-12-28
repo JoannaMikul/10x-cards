@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { FileText, CheckSquare, Users, RotateCcw, LogOut, BarChart3 } from "lucide-react";
 import { useIsAdmin } from "../hooks/useIsAdmin";
+import { SidebarMenuItemComponent, type MenuItemConfig } from "./SidebarMenuItemComponent";
 import {
   Sidebar,
   SidebarContent,
@@ -26,8 +27,25 @@ interface AppSidebarProps {
   children?: React.ReactNode;
 }
 
-export function AppSidebar({ currentUser, children }: AppSidebarProps) {
+const MENU_ITEMS: MenuItemConfig[] = [
+  { href: "/generator", label: "Generator", icon: FileText },
+  { href: "/candidates", label: "Candidates", icon: Users },
+  { href: "/flashcards", label: "Flashcards", icon: CheckSquare },
+  { href: "/reviews", label: "Reviews", icon: RotateCcw },
+  { href: "/admin/kpi", label: "Admin KPI", icon: BarChart3, adminOnly: true },
+];
+
+export const AppSidebar = React.memo<AppSidebarProps>(({ currentUser, children }) => {
   const { isAdmin } = useIsAdmin();
+  const [currentPath, setCurrentPath] = useState("");
+
+  useEffect(() => {
+    setCurrentPath(window.location.pathname);
+  }, []);
+
+  const isActive = useCallback((href: string) => currentPath === href, [currentPath]);
+
+  const visibleMenuItems = useMemo(() => MENU_ITEMS.filter((item) => !item.adminOnly || isAdmin), [isAdmin]);
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -50,83 +68,9 @@ export function AppSidebar({ currentUser, children }: AppSidebarProps) {
           <SidebarGroup className="p-0">
             <SidebarGroupContent>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
-                  >
-                    <a href="/generator" className="flex items-center gap-2 transition-all duration-300 ease-in-out">
-                      <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
-                        <FileText className="w-4 h-4 transition-all duration-300 ease-in-out" />
-                      </div>
-                      <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
-                        Generator
-                      </span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
-                  >
-                    <a href="/candidates" className="flex items-center gap-2 transition-all duration-300 ease-in-out">
-                      <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
-                        <Users className="w-4 h-4 transition-all duration-300 ease-in-out" />
-                      </div>
-                      <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
-                        Candidates
-                      </span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
-                  >
-                    <a href="/flashcards" className="flex items-center gap-2 transition-all duration-300 ease-in-out">
-                      <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
-                        <CheckSquare className="w-4 h-4 transition-all duration-300 ease-in-out" />
-                      </div>
-                      <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
-                        Flashcards
-                      </span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    asChild
-                    className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
-                  >
-                    <a href="/reviews" className="flex items-center gap-2 transition-all duration-300 ease-in-out">
-                      <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
-                        <RotateCcw className="w-4 h-4 transition-all duration-300 ease-in-out" />
-                      </div>
-                      <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
-                        Reviews
-                      </span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                {isAdmin && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
-                    >
-                      <a href="/admin/kpi" className="flex items-center gap-2 transition-all duration-300 ease-in-out">
-                        <div className="w-6 h-6 flex items-center justify-center shrink-0 transition-all duration-300 ease-in-out">
-                          <BarChart3 className="w-4 h-4 transition-all duration-300 ease-in-out" />
-                        </div>
-                        <span className="transition-all duration-300 ease-in-out opacity-100 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:overflow-hidden">
-                          Admin KPI
-                        </span>
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+                {visibleMenuItems.map((item) => (
+                  <SidebarMenuItemComponent key={item.href} item={item} isActive={isActive} />
+                ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -136,7 +80,7 @@ export function AppSidebar({ currentUser, children }: AppSidebarProps) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                className="justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
+                className="rounded-none justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
               >
                 <div className="flex items-center gap-2 w-full transition-all duration-300 ease-in-out">
                   <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300 ease-in-out">
@@ -153,7 +97,7 @@ export function AppSidebar({ currentUser, children }: AppSidebarProps) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
+                className="rounded-none text-red-600 hover:text-red-700 hover:bg-red-50 justify-start px-2 py-2 h-10!  group-data-[collapsible=icon]:justify-start group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2 group-data-[collapsible=icon]:size-auto! group-data-[collapsible=icon]:h-10!"
               >
                 <button
                   onClick={() => fetch("/api/auth/logout", { method: "POST" }).then(() => (window.location.href = "/"))}
@@ -182,4 +126,4 @@ export function AppSidebar({ currentUser, children }: AppSidebarProps) {
       </SidebarInset>
     </SidebarProvider>
   );
-}
+});

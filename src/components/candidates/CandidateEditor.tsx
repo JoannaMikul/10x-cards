@@ -64,7 +64,6 @@ const CandidateEditorComponent = forwardRef<CandidateEditorRef, CandidateEditorP
 
     return (
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Question Field */}
         <Controller
           name="front"
           control={control}
@@ -92,8 +91,6 @@ const CandidateEditorComponent = forwardRef<CandidateEditorRef, CandidateEditorP
             </Field>
           )}
         />
-
-        {/* Answer Field */}
         <Controller
           name="back"
           control={control}
@@ -121,8 +118,6 @@ const CandidateEditorComponent = forwardRef<CandidateEditorRef, CandidateEditorP
             </Field>
           )}
         />
-
-        {/* Form-level errors */}
         {errors.length > 0 && (
           <div className="text-sm text-red-600 space-y-1">
             {errors.map((error, index) => (
@@ -134,7 +129,5 @@ const CandidateEditorComponent = forwardRef<CandidateEditorRef, CandidateEditorP
     );
   }
 );
-
-CandidateEditorComponent.displayName = "CandidateEditor";
 
 export const CandidateEditor = CandidateEditorComponent;
