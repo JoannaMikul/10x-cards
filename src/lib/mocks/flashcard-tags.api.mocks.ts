@@ -173,5 +173,3 @@ export const flashcardTagsApiMocks: FlashcardTagsApiMock[] = [
     },
   },
 ];
-
-

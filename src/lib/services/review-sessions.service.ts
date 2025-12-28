@@ -2,7 +2,14 @@ import { supermemo } from "supermemo";
 
 import type { Json, Tables, Enums } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { CreateReviewSessionCommand, ReviewEventListResponse, ReviewStatsListResponse } from "../../types";
+import type {
+  CreateReviewSessionCommand,
+  ReviewEventListResponse,
+  ReviewStatsListResponse,
+  FlashcardDTO,
+  ReviewSessionConfig,
+  FlashcardSelectionState,
+} from "../../types";
 import type { ReviewEventsQuery, ReviewStatsQuery } from "../validation/review-sessions.schema.ts";
 import { REVIEW_ERROR_CODES } from "../errors.ts";
 
@@ -80,7 +87,6 @@ async function fetchReviewStatsBatch(
     throw error;
   }
 
-  // Convert array to map for easy lookup
   const statsMap: Record<string, ReviewStatsRow> = {};
   for (const stat of data) {
     statsMap[stat.card_id] = stat;
@@ -104,7 +110,6 @@ async function validateCardOwnership(supabase: SupabaseClient, userId: string, c
     throw error;
   }
 
-  // Check if all requested cards were found
   const foundCardIds = new Set(data.map((card) => card.id));
   const missingCards = cardIds.filter((id) => !foundCardIds.has(id));
 
@@ -175,19 +180,14 @@ export async function createReviewSession(
     return { logged: 0 };
   }
 
-  // Extract unique card IDs
   const cardIds = [...new Set(reviews.map((review) => review.card_id))];
 
-  // Validate card ownership (fail-fast)
   await validateCardOwnership(supabase, userId, cardIds);
 
-  // Fetch current review stats for all cards
   const statsMap = await fetchReviewStatsBatch(supabase, userId, cardIds);
 
-  // Process each review entry
   const reviewEvents = reviews.map((review) => processReviewEntry(review.card_id, review, statsMap));
 
-  // Insert review events (this will trigger the sync_review_stats function)
   await insertReviewEventsBatch(supabase, userId, reviewEvents);
 
   return { logged: reviews.length };
@@ -208,7 +208,6 @@ export async function getReviewEvents(
     .order("reviewed_at", { ascending: false })
     .limit(limit + 1); // Fetch one extra to determine if there are more results
 
-  // Apply optional filters
   if (card_id) {
     dbQuery = dbQuery.eq("card_id", card_id);
   }
@@ -221,10 +220,7 @@ export async function getReviewEvents(
     dbQuery = dbQuery.lte("reviewed_at", to);
   }
 
-  // Apply cursor-based pagination
   if (cursor) {
-    // For cursor pagination, we need to use the reviewed_at from the cursor
-    // Since we're ordering by reviewed_at DESC, we want events before the cursor
     dbQuery = dbQuery.lt("reviewed_at", cursor);
   }
 
@@ -244,11 +240,9 @@ export async function getReviewEvents(
     };
   }
 
-  // Check if there are more results
   const hasMore = data.length > limit;
   const items = hasMore ? data.slice(0, limit) : data;
 
-  // Generate next cursor from the last item
   const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].reviewed_at : null;
 
   return {
@@ -275,7 +269,6 @@ export async function getReviewStats(
     .order("next_review_at", { ascending: true })
     .limit(limit + 1); // Fetch one extra to determine if there are more results
 
-  // Apply optional filters
   if (card_id) {
     dbQuery = dbQuery.eq("card_id", card_id);
   }
@@ -284,10 +277,7 @@ export async function getReviewStats(
     dbQuery = dbQuery.lt("next_review_at", next_review_before);
   }
 
-  // Apply cursor-based pagination
   if (cursor) {
-    // For cursor pagination, we need to use the next_review_at from the cursor
-    // Since we're ordering by next_review_at ASC, we want stats after the cursor
     dbQuery = dbQuery.gt("next_review_at", cursor);
   }
 
@@ -307,11 +297,9 @@ export async function getReviewStats(
     };
   }
 
-  // Check if there are more results
   const hasMore = data.length > limit;
   const items = hasMore ? data.slice(0, limit) : data;
 
-  // Generate next cursor from the last item
   const nextCursor = hasMore && items.length > 0 ? items[items.length - 1].next_review_at : null;
 
   return {
@@ -321,4 +309,284 @@ export async function getReviewStats(
       has_more: hasMore,
     },
   };
+}
+
+interface ReviewSessionParams {
+  cardIds?: string;
+  mode?: string;
+  q?: string;
+  categoryId?: string;
+  sourceId?: string;
+  tagIds?: string;
+  origin?: string;
+  showDeleted?: string;
+  sort?: string;
+}
+
+interface FlashcardRow {
+  id: string;
+  front: string;
+  back: string;
+  origin: string;
+  metadata: Json;
+  category_id: number | null;
+  content_source_id: number | null;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+function mapToFlashcardDTO(row: FlashcardRow): FlashcardDTO {
+  return {
+    id: row.id,
+    front: row.front,
+    back: row.back,
+    origin: row.origin as FlashcardDTO["origin"],
+    metadata: row.metadata,
+    category_id: row.category_id,
+    content_source_id: row.content_source_id,
+    owner_id: row.owner_id,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    deleted_at: row.deleted_at,
+    tags: [],
+  };
+}
+
+export async function prepareReviewSession(
+  supabase: SupabaseClient,
+  userId: string,
+  params: ReviewSessionParams
+): Promise<ReviewSessionConfig> {
+  const cardIdsParam = params.cardIds;
+
+  if (cardIdsParam) {
+    const cardIds = cardIdsParam.split(",").filter((id) => id.trim().length > 0);
+    if (cardIds.length === 0) {
+      return { cards: [] };
+    }
+
+    const { data, error } = await supabase
+      .from("flashcards")
+      .select(
+        `
+        id,
+        front,
+        back,
+        origin,
+        metadata,
+        category_id,
+        content_source_id,
+        owner_id,
+        created_at,
+        updated_at,
+        deleted_at
+      `
+      )
+      .in("id", cardIds)
+      .eq("owner_id", userId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    const cards = (data ?? []).map(mapToFlashcardDTO);
+    if (cards.length === 0) {
+      throw new Error(
+        "No flashcards found with the provided IDs. They may have been deleted or you don't have access to them."
+      );
+    }
+
+    const selection: FlashcardSelectionState = {
+      mode: "manual",
+      selectedIds: cardIds,
+    };
+
+    return { cards, selection };
+  } else {
+    const showAllCards = params.mode === "all";
+
+    const { data: reviewStatsData, error: reviewStatsError } = await supabase
+      .from("review_stats")
+      .select("card_id")
+      .eq("user_id", userId)
+      .lte("next_review_at", new Date().toISOString());
+
+    if (reviewStatsError) {
+      throw reviewStatsError;
+    }
+
+    const cardIdsForReview = (reviewStatsData ?? []).map((stat) => stat.card_id);
+
+    if (cardIdsForReview.length > 0 && !showAllCards) {
+      let query = supabase
+        .from("flashcards")
+        .select(
+          `
+          id,
+          front,
+          back,
+          origin,
+          metadata,
+          category_id,
+          content_source_id,
+          owner_id,
+          created_at,
+          updated_at,
+          deleted_at
+        `
+        )
+        .in("id", cardIdsForReview)
+        .eq("owner_id", userId)
+        .is("deleted_at", null);
+
+      const searchQuery = params.q?.trim();
+      if (searchQuery) {
+        query = query.or(`front.ilike.%${searchQuery}%,back.ilike.%${searchQuery}%`);
+      }
+
+      const categoryId = params.categoryId;
+      if (categoryId) {
+        query = query.eq("category_id", parseInt(categoryId));
+      }
+
+      const sourceId = params.sourceId;
+      if (sourceId) {
+        query = query.eq("content_source_id", parseInt(sourceId));
+      }
+
+      const tagIdsParam = params.tagIds;
+      if (tagIdsParam) {
+        const tagIds = tagIdsParam
+          .split(",")
+          .map((id) => parseInt(id))
+          .filter((id) => !isNaN(id));
+        if (tagIds.length > 0) {
+          const { data: cardTagData } = await supabase.from("card_tags").select("card_id").in("tag_id", tagIds);
+
+          const filteredCardIds = cardTagData?.map((row) => row.card_id) ?? [];
+          const intersectingCardIds = cardIdsForReview.filter((id) => filteredCardIds.includes(id));
+          if (intersectingCardIds.length > 0) {
+            query = query.in("id", intersectingCardIds);
+          } else {
+            query = query.eq("id", "00000000-0000-0000-0000-000000000000");
+          }
+        }
+      }
+
+      const origin = params.origin;
+      if (origin && ["manual", "ai-full", "ai-edited"].includes(origin)) {
+        query = query.eq("origin", origin as "manual" | "ai-full" | "ai-edited");
+      }
+
+      const showDeleted = params.showDeleted === "true";
+      if (showDeleted) {
+        query = query.neq("deleted_at", null);
+      }
+
+      const sort = params.sort || "-created_at";
+      const [column, direction] = sort.startsWith("-") ? [sort.slice(1), "desc" as const] : [sort, "asc" as const];
+      query = query.order(column, { ascending: direction === "asc" });
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      const cards = (data ?? []).map(mapToFlashcardDTO);
+
+      const selection: FlashcardSelectionState = {
+        mode: "due-for-review",
+        selectedIds: [],
+      };
+
+      return { cards, selection };
+    } else {
+      let query = supabase
+        .from("flashcards")
+        .select(
+          `
+          id,
+          front,
+          back,
+          origin,
+          metadata,
+          category_id,
+          content_source_id,
+          owner_id,
+          created_at,
+          updated_at,
+          deleted_at
+        `
+        )
+        .eq("owner_id", userId)
+        .is("deleted_at", null);
+
+      const searchQuery = params.q?.trim();
+      if (searchQuery) {
+        query = query.or(`front.ilike.%${searchQuery}%,back.ilike.%${searchQuery}%`);
+      }
+
+      const categoryId = params.categoryId;
+      if (categoryId) {
+        query = query.eq("category_id", parseInt(categoryId));
+      }
+
+      const sourceId = params.sourceId;
+      if (sourceId) {
+        query = query.eq("content_source_id", parseInt(sourceId));
+      }
+
+      const tagIdsParam = params.tagIds;
+      if (tagIdsParam) {
+        const tagIds = tagIdsParam
+          .split(",")
+          .map((id) => parseInt(id))
+          .filter((id) => !isNaN(id));
+        if (tagIds.length > 0) {
+          const { data: cardTagData } = await supabase.from("card_tags").select("card_id").in("tag_id", tagIds);
+
+          const filteredCardIds = cardTagData?.map((row) => row.card_id) ?? [];
+          if (filteredCardIds.length > 0) {
+            query = query.in("id", filteredCardIds);
+          } else {
+            query = query.eq("id", "00000000-0000-0000-0000-000000000000");
+          }
+        }
+      }
+
+      const origin = params.origin;
+      if (origin && ["manual", "ai-full", "ai-edited"].includes(origin)) {
+        query = query.eq("origin", origin as "manual" | "ai-full" | "ai-edited");
+      }
+
+      const showDeleted = params.showDeleted === "true";
+      if (showDeleted) {
+        query = query.neq("deleted_at", null);
+      }
+
+      const sort = params.sort || "-created_at";
+      const [column, direction] = sort.startsWith("-") ? [sort.slice(1), "desc" as const] : [sort, "asc" as const];
+      query = query.order(column, { ascending: direction === "asc" });
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      const cards = (data ?? []).map(mapToFlashcardDTO);
+
+      const selection: FlashcardSelectionState = {
+        mode: showAllCards ? "all-cards" : "due-for-review-fallback",
+        selectedIds: [],
+      };
+
+      return { cards, selection };
+    }
+  }
 }

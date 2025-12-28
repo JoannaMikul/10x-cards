@@ -224,7 +224,6 @@ async function upsertCardTags(supabase: SupabaseClient, cardId: string, tagIds: 
 }
 
 async function cleanupFailedInsert(supabase: SupabaseClient, cardId: string): Promise<void> {
-  // Best-effort rollback; swallow errors to avoid masking the root cause.
   await supabase.from("flashcards").delete().eq("id", cardId);
 }
 
@@ -289,7 +288,6 @@ function mapTagRowToDto(row: TagRow): TagDTO {
   };
 }
 
-// List flashcards functionality
 export interface ListFlashcardsResult {
   items: FlashcardDTO[];
   hasMore: boolean;
@@ -331,17 +329,23 @@ export async function listFlashcards(
   const hasMore = rows && rows.length > query.limit;
   const items = hasMore ? rows.slice(0, query.limit) : (rows ?? []);
 
-  // Fetch tags for all flashcards in batch
   const cardIds = items.map((item) => item.id);
   const tagsByCardId = cardIds.length > 0 ? await fetchTagsForCards(supabase, cardIds) : new Map();
 
-  // Map to DTOs
-  const flashcards = items.map((row) => mapFlashcardRowToDto(row, tagsByCardId.get(row.id) ?? []));
+  const reviewStatsByCardId = cardIds.length > 0 ? await fetchReviewStatsForCards(supabase, userId, cardIds) : new Map();
 
-  // Generate next cursor
+  const flashcards = items.map((row) => {
+    const tags = tagsByCardId.get(row.id) ?? [];
+    const reviewStats = reviewStatsByCardId.get(row.id);
+    const dto = mapFlashcardRowToDto(row, tags);
+    if (reviewStats) {
+      dto.review_stats = reviewStats;
+    }
+    return dto;
+  });
+
   const nextCursor = hasMore && items.length > 0 ? generateCursor(items[items.length - 1], query.sort) : null;
 
-  // Compute aggregates
   const aggregates = await computeFlashcardAggregates(supabase, userId, query, {
     tagFilteredCardIds,
   });
@@ -365,7 +369,6 @@ function applyFlashcardsFilters(
   options: FlashcardFilterOptions = {}
 ): void {
   const includeSearch = options.includeSearch ?? true;
-  // Always filter out deleted records unless explicitly requested
   if (!query.includeDeleted) {
     queryBuilder.is("deleted_at", null);
   }
@@ -444,13 +447,11 @@ function applyFlashcardsSortingAndCursor(queryBuilder: SupabaseQueryBuilder, que
       ascending = false;
   }
 
-  // Apply cursor-based pagination
   if (cursor) {
     const operator = ascending ? "gt" : "lt";
     const altOperator = ascending ? "gte" : "lte";
 
     if (orderColumn === "review_stats.next_review_at") {
-      // Special handling for next_review_at with LEFT JOIN
       queryBuilder.or(
         `and(review_stats.next_review_at.${operator}.${cursor.createdAt},id.${altOperator}.${cursor.id}),review_stats.next_review_at.${operator}.${cursor.createdAt}`
       );
@@ -461,14 +462,12 @@ function applyFlashcardsSortingAndCursor(queryBuilder: SupabaseQueryBuilder, que
     }
   }
 
-  // Apply sorting
   if (orderColumn === "review_stats.next_review_at") {
     queryBuilder.order("review_stats.next_review_at", { ascending, nullsFirst });
   } else {
     queryBuilder.order(orderColumn, { ascending });
   }
 
-  // Tie-breaker for deterministic ordering
   queryBuilder.order("id", { ascending: true });
 }
 
@@ -579,7 +578,6 @@ async function computeFlashcardAggregates(
 }
 
 function escapeSearchTerm(term: string): string {
-  // Escape special characters for PostgreSQL ilike
   return term.replace(/[%_]/g, "\\$&");
 }
 
@@ -589,7 +587,6 @@ export async function updateFlashcard(
   cardId: string,
   cmd: UpdateFlashcardCommand
 ): Promise<FlashcardDTO> {
-  // Validate references conditionally
   const tasks: Promise<void>[] = [];
 
   if (cmd.category_id !== undefined && cmd.category_id !== null) {
@@ -606,7 +603,8 @@ export async function updateFlashcard(
 
   await Promise.all(tasks);
 
-  // Build update payload
+  const shouldResetStats = cmd.front !== undefined || cmd.back !== undefined;
+
   const updatePayload: Partial<TablesUpdate<"flashcards">> = {};
 
   if (cmd.front !== undefined) updatePayload.front = cmd.front;
@@ -616,19 +614,20 @@ export async function updateFlashcard(
   if (cmd.content_source_id !== undefined) updatePayload.content_source_id = cmd.content_source_id;
   if (cmd.metadata !== undefined) updatePayload.metadata = cmd.metadata;
 
-  // Handle soft delete
   if (cmd.deleted_at !== undefined) {
     updatePayload.deleted_at = new Date().toISOString();
   }
 
-  // Update flashcard
   const { error: updateError } = await supabase.from("flashcards").update(updatePayload).eq("id", cardId);
 
   if (updateError) {
     throw updateError;
   }
 
-  // Handle tag updates if tag_ids was provided
+  if (shouldResetStats) {
+    await resetReviewStats(supabase, userId, cardId);
+  }
+
   if (cmd.tag_ids !== undefined) {
     await deleteCardTags(supabase, cardId);
     if (cmd.tag_ids.length > 0) {
@@ -636,10 +635,17 @@ export async function updateFlashcard(
     }
   }
 
-  // Fetch updated row and tags in parallel
   const [row, tags] = await Promise.all([fetchFlashcardRow(supabase, cardId), fetchTagsForCard(supabase, cardId)]);
 
   return mapFlashcardRowToDto(row, tags);
+}
+
+async function resetReviewStats(supabase: SupabaseClient, userId: string, cardId: string): Promise<void> {
+  const { error } = await supabase.from("review_stats").delete().eq("user_id", userId).eq("card_id", cardId);
+
+  if (error) {
+    throw error;
+  }
 }
 
 async function deleteCardTags(supabase: SupabaseClient, cardId: string): Promise<void> {
@@ -685,6 +691,52 @@ export async function getFlashcardById(
   return flashcardDto;
 }
 
+async function fetchReviewStatsForCards(
+  supabase: SupabaseClient,
+  userId: string,
+  cardIds: string[]
+): Promise<Map<string, ReviewStatsSnapshotDTO>> {
+  if (cardIds.length === 0) {
+    return new Map();
+  }
+
+  type ReviewStatsRow = Tables<"review_stats">;
+
+  const { data, error } = await supabase
+    .from("review_stats")
+    .select("*")
+    .eq("user_id", userId)
+    .in("card_id", cardIds);
+
+  if (error) {
+    throw error;
+  }
+
+  const reviewStatsMap = new Map<string, ReviewStatsSnapshotDTO>();
+  if (data) {
+    for (const row of data) {
+      reviewStatsMap.set(row.card_id, mapReviewStatsRowToDto(row));
+    }
+  }
+
+  return reviewStatsMap;
+}
+
+function mapReviewStatsRowToDto(row: Tables<"review_stats">): ReviewStatsSnapshotDTO {
+  return {
+    card_id: row.card_id,
+    user_id: row.user_id,
+    total_reviews: row.total_reviews,
+    successes: row.successes,
+    consecutive_successes: row.consecutive_successes,
+    last_outcome: row.last_outcome,
+    last_interval_days: row.last_interval_days,
+    next_review_at: row.next_review_at,
+    last_reviewed_at: row.last_reviewed_at,
+    aggregates: row.aggregates,
+  };
+}
+
 async function fetchReviewStatsSnapshot(
   supabase: SupabaseClient,
   userId: string,
@@ -700,7 +752,6 @@ async function fetchReviewStatsSnapshot(
     .single<ReviewStatsRow>();
 
   if (error) {
-    // If no review stats exist, return undefined
     if (error.code === "PGRST116") {
       return undefined;
     }
@@ -711,18 +762,7 @@ async function fetchReviewStatsSnapshot(
     return undefined;
   }
 
-  return {
-    card_id: data.card_id,
-    user_id: data.user_id,
-    total_reviews: data.total_reviews,
-    successes: data.successes,
-    consecutive_successes: data.consecutive_successes,
-    last_outcome: data.last_outcome,
-    last_interval_days: data.last_interval_days,
-    next_review_at: data.next_review_at,
-    last_reviewed_at: data.last_reviewed_at,
-    aggregates: data.aggregates,
-  };
+  return mapReviewStatsRowToDto(data);
 }
 
 export async function softDeleteFlashcard(supabase: SupabaseClient, userId: string, cardId: string): Promise<void> {

@@ -58,7 +58,6 @@ export async function getUserRoles(supabase: SupabaseClient): Promise<UserRoleLi
  * @throws Error if database operations fail
  */
 export async function createUserRole(supabase: SupabaseClient, cmd: CreateUserRoleCommand): Promise<void> {
-  // Check if the role already exists for this user
   const { data: existingRole, error: checkError } = await supabase
     .from("user_roles")
     .select("user_id, role")
@@ -67,7 +66,6 @@ export async function createUserRole(supabase: SupabaseClient, cmd: CreateUserRo
     .single();
 
   if (checkError && checkError.code !== "PGRST116") {
-    // PGRST116 is "not found" error, which is expected if role doesn't exist
     throw new Error(`Failed to check existing role: ${checkError.message}`);
   }
 
@@ -75,7 +73,6 @@ export async function createUserRole(supabase: SupabaseClient, cmd: CreateUserRo
     throw new UserRoleServiceError("role_exists", "User already has this role");
   }
 
-  // Insert the new role assignment
   const { error: insertError } = await supabase.from("user_roles").insert({
     user_id: cmd.user_id,
     role: cmd.role,
@@ -97,7 +94,6 @@ export async function createUserRole(supabase: SupabaseClient, cmd: CreateUserRo
  * @throws Error if database operations fail
  */
 export async function deleteUserRole(supabase: SupabaseClient, userId: string, role: string): Promise<void> {
-  // Check if the role exists for this user
   const { data: existingRole, error: checkError } = await supabase
     .from("user_roles")
     .select("user_id, role")
@@ -106,7 +102,6 @@ export async function deleteUserRole(supabase: SupabaseClient, userId: string, r
     .single();
 
   if (checkError && checkError.code !== "PGRST116") {
-    // PGRST116 is "not found" error, which is expected if role doesn't exist
     throw new Error(`Failed to check existing role: ${checkError.message}`);
   }
 
@@ -114,7 +109,6 @@ export async function deleteUserRole(supabase: SupabaseClient, userId: string, r
     throw new UserRoleServiceError("role_not_found", "User does not have this role");
   }
 
-  // Delete the role assignment
   const { error: deleteError } = await supabase.from("user_roles").delete().eq("user_id", userId).eq("role", role);
 
   if (deleteError) {

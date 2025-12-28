@@ -40,7 +40,6 @@ export class AnalyticsService {
    * @returns Acceptance rate as a decimal between 0 and 1
    */
   private async calculateAiAcceptanceRate(dateRange: { from: Date; to: Date }): Promise<number> {
-    // Count all generation candidates in date range
     const { data: totalCandidates, error: totalError } = await this.supabase
       .from("generation_candidates")
       .select("id", { count: "exact", head: true })
@@ -57,7 +56,6 @@ export class AnalyticsService {
       return 0;
     }
 
-    // Count accepted candidates (status = 'accepted' OR accepted_card_id IS NOT NULL)
     const { data: acceptedCandidates, error: acceptedError } = await this.supabase
       .from("generation_candidates")
       .select("id", { count: "exact", head: true })
@@ -112,9 +110,7 @@ export class AnalyticsService {
    * @param groupBy Grouping criteria (day, category, origin)
    * @returns Array of trend data points
    */
-  // TODO: Implement grouping by category/origin when group_by parameter is used
   private async aggregateTrendData(dateRange: { from: Date; to: Date }): Promise<AnalyticsTrendPointDTO[]> {
-    // For now, implement day-based grouping as primary requirement
     const { data, error } = await this.supabase
       .from("flashcards")
       .select("created_at, origin")
@@ -127,7 +123,6 @@ export class AnalyticsService {
       throw new Error(`Failed to fetch trend data: ${error.message}`);
     }
 
-    // Group by date
     const grouped = data.reduce(
       (acc, card) => {
         const date = card.created_at.split("T")[0]; // YYYY-MM-DD format
@@ -138,8 +133,6 @@ export class AnalyticsService {
 
         if (card.origin === "ai-full" || card.origin === "ai-edited") {
           acc[date].ai++;
-          // For accepted AI cards, we'd need to join with generation_candidates
-          // For now, assume all AI cards are accepted (placeholder)
           acc[date].accepted_ai++;
         } else if (card.origin === "manual") {
           acc[date].manual++;
@@ -150,7 +143,6 @@ export class AnalyticsService {
       {} as Record<string, { ai: number; manual: number; accepted_ai: number }>
     );
 
-    // Convert to array format
     return Object.entries(grouped)
       .map(([date, counts]) => ({
         date,

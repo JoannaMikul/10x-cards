@@ -195,7 +195,6 @@ export async function cancelGenerationIfActive(
     .single();
 
   if (error) {
-    // Check if no rows were affected (generation not found or not in active state)
     if (error.code === "PGRST116") {
       return null;
     }
