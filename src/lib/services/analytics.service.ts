@@ -125,7 +125,8 @@ export class AnalyticsService {
 
     const grouped = data.reduce(
       (acc, card) => {
-        const date = card.created_at.split("T")[0]; // YYYY-MM-DD format
+        // Handle different date formats - ensure we get YYYY-MM-DD
+        const date = new Date(card.created_at).toISOString().split("T")[0];
 
         if (!acc[date]) {
           acc[date] = { ai: 0, manual: 0, accepted_ai: 0 };
