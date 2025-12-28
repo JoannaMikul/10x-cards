@@ -129,6 +129,38 @@ Kryteria akceptacji:
 - Dane są odświeżane w ustalonym interwale i pochodzą z wiarygodnych logów aplikacyjnych.
 - Eksport lub migawka danych do dalszej analizy jest dostępna w formie CSV lub JSON.
 
+ID: US-011
+Tytuł: Zarządzanie kategoriami (admin)
+Opis: Jako administrator chcę zarządzać globalnymi kategoriami, aby utrzymywać spójną taksonomię dla wszystkich użytkowników.
+Kryteria akceptacji:
+
+- Administrator może tworzyć nowe kategorie z nazwą, slugiem, opisem i kolorem.
+- Administrator może edytować istniejące kategorie (nazwa, opis, kolor) z zachowaniem unikalności slugów.
+- Administrator może usuwać kategorie, które nie są używane przez żadne fiszki.
+- Walidacja zapewnia unikalność nazw i slugów oraz poprawność formatu koloru (hex).
+- Wszystkie operacje są logowane w celach audytu.
+
+ID: US-012
+Tytuł: Zarządzanie rolami administratorów (admin)
+Opis: Jako administrator chcę zarządzać rolami innych administratorów, aby kontrolować dostęp do funkcji administracyjnych.
+Kryteria akceptacji:
+
+- Administrator może przeglądać listę wszystkich użytkowników z rolą administratora.
+- Administrator może przyznawać rolę administratora wybranym użytkownikom.
+- Administrator może odbierać rolę administratora innym administratorom.
+- Operacje przyznawania/odbierania roli są logowane w celach audytu.
+- Walidacja zapobiega duplikatom ról i zapewnia, że przynajmniej jeden administrator pozostaje w systemie.
+
+ID: US-013
+Tytuł: Diagnostyka błędów generowania (admin)
+Opis: Jako administrator chcę przeglądać logi błędów generowania, aby monitorować jakość systemu AI i diagnozować problemy.
+Kryteria akceptacji:
+
+- Administrator może przeglądać logi błędów z filtrowaniem po użytkowniku, modelu i zakresie dat.
+- Każdy log zawiera informacje o błędzie, używanym modelu, hashu tekstu źródłowego i czasie wystąpienia.
+- Logi są dostępne tylko dla administratorów z odpowiednią autoryzacją.
+- Interfejs pozwala na eksport logów do dalszej analizy.
+
 ## 6. Metryki sukcesu
 
 1. 75% fiszek wygenerowanych przez AI jest akceptowanych przez użytkowników.
