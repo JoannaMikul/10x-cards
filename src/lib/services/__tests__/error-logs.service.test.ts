@@ -50,7 +50,7 @@ describe("error-logs.service", () => {
     });
 
     it("should handle database error gracefully", async () => {
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, "error");
       const mockError = new Error("Database connection failed");
 
       mockSupabase.rpc = vi.fn().mockResolvedValue({ error: mockError });
@@ -72,7 +72,7 @@ describe("error-logs.service", () => {
     });
 
     it("should handle unexpected errors gracefully", async () => {
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, "error");
       const mockError = new Error("Unexpected error");
 
       mockSupabase.rpc = vi.fn().mockRejectedValue(mockError);
@@ -97,7 +97,7 @@ describe("error-logs.service", () => {
     });
 
     it("should log error details to console for debugging", async () => {
-      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, "error");
 
       mockSupabase.rpc = vi.fn().mockResolvedValue({ error: null });
 
