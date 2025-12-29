@@ -1,263 +1,144 @@
-import type { ApiErrorResponse, FlashcardDTO, FlashcardListResponse } from "../../types";
-import type { FlashcardErrorCode } from "../errors.ts";
+import type { FlashcardErrorCode } from "../../errors.ts";
+import type {
+  ApiErrorResponse,
+  FlashcardDTO,
+  FlashcardListResponse,
+  CreateFlashcardCommand,
+  UpdateFlashcardCommand,
+  SetFlashcardTagsCommand,
+  TagDTO,
+} from "../../../types";
 
 export interface FlashcardsApiMock {
   description: string;
   status: number;
   request: {
-    method: "GET" | "POST" | "PATCH" | "DELETE";
+    method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
     url: string;
     headers?: Record<string, string>;
-    body?: Record<string, unknown>;
+    body?: CreateFlashcardCommand | UpdateFlashcardCommand | SetFlashcardTagsCommand;
   };
-  response: FlashcardDTO | FlashcardListResponse | ApiErrorResponse<FlashcardErrorCode> | null;
+  response: FlashcardListResponse | FlashcardDTO | TagDTO[] | ApiErrorResponse<FlashcardErrorCode> | null;
 }
-
-const baseCard: FlashcardDTO = {
-  id: "13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-  front: "Explain TCP handshake",
-  back: "SYN -> SYN/ACK -> ACK completes the three-way handshake.",
-  origin: "manual",
-  metadata: { language: "PL" },
-  category_id: 1,
-  content_source_id: 5,
-  owner_id: "a1b2c3d4-5678-90ab-cdef-1234567890ab",
-  created_at: "2025-12-02T10:00:00.000Z",
-  updated_at: "2025-12-02T10:00:00.000Z",
-  deleted_at: null,
-  tags: [
-    {
-      id: 3,
-      name: "Networking",
-      slug: "networking",
-      description: "OSI, TCP/IP and related topics.",
-      created_at: "2025-11-28T12:00:00.000Z",
-      updated_at: "2025-11-28T12:00:00.000Z",
-    },
-  ],
-};
-
-const baseCardWithReviewStats: FlashcardDTO = {
-  ...baseCard,
-  review_stats: {
-    card_id: baseCard.id,
-    user_id: baseCard.owner_id,
-    total_reviews: 5,
-    successes: 4,
-    consecutive_successes: 3,
-    last_outcome: "good",
-    last_interval_days: 7,
-    next_review_at: "2025-12-15T10:00:00.000Z",
-    last_reviewed_at: "2025-12-08T10:00:00.000Z",
-    aggregates: { avg_response_time_ms: 2500 },
-  },
-};
 
 export const flashcardsApiMocks: FlashcardsApiMock[] = [
   {
-    description: "201 Created – manual card with metadata and tags",
-    status: 201,
-    request: {
-      method: "POST",
-      url: "/api/flashcards",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: baseCard.front,
-        back: baseCard.back,
-        category_id: 1,
-        content_source_id: 5,
-        tag_ids: [3],
-        origin: "manual",
-        metadata: { language: "PL" },
-      },
-    },
-    response: baseCard,
-  },
-  {
-    description: "400 Bad Request – schema validation error",
-    status: 400,
-    request: {
-      method: "POST",
-      url: "/api/flashcards",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: "",
-        back: "Answer",
-        origin: "manual",
-      },
-    },
-    response: {
-      error: {
-        code: "invalid_body",
-        message: "Front text cannot be empty.",
-      },
-    },
-  },
-  {
-    description: "401 Unauthorized – missing bearer token",
-    status: 401,
-    request: {
-      method: "POST",
-      url: "/api/flashcards",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: baseCard.front,
-        back: baseCard.back,
-        origin: "manual",
-      },
-    },
-    response: {
-      error: {
-        code: "unauthorized",
-        message: "Authorization header is required.",
-      },
-    },
-  },
-  {
-    description: "404 Not Found – category missing",
-    status: 404,
-    request: {
-      method: "POST",
-      url: "/api/flashcards",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: baseCard.front,
-        back: baseCard.back,
-        category_id: 999,
-        origin: "manual",
-      },
-    },
-    response: {
-      error: {
-        code: "category_not_found",
-        message: "Category 999 does not exist.",
-        details: { category_id: 999 },
-      },
-    },
-  },
-  {
-    description: "409 Conflict – duplicate flashcard fingerprint",
-    status: 409,
-    request: {
-      method: "POST",
-      url: "/api/flashcards",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: baseCard.front,
-        back: baseCard.back,
-        origin: "manual",
-      },
-    },
-    response: {
-      error: {
-        code: "duplicate_flashcard",
-        message: "A flashcard with the same front and back already exists.",
-      },
-    },
-  },
-  {
-    description: "422 Unprocessable Entity – FK violation surfaced from DB",
-    status: 422,
-    request: {
-      method: "POST",
-      url: "/api/flashcards",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: baseCard.front,
-        back: baseCard.back,
-        origin: "manual",
-        content_source_id: 42,
-      },
-    },
-    response: {
-      error: {
-        code: "unprocessable_entity",
-        message: "Referenced entities are invalid or no longer exist.",
-      },
-    },
-  },
-  {
-    description: "500 Internal Server Error – PostgREST failure",
-    status: 500,
-    request: {
-      method: "POST",
-      url: "/api/flashcards",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: baseCard.front,
-        back: baseCard.back,
-        origin: "manual",
-      },
-    },
-    response: {
-      error: {
-        code: "db_error",
-        message: "A database error occurred while creating the flashcard.",
-        details: {
-          code: "XX000",
-          message: "unexpected db failure",
-        },
-      },
-    },
-  },
-  {
-    description: "200 OK – first page of flashcards",
+    description: "200 OK – list flashcards default first page",
     status: 200,
     request: {
       method: "GET",
       url: "/api/flashcards",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
     },
     response: {
-      data: [baseCard],
+      data: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          front: "What is React?",
+          back: "A JavaScript library for building user interfaces",
+          origin: "manual",
+          metadata: null,
+          category_id: 1,
+          content_source_id: null,
+          owner_id: "user-123",
+          created_at: "2025-12-01T10:00:00.000Z",
+          updated_at: "2025-12-01T10:00:00.000Z",
+          deleted_at: null,
+          tags: [
+            {
+              id: 1,
+              name: "React",
+              slug: "react",
+              description: "JavaScript library",
+              created_at: "2025-11-30T09:00:00.000Z",
+              updated_at: "2025-11-30T09:00:00.000Z",
+            },
+          ],
+          review_stats: {
+            card_id: "550e8400-e29b-41d4-a716-446655440000",
+            user_id: "user-123",
+            total_reviews: 5,
+            successes: 4,
+            consecutive_successes: 2,
+            last_outcome: "good",
+            last_interval_days: 3,
+            next_review_at: "2025-12-04T10:00:00.000Z",
+            last_reviewed_at: "2025-12-01T10:00:00.000Z",
+            aggregates: null,
+          },
+        },
+        {
+          id: "550e8400-e29b-41d4-a716-446655440001",
+          front: "What is TypeScript?",
+          back: "A superset of JavaScript that adds static typing",
+          origin: "ai-full",
+          metadata: { model: "gpt-4", temperature: 0.7 },
+          category_id: 1,
+          content_source_id: 1,
+          owner_id: "user-123",
+          created_at: "2025-12-01T11:00:00.000Z",
+          updated_at: "2025-12-01T11:00:00.000Z",
+          deleted_at: null,
+          tags: [
+            {
+              id: 2,
+              name: "TypeScript",
+              slug: "typescript",
+              description: "Typed JavaScript",
+              created_at: "2025-11-30T10:00:00.000Z",
+              updated_at: "2025-11-30T10:00:00.000Z",
+            },
+          ],
+          review_stats: undefined,
+        },
+      ],
       page: {
-        next_cursor: "MjAyNS0xMi0wMlQxMDowMDowMC4wMDBaIzEzZjNmYzBkLTgyMzYtNGQzNi1hMGIyLTZiOTdhOGUwZjk5OQ==",
+        next_cursor: "MjAyNS0xMi0wMVQxMTowMDowMC4wMDBaIzU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMQ==",
         has_more: true,
       },
       aggregates: {
-        total: 25,
+        total: 15,
         by_origin: {
-          "ai-full": 12,
-          "ai-edited": 8,
           manual: 5,
+          "ai-full": 7,
+          "ai-edited": 3,
         },
       },
     },
   },
   {
-    description: "200 OK – paginated results with filters",
+    description: "200 OK – list flashcards with search filter",
     status: 200,
     request: {
       method: "GET",
-      url: "/api/flashcards?limit=5&category_id=1&origin=manual&search=handshake&sort=-created_at",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
+      url: "/api/flashcards?search=react&limit=10",
     },
     response: {
-      data: [baseCard],
+      data: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          front: "What is React?",
+          back: "A JavaScript library for building user interfaces",
+          origin: "manual",
+          metadata: null,
+          category_id: 1,
+          content_source_id: null,
+          owner_id: "user-123",
+          created_at: "2025-12-01T10:00:00.000Z",
+          updated_at: "2025-12-01T10:00:00.000Z",
+          deleted_at: null,
+          tags: [
+            {
+              id: 1,
+              name: "React",
+              slug: "react",
+              description: "JavaScript library",
+              created_at: "2025-11-30T09:00:00.000Z",
+              updated_at: "2025-11-30T09:00:00.000Z",
+            },
+          ],
+          review_stats: undefined,
+        },
+      ],
       page: {
         next_cursor: null,
         has_more: false,
@@ -271,333 +152,109 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
     },
   },
   {
+    description: "200 OK – list flashcards filtered by category",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/flashcards?category_id=2&limit=5",
+    },
+    response: {
+      data: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440002",
+          front: "What is Docker?",
+          back: "A platform for developing, shipping, and running applications in containers",
+          origin: "ai-edited",
+          metadata: { model: "gpt-3.5", temperature: 0.5 },
+          category_id: 2,
+          content_source_id: 2,
+          owner_id: "user-123",
+          created_at: "2025-12-01T12:00:00.000Z",
+          updated_at: "2025-12-01T12:00:00.000Z",
+          deleted_at: null,
+          tags: [
+            {
+              id: 3,
+              name: "Docker",
+              slug: "docker",
+              description: "Containerization",
+              created_at: "2025-11-30T11:00:00.000Z",
+              updated_at: "2025-11-30T11:00:00.000Z",
+            },
+          ],
+          review_stats: undefined,
+        },
+      ],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+      aggregates: {
+        total: 8,
+        by_origin: {
+          "ai-edited": 8,
+        },
+      },
+    },
+  },
+  {
+    description: "200 OK – list flashcards filtered by tags",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/flashcards?tag_ids[]=1&tag_ids[]=2&limit=10",
+    },
+    response: {
+      data: [
+        {
+          id: "550e8400-e29b-41d4-a716-446655440000",
+          front: "What is React?",
+          back: "A JavaScript library for building user interfaces",
+          origin: "manual",
+          metadata: null,
+          category_id: 1,
+          content_source_id: null,
+          owner_id: "user-123",
+          created_at: "2025-12-01T10:00:00.000Z",
+          updated_at: "2025-12-01T10:00:00.000Z",
+          deleted_at: null,
+          tags: [
+            {
+              id: 1,
+              name: "React",
+              slug: "react",
+              description: "JavaScript library",
+              created_at: "2025-11-30T09:00:00.000Z",
+              updated_at: "2025-11-30T09:00:00.000Z",
+            },
+          ],
+          review_stats: undefined,
+        },
+      ],
+      page: {
+        next_cursor: null,
+        has_more: false,
+      },
+      aggregates: {
+        total: 2,
+        by_origin: {
+          manual: 1,
+          "ai-full": 1,
+        },
+      },
+    },
+  },
+  {
     description: "400 Bad Request – invalid query parameters",
     status: 400,
     request: {
       method: "GET",
-      url: "/api/flashcards?limit=150&sort=invalid_sort",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
+      url: "/api/flashcards?limit=invalid",
     },
     response: {
       error: {
         code: "invalid_query",
-        message:
-          "Limit must be between 1 and 100.; Sort must be one of: created_at, -created_at, updated_at, next_review_at.",
-      },
-    },
-  },
-  {
-    description: "401 Unauthorized – missing authentication",
-    status: 401,
-    request: {
-      method: "GET",
-      url: "/api/flashcards",
-    },
-    response: {
-      error: {
-        code: "unauthorized",
-        message: "User not authenticated.",
-      },
-    },
-  },
-  {
-    description: "200 OK – get flashcard by ID with review stats",
-    status: 200,
-    request: {
-      method: "GET",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: baseCardWithReviewStats,
-  },
-  {
-    description: "200 OK – get flashcard by ID without review stats",
-    status: 200,
-    request: {
-      method: "GET",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: baseCard,
-  },
-  {
-    description: "400 Bad Request – invalid UUID",
-    status: 400,
-    request: {
-      method: "GET",
-      url: "/api/flashcards/invalid-id",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: {
-      error: {
-        code: "invalid_query",
-        message: "Invalid flashcard ID parameter.",
-      },
-    },
-  },
-  {
-    description: "404 Not Found – flashcard does not exist",
-    status: 404,
-    request: {
-      method: "GET",
-      url: "/api/flashcards/99999999-9999-9999-9999-999999999999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: {
-      error: {
-        code: "not_found",
-        message: "Flashcard not found.",
-      },
-    },
-  },
-  {
-    description: "500 Internal Server Error – database error",
-    status: 500,
-    request: {
-      method: "GET",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: {
-      error: {
-        code: "db_error",
-        message: "A database error occurred while retrieving the flashcard.",
-      },
-    },
-  },
-  // PATCH /api/flashcards/:id mocks
-  {
-    description: "200 OK – partial content update",
-    status: 200,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: "What is the TCP three-way handshake?",
-        back: "SYN -> SYN/ACK -> ACK",
-        metadata: { language: "EN" },
-      },
-    },
-    response: {
-      ...baseCard,
-      front: "What is the TCP three-way handshake?",
-      back: "SYN -> SYN/ACK -> ACK",
-      metadata: { language: "EN" },
-      updated_at: "2025-12-19T12:00:00.000Z",
-    },
-  },
-  {
-    description: "200 OK – tag replacement (empty array clears tags)",
-    status: 200,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        tag_ids: [],
-      },
-    },
-    response: {
-      ...baseCard,
-      tags: [],
-      updated_at: "2025-12-19T12:00:00.000Z",
-    },
-  },
-  {
-    description: "200 OK – soft delete",
-    status: 200,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        deleted_at: true,
-      },
-    },
-    response: {
-      ...baseCard,
-      deleted_at: "2025-12-19T12:00:00.000Z",
-      updated_at: "2025-12-19T12:00:00.000Z",
-    },
-  },
-  {
-    description: "400 Bad Request – invalid body (empty front)",
-    status: 400,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: "",
-      },
-    },
-    response: {
-      error: {
-        code: "invalid_body",
-        message: "Front text cannot be empty.",
-      },
-    },
-  },
-  {
-    description: "404 Not Found – flashcard does not exist",
-    status: 404,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/99999999-9999-9999-9999-999999999999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: "Updated front",
-      },
-    },
-    response: {
-      error: {
-        code: "not_found",
-        message: "Flashcard not found.",
-      },
-    },
-  },
-  {
-    description: "404 Not Found – category does not exist",
-    status: 404,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        category_id: 999,
-      },
-    },
-    response: {
-      error: {
-        code: "category_not_found",
-        message: "Category 999 does not exist.",
-        details: { category_id: 999 },
-      },
-    },
-  },
-  {
-    description: "409 Conflict – duplicate flashcard fingerprint",
-    status: 409,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: "Duplicate front",
-        back: "Duplicate back",
-      },
-    },
-    response: {
-      error: {
-        code: "duplicate_flashcard",
-        message: "A flashcard with the same front and back already exists.",
-      },
-    },
-  },
-  {
-    description: "422 Unprocessable Entity – FK constraint violation",
-    status: 422,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        content_source_id: 999,
-      },
-    },
-    response: {
-      error: {
-        code: "unprocessable_entity",
-        message: "Referenced entities are invalid or no longer exist.",
-      },
-    },
-  },
-  {
-    description: "500 Internal Server Error – database error",
-    status: 500,
-    request: {
-      method: "PATCH",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-        "Content-Type": "application/json",
-      },
-      body: {
-        front: "Updated front",
-      },
-    },
-    response: {
-      error: {
-        code: "db_error",
-        message: "A database error occurred while updating the flashcard.",
-      },
-    },
-  },
-
-  // DELETE /api/flashcards/:id mocks
-  {
-    description: "204 No Content – successful soft delete of active flashcard",
-    status: 204,
-    request: {
-      method: "DELETE",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: null,
-  },
-  {
-    description: "400 Bad Request – invalid flashcard ID parameter",
-    status: 400,
-    request: {
-      method: "DELETE",
-      url: "/api/flashcards/invalid-uuid",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: {
-      error: {
-        code: "invalid_query",
-        message: "Invalid flashcard ID parameter.",
+        message: "Query parameters are invalid.",
       },
     },
   },
@@ -605,8 +262,9 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
     description: "401 Unauthorized – user not authenticated",
     status: 401,
     request: {
-      method: "DELETE",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
+      method: "GET",
+      url: "/api/flashcards",
+      headers: {},
     },
     response: {
       error: {
@@ -616,13 +274,183 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
     },
   },
   {
-    description: "404 Not Found – flashcard does not exist",
+    description: "201 Created – create flashcard successfully",
+    status: 201,
+    request: {
+      method: "POST",
+      url: "/api/flashcards",
+      body: {
+        front: "What is Node.js?",
+        back: "A JavaScript runtime built on Chrome's V8 JavaScript engine",
+        origin: "manual",
+        category_id: 1,
+        tag_ids: [4],
+      },
+    },
+    response: {
+      id: "550e8400-e29b-41d4-a716-446655440003",
+      front: "What is Node.js?",
+      back: "A JavaScript runtime built on Chrome's V8 JavaScript engine",
+      origin: "manual",
+      metadata: null,
+      category_id: 1,
+      content_source_id: null,
+      owner_id: "user-123",
+      created_at: "2025-12-01T13:00:00.000Z",
+      updated_at: "2025-12-01T13:00:00.000Z",
+      deleted_at: null,
+      tags: [
+        {
+          id: 4,
+          name: "Node.js",
+          slug: "nodejs",
+          description: "JavaScript runtime",
+          created_at: "2025-11-30T12:00:00.000Z",
+          updated_at: "2025-11-30T12:00:00.000Z",
+        },
+      ],
+    },
+  },
+  {
+    description: "400 Bad Request – invalid create flashcard body",
+    status: 400,
+    request: {
+      method: "POST",
+      url: "/api/flashcards",
+      body: {
+        front: "",
+        back: "Valid back",
+      },
+    },
+    response: {
+      error: {
+        code: "invalid_body",
+        message: "Request body is invalid.",
+      },
+    },
+  },
+  {
+    description: "404 Not Found – category not found during creation",
     status: 404,
     request: {
-      method: "DELETE",
-      url: "/api/flashcards/99999999-9999-9999-9999-999999999999",
-      headers: {
-        Authorization: "Bearer <jwt>",
+      method: "POST",
+      url: "/api/flashcards",
+      body: {
+        front: "Valid front",
+        back: "Valid back",
+        origin: "manual",
+        category_id: 999,
+      },
+    },
+    response: {
+      error: {
+        code: "category_not_found",
+        message: "Category 999 does not exist.",
+        details: {
+          category_id: 999,
+        },
+      },
+    },
+  },
+  {
+    description: "200 OK – get single flashcard by ID",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655440000",
+    },
+    response: {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      front: "What is React?",
+      back: "A JavaScript library for building user interfaces",
+      origin: "manual",
+      metadata: null,
+      category_id: 1,
+      content_source_id: null,
+      owner_id: "user-123",
+      created_at: "2025-12-01T10:00:00.000Z",
+      updated_at: "2025-12-01T10:00:00.000Z",
+      deleted_at: null,
+      tags: [
+        {
+          id: 1,
+          name: "React",
+          slug: "react",
+          description: "JavaScript library",
+          created_at: "2025-11-30T09:00:00.000Z",
+          updated_at: "2025-11-30T09:00:00.000Z",
+        },
+      ],
+      review_stats: {
+        card_id: "550e8400-e29b-41d4-a716-446655440000",
+        user_id: "user-123",
+        total_reviews: 5,
+        successes: 4,
+        consecutive_successes: 2,
+        last_outcome: "good",
+        last_interval_days: 3,
+        next_review_at: "2025-12-04T10:00:00.000Z",
+        last_reviewed_at: "2025-12-01T10:00:00.000Z",
+        aggregates: null,
+      },
+    },
+  },
+  {
+    description: "404 Not Found – flashcard not found",
+    status: 404,
+    request: {
+      method: "GET",
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655440999",
+    },
+    response: {
+      error: {
+        code: "not_found",
+        message: "Flashcard not found.",
+      },
+    },
+  },
+  {
+    description: "200 OK – update flashcard successfully",
+    status: 200,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655440000",
+      body: {
+        back: "Updated: A JavaScript library for building user interfaces with components",
+      },
+    },
+    response: {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      front: "What is React?",
+      back: "Updated: A JavaScript library for building user interfaces with components",
+      origin: "manual",
+      metadata: null,
+      category_id: 1,
+      content_source_id: null,
+      owner_id: "user-123",
+      created_at: "2025-12-01T10:00:00.000Z",
+      updated_at: "2025-12-01T14:00:00.000Z",
+      deleted_at: null,
+      tags: [
+        {
+          id: 1,
+          name: "React",
+          slug: "react",
+          description: "JavaScript library",
+          created_at: "2025-11-30T09:00:00.000Z",
+          updated_at: "2025-11-30T09:00:00.000Z",
+        },
+      ],
+    },
+  },
+  {
+    description: "404 Not Found – update non-existent flashcard",
+    status: 404,
+    request: {
+      method: "PATCH",
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655449999",
+      body: {
+        back: "Updated back",
       },
     },
     response: {
@@ -633,97 +461,92 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
     },
   },
   {
-    description: "404 Not Found – flashcard belongs to different user",
-    status: 404,
+    description: "204 No Content – soft delete flashcard",
+    status: 204,
     request: {
       method: "DELETE",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <different-user-jwt>",
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655440000",
+    },
+    response: null,
+  },
+  {
+    description: "200 OK – set flashcard tags successfully",
+    status: 200,
+    request: {
+      method: "PUT",
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655440000/tags",
+      body: {
+        tag_ids: [1, 5],
+      },
+    },
+    response: [
+      {
+        id: 1,
+        name: "React",
+        slug: "react",
+        description: "JavaScript library",
+        created_at: "2025-11-30T09:00:00.000Z",
+        updated_at: "2025-11-30T09:00:00.000Z",
+      },
+      {
+        id: 5,
+        name: "Frontend",
+        slug: "frontend",
+        description: "Frontend development",
+        created_at: "2025-11-30T13:00:00.000Z",
+        updated_at: "2025-11-30T13:00:00.000Z",
+      },
+    ],
+  },
+  {
+    description: "404 Not Found – set tags for non-existent flashcard",
+    status: 404,
+    request: {
+      method: "PUT",
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655449999/tags",
+      body: {
+        tag_ids: [1],
       },
     },
     response: {
       error: {
         code: "not_found",
         message: "Flashcard not found.",
+        details: {
+          card_id: "550e8400-e29b-41d4-a716-446655449999",
+        },
       },
     },
   },
   {
-    description: "404 Not Found – flashcard already soft deleted",
-    status: 404,
-    request: {
-      method: "DELETE",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: {
-      error: {
-        code: "not_found",
-        message: "Flashcard not found.",
-      },
-    },
-  },
-  {
-    description: "500 Internal Server Error – database error",
-    status: 500,
-    request: {
-      method: "DELETE",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999",
-      headers: {
-        Authorization: "Bearer <jwt>",
-      },
-    },
-    response: {
-      error: {
-        code: "db_error",
-        message: "A database error occurred while deleting the flashcard.",
-      },
-    },
-  },
-
-  // POST /api/flashcards/:id/restore mocks
-  {
-    description: "200 OK – restore soft-deleted flashcard",
+    description: "200 OK – restore flashcard successfully",
     status: 200,
     request: {
       method: "POST",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999/restore",
-      headers: {
-        Authorization: "Bearer <admin-jwt>",
-      },
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655440000/restore",
     },
     response: {
-      ...baseCard,
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      front: "What is React?",
+      back: "A JavaScript library for building user interfaces",
+      origin: "manual",
+      metadata: null,
+      category_id: 1,
+      content_source_id: null,
+      owner_id: "user-123",
+      created_at: "2025-12-01T10:00:00.000Z",
+      updated_at: "2025-12-01T14:00:00.000Z",
       deleted_at: null,
-      updated_at: "2025-12-20T09:00:00.000Z",
+      tags: [],
+      review_stats: undefined,
     },
   },
   {
-    description: "401 Unauthorized – missing authentication",
+    description: "401 Unauthorized – restore without admin privileges",
     status: 401,
     request: {
       method: "POST",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999/restore",
-    },
-    response: {
-      error: {
-        code: "unauthorized",
-        message: "User not authenticated.",
-      },
-    },
-  },
-  {
-    description: "401 Unauthorized – user is not an admin",
-    status: 401,
-    request: {
-      method: "POST",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999/restore",
-      headers: {
-        Authorization: "Bearer <non-admin-jwt>",
-      },
+      url: "/api/flashcards/550e8400-e29b-41d4-a716-446655440000/restore",
     },
     response: {
       error: {
@@ -733,40 +556,16 @@ export const flashcardsApiMocks: FlashcardsApiMock[] = [
     },
   },
   {
-    description: "404 Not Found – card does not exist or is not deleted",
-    status: 404,
-    request: {
-      method: "POST",
-      url: "/api/flashcards/99999999-9999-9999-9999-999999999999/restore",
-      headers: {
-        Authorization: "Bearer <admin-jwt>",
-      },
-    },
-    response: {
-      error: {
-        code: "not_found",
-        message: "Flashcard not found.",
-      },
-    },
-  },
-  {
-    description: "500 Internal Server Error – database error during restore",
+    description: "500 Internal Server Error – database failure",
     status: 500,
     request: {
-      method: "POST",
-      url: "/api/flashcards/13f3fc0d-8236-4d36-a0b2-6b97a8e0f999/restore",
-      headers: {
-        Authorization: "Bearer <admin-jwt>",
-      },
+      method: "GET",
+      url: "/api/flashcards",
     },
     response: {
       error: {
         code: "db_error",
-        message: "A database error occurred while restoring the flashcard.",
-        details: {
-          code: "XX000",
-          message: "unexpected db failure",
-        },
+        message: "A database error occurred while listing flashcards.",
       },
     },
   },
