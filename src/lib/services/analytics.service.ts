@@ -9,6 +9,30 @@ import type { AdminKpiQuery } from "../validation/admin-kpi.schema.ts";
 export class AnalyticsService {
   constructor(private readonly supabase: SupabaseClient) {}
 
+  // Alternative: extract database operations to testable methods
+  protected async countTotalCandidates(dateRange: { from: Date; to: Date }): Promise<number> {
+    const { count, error } = await this.supabase
+      .from("generation_candidates")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", dateRange.from.toISOString())
+      .lte("created_at", dateRange.to.toISOString());
+
+    if (error) throw error;
+    return count ?? 0;
+  }
+
+  protected async countAcceptedCandidates(dateRange: { from: Date; to: Date }): Promise<number> {
+    const { count, error } = await this.supabase
+      .from("generation_candidates")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", dateRange.from.toISOString())
+      .lte("created_at", dateRange.to.toISOString())
+      .or("status.eq.accepted,accepted_card_id.not.is.null");
+
+    if (error) throw error;
+    return count ?? 0;
+  }
+
   /**
    * Calculates key performance indicators for flashcard generation and usage.
    * @param params Query parameters for filtering KPI data
@@ -16,10 +40,12 @@ export class AnalyticsService {
    */
   async getKpiMetrics(params: AdminKpiQuery): Promise<AnalyticsKpiResponse> {
     const dateRange = this.calculateDateRange(params);
-    const totals = await this.calculateTotals(dateRange);
-    const trend = await this.aggregateTrendData(dateRange);
 
-    const aiAcceptanceRate = await this.calculateAiAcceptanceRate(dateRange);
+    const [totals, trend, aiAcceptanceRate] = await Promise.all([
+      this.calculateTotals(dateRange),
+      this.aggregateTrendData(dateRange),
+      this.calculateAiAcceptanceRate(dateRange),
+    ]);
 
     return {
       ai_acceptance_rate: aiAcceptanceRate,
@@ -30,45 +56,18 @@ export class AnalyticsService {
   }
 
   /**
-   * Calculates AI acceptance rate from totals.
-   * @param totals Total counts of AI and manual cards
-   * @returns Acceptance rate as a decimal between 0 and 1
-   */
-  /**
    * Calculates AI acceptance rate from generation candidates data.
    * @param dateRange Date range for filtering candidates
    * @returns Acceptance rate as a decimal between 0 and 1
    */
   private async calculateAiAcceptanceRate(dateRange: { from: Date; to: Date }): Promise<number> {
-    const { data: totalCandidates, error: totalError } = await this.supabase
-      .from("generation_candidates")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", dateRange.from.toISOString())
-      .lte("created_at", dateRange.to.toISOString());
-
-    if (totalError) {
-      throw new Error(`Failed to count total candidates: ${totalError.message}`);
-    }
-
-    const totalCount = totalCandidates?.length ?? 0;
+    const totalCount = await this.countTotalCandidates(dateRange);
 
     if (totalCount === 0) {
       return 0;
     }
 
-    const { data: acceptedCandidates, error: acceptedError } = await this.supabase
-      .from("generation_candidates")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", dateRange.from.toISOString())
-      .lte("created_at", dateRange.to.toISOString())
-      .or("status.eq.accepted,accepted_card_id.not.is.null");
-
-    if (acceptedError) {
-      throw new Error(`Failed to count accepted candidates: ${acceptedError.message}`);
-    }
-
-    const acceptedCount = acceptedCandidates?.length ?? 0;
-
+    const acceptedCount = await this.countAcceptedCandidates(dateRange);
     return acceptedCount / totalCount;
   }
 
@@ -168,8 +167,24 @@ export class AnalyticsService {
       if (!params.from || !params.to) {
         throw new Error("Custom range requires both 'from' and 'to' dates");
       }
+
       from = new Date(params.from);
       to = new Date(params.to);
+
+      // Validate that dates are valid
+      if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+        throw new Error("Invalid date format provided for custom range");
+      }
+
+      // Ensure from is before to
+      if (from >= to) {
+        throw new Error("'from' date must be before 'to' date");
+      }
+
+      // Prevent future dates
+      if (to > now) {
+        to = now;
+      }
     } else {
       const days = params.range === "30d" ? 30 : 7;
       from = new Date(now);

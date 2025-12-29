@@ -4,7 +4,7 @@ This directory contains MSW handlers and API mocks for testing. MSW provides rea
 
 ## Directory Structure
 
-```
+```text
 src/lib/mocks/
 ├── handlers/           # MSW handlers organized by service
 │   ├── index.ts        # Main file exporting all handlers
@@ -77,15 +77,16 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 ### API Mock Files
 
 - `admin-kpi.api.mocks.ts` - Admin KPI analytics endpoints ✅ (integrated with MSW)
-- `flashcard-tags.api.mocks.ts` - Flashcard tag operations
-- `user-roles.api.mocks.ts` - User role management
-- `review-sessions.api.mocks.ts` - Review session handling
-- `categories.api.mocks.ts` - Category CRUD operations
-- `flashcards.api.mocks.ts` - Flashcard management
-- `generation-candidates.api.mocks.ts` - AI generation candidates
-- `generations.api.mocks.ts` - AI generation requests
-- `sources.api.mocks.ts` - Source management
-- `tags.api.mocks.ts` - Tag operations
+- `analytics.api.mocks.ts` - Database mock data for AnalyticsService unit tests 🔧 (database tables)
+- `flashcard-tags.api.mocks.ts` - Flashcard tag operations 🔄 (requires MSW integration)
+- `user-roles.api.mocks.ts` - User role management 🔄 (requires MSW integration)
+- `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
+- `categories.api.mocks.ts` - Category CRUD operations 🔄 (requires MSW integration)
+- `flashcards.api.mocks.ts` - Flashcard management 🔄 (requires MSW integration)
+- `generation-candidates.api.mocks.ts` - AI generation candidates 🔄 (requires MSW integration)
+- `generations.api.mocks.ts` - AI generation requests 🔄 (requires MSW integration)
+- `sources.api.mocks.ts` - Source management 🔄 (requires MSW integration)
+- `tags.api.mocks.ts` - Tag operations 🔄 (requires MSW integration)
 
 ### Integration Status
 
