@@ -9,9 +9,12 @@ src/lib/mocks/
 ├── handlers/           # MSW handlers organized by service
 │   ├── index.ts        # Main file exporting all handlers
 │   ├── admin-kpi.ts    # Admin KPI handlers
+│   ├── categories.ts   # Categories CRUD handlers
 │   └── ...             # Other handlers (to be added)
 ├── mocks/              # API mock data
 │   ├── admin-kpi.api.mocks.ts
+│   ├── analytics.api.mocks.ts
+│   ├── categories.api.mocks.ts
 │   ├── flashcards.api.mocks.ts
 │   └── ...             # All .api.mocks.ts files
 ├── msw-handlers.ts     # Backward compatibility (redirects to handlers/)
@@ -78,10 +81,10 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 
 - `admin-kpi.api.mocks.ts` - Admin KPI analytics endpoints ✅ (integrated with MSW)
 - `analytics.api.mocks.ts` - Database mock data for AnalyticsService unit tests 🔧 (database tables)
+- `categories.api.mocks.ts` - Category CRUD operations ✅ (integrated with MSW handlers, unit tests available)
 - `flashcard-tags.api.mocks.ts` - Flashcard tag operations 🔄 (requires MSW integration)
 - `user-roles.api.mocks.ts` - User role management 🔄 (requires MSW integration)
 - `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
-- `categories.api.mocks.ts` - Category CRUD operations 🔄 (requires MSW integration)
 - `flashcards.api.mocks.ts` - Flashcard management 🔄 (requires MSW integration)
 - `generation-candidates.api.mocks.ts` - AI generation candidates 🔄 (requires MSW integration)
 - `generations.api.mocks.ts` - AI generation requests 🔄 (requires MSW integration)
@@ -91,6 +94,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 ### Integration Status
 
 - ✅ **Admin KPI mocks**: Integrated with MSW handlers for unit tests
+- ✅ **Categories mocks**: MSW handlers integrated for full CRUD operations (`/api/categories/*`) + unit tests available
 - 🔄 **Other API mocks**: Available for reference but require refactoring for full MSW integration
 - 📋 **MSW handlers**: `msw-handlers.ts` provides basic handlers and can be extended
 
@@ -115,6 +119,7 @@ fetchSpy.mockResolvedValueOnce({
   json: vi.fn().mockResolvedValueOnce(mockData.response),
 });
 ```
+
 
 ## Best Practices
 
