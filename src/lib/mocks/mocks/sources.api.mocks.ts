@@ -1,5 +1,5 @@
-import type { ApiErrorResponse, SourceListResponse } from "../../types";
-import type { SourceErrorCode } from "../errors.ts";
+import type { ApiErrorResponse, SourceListResponse } from "../../../types";
+import type { SourceErrorCode } from "../../errors";
 
 export interface SourcesApiMock {
   description: string;
@@ -14,7 +14,7 @@ export interface SourcesApiMock {
 
 export const sourcesApiMocks: SourcesApiMock[] = [
   {
-    description: "200 OK – default listing",
+    description: "200 OK – first page without filters",
     status: 200,
     request: {
       method: "GET",
@@ -24,23 +24,23 @@ export const sourcesApiMocks: SourcesApiMock[] = [
       data: [
         {
           id: 1,
-          name: "React – Official Docs",
-          slug: "react-official-docs",
-          description: "React core documentation at react.dev",
+          name: "Docker Documentation",
+          slug: "docker-documentation",
+          description: "Official Docker documentation and guides",
           kind: "documentation",
-          url: "https://react.dev/",
-          created_at: "2025-11-30T10:00:00.000Z",
-          updated_at: "2025-11-30T10:00:00.000Z",
+          url: "https://docs.docker.com",
+          created_at: "2025-11-01T08:00:00.000Z",
+          updated_at: "2025-11-01T08:00:00.000Z",
         },
         {
           id: 2,
-          name: "Kubernetes Docs",
-          slug: "kubernetes-docs",
-          description: "Official documentation",
-          kind: "url",
-          url: "https://kubernetes.io/docs/home/",
-          created_at: "2025-11-29T12:00:00.000Z",
-          updated_at: "2025-11-29T12:00:00.000Z",
+          name: "Kubernetes in Action",
+          slug: "kubernetes-in-action",
+          description: "Comprehensive guide to Kubernetes",
+          kind: "book",
+          url: "https://www.manning.com/books/kubernetes-in-action",
+          created_at: "2025-11-01T09:00:00.000Z",
+          updated_at: "2025-11-01T09:00:00.000Z",
         },
       ],
       page: {
@@ -50,23 +50,23 @@ export const sourcesApiMocks: SourcesApiMock[] = [
     },
   },
   {
-    description: "200 OK – filtered by kind and search with cursor",
+    description: "200 OK – search with kind filter",
     status: 200,
     request: {
       method: "GET",
-      url: "/api/sources?kind=article&search=ai&sort=created_at&limit=1&cursor=MQ==",
+      url: "/api/sources?search=kubernetes&kind=book&limit=10",
     },
     response: {
       data: [
         {
-          id: 3,
-          name: "Personal Notes",
-          slug: "personal-notes",
-          description: "Internal study notes",
-          kind: "notes",
-          url: null,
-          created_at: "2025-12-01T08:30:00.000Z",
-          updated_at: "2025-12-01T09:00:00.000Z",
+          id: 2,
+          name: "Kubernetes in Action",
+          slug: "kubernetes-in-action",
+          description: "Comprehensive guide to Kubernetes",
+          kind: "book",
+          url: "https://www.manning.com/books/kubernetes-in-action",
+          created_at: "2025-11-01T09:00:00.000Z",
+          updated_at: "2025-11-01T09:00:00.000Z",
         },
       ],
       page: {
@@ -76,16 +76,95 @@ export const sourcesApiMocks: SourcesApiMock[] = [
     },
   },
   {
-    description: "400 Bad Request – malformed cursor",
+    description: "200 OK – pagination with cursor",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/sources?cursor=Mg==&limit=5",
+    },
+    response: {
+      data: [
+        {
+          id: 3,
+          name: "React Official Docs",
+          slug: "react-official-docs",
+          description: "Official React documentation",
+          kind: "documentation",
+          url: "https://react.dev",
+          created_at: "2025-11-02T10:00:00.000Z",
+          updated_at: "2025-11-02T10:00:00.000Z",
+        },
+        {
+          id: 4,
+          name: "TypeScript Handbook",
+          slug: "typescript-handbook",
+          description: "Official TypeScript documentation",
+          kind: "documentation",
+          url: "https://www.typescriptlang.org/docs/",
+          created_at: "2025-11-02T11:00:00.000Z",
+          updated_at: "2025-11-02T11:00:00.000Z",
+        },
+      ],
+      page: {
+        has_more: false,
+        next_cursor: null,
+      },
+    },
+  },
+  {
+    description: "200 OK – search with no results",
+    status: 200,
+    request: {
+      method: "GET",
+      url: "/api/sources?search=nonexistent",
+    },
+    response: {
+      data: [],
+      page: {
+        has_more: false,
+        next_cursor: null,
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid limit",
     status: 400,
     request: {
       method: "GET",
-      url: "/api/sources?cursor=not-base64",
+      url: "/api/sources?limit=0",
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Limit must be at least 1.",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid cursor",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/sources?cursor=invalid",
     },
     response: {
       error: {
         code: "invalid_query",
         message: "Cursor must be a valid Base64 string.",
+      },
+    },
+  },
+  {
+    description: "400 Bad Request – invalid sort field",
+    status: 400,
+    request: {
+      method: "GET",
+      url: "/api/sources?sort=invalid",
+    },
+    response: {
+      error: {
+        code: "invalid_query",
+        message: "Sort must be one of: name, created_at.",
       },
     },
   },
@@ -102,7 +181,7 @@ export const sourcesApiMocks: SourcesApiMock[] = [
         message: "Failed to query sources from the database.",
         details: {
           code: "XX000",
-          message: 'duplicate key value violates unique constraint "sources_pkey"',
+          message: 'connection to server at "localhost" (::1), port 5432 failed: Connection refused',
         },
       },
     },
