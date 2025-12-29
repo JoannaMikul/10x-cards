@@ -129,6 +129,10 @@ The application uses a comprehensive testing approach to ensure quality and reli
 - **@testing-library/user-event** – Realistic user interaction simulations
 - **@testing-library/jest-dom** – Custom DOM matchers for better assertions
 - **MSW (Mock Service Worker)** – HTTP mocking for API and Supabase in tests and development
+  - Global MSW server setup in `src/test/setup.ts` with basic API handlers
+  - Organized mock structure: handlers in `src/lib/mocks/handlers/`, data in `src/lib/mocks/mocks/`
+  - Admin KPI mocks fully integrated, others available in `src/lib/mocks/mocks/*.api.mocks.ts`
+  - Override handlers per test using `server.use()` for specific scenarios
 
 **Coverage focus**:
 
