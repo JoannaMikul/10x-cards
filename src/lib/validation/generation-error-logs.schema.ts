@@ -20,13 +20,21 @@ export const generationErrorLogsQuerySchema = z.object({
     .string({
       invalid_type_error: "From date must be a string",
     })
-    .datetime({ message: "From date must be a valid ISO date string" })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "From date must be in YYYY-MM-DD format")
+    .transform((dateStr) => {
+      const date = new Date(`${dateStr}T00:00:00.000Z`);
+      return date.toISOString();
+    })
     .optional(),
   to: z
     .string({
       invalid_type_error: "To date must be a string",
     })
-    .datetime({ message: "To date must be a valid ISO date string" })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "To date must be in YYYY-MM-DD format")
+    .transform((dateStr) => {
+      const date = new Date(`${dateStr}T23:59:59.999Z`);
+      return date.toISOString();
+    })
     .optional(),
   limit: z
     .string({

@@ -3,6 +3,7 @@ import type { SupabaseClient } from "../../db/supabase.client.ts";
 import type { GenerationRecord } from "./generations.service.ts";
 import { openRouterService } from "../openrouter-service.ts";
 import { flashcardsResponseFormat, type FlashcardsGenerationResult } from "../ai-schemas.ts";
+import { logGenerationError } from "./error-logs.service.ts";
 
 export interface ProcessGenerationResult {
   success: boolean;
@@ -10,12 +11,10 @@ export interface ProcessGenerationResult {
   error?: string;
 }
 
-// Constants for text length limits (matching database constraints)
 const MAX_FRONT_LENGTH = 200;
 const MAX_BACK_LENGTH = 500;
 const BACK_TRUNCATE_LENGTH = 450;
 
-// AI generation configuration
 const DEFAULT_TEMPERATURE = 0.3;
 const SYSTEM_PROMPT = `You are an expert in creating high-quality educational flashcards.
 
@@ -55,14 +54,12 @@ Tagging rules:
 
 Generate flashcards in JSON format according to the schema.`;
 
-// Type for validated flashcard data
 interface ValidatedFlashcard {
   front: string;
   back: string;
   tagIds: number[];
 }
 
-// Raw flashcard data from AI response
 interface RawFlashcard {
   front?: unknown;
   back?: unknown;
@@ -71,7 +68,6 @@ interface RawFlashcard {
 
 type AvailableTag = Pick<Tables<"tags">, "id" | "name" | "slug">;
 
-// Validate and sanitize a single flashcard
 function validateFlashcard(card: unknown): ValidatedFlashcard | null {
   if (!card || typeof card !== "object") {
     return null;
@@ -143,6 +139,15 @@ export async function processGeneration(
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     await updateGenerationStatus(supabase, generation.id, "failed", errorMessage);
+
+    await logGenerationError(supabase, {
+      user_id: generation.user_id,
+      model: generation.model,
+      error_code: "ai_generation_failed",
+      error_message: errorMessage,
+      source_text_hash: generation.sanitized_input_sha256 || "",
+      source_text_length: generation.sanitized_input_length || 0,
+    });
 
     return {
       success: false,
@@ -262,7 +267,6 @@ export async function processPendingGenerations(
     return { processed: 0, succeeded: 0, failed: 0 };
   }
 
-  // Process generations in parallel for better performance
   const results = await Promise.allSettled(
     pendingGenerations.map((generation) => processGeneration(supabase, generation))
   );

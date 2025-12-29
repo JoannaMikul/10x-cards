@@ -11,15 +11,35 @@ export type GenerationErrorLogPayload = Pick<
 >;
 
 export async function logGenerationError(supabase: SupabaseClient, payload: GenerationErrorLogPayload): Promise<void> {
-  // eslint-disable-next-line no-console
-  console.error("[generation] Error occurred", {
-    userId: payload.user_id,
-    model: payload.model,
-    errorCode: payload.error_code,
-    errorMessage: payload.error_message,
-    sourceHash: payload.source_text_hash,
-    sourceLength: payload.source_text_length,
-  });
+  try {
+    const { error } = await supabase.rpc("log_generation_error", {
+      p_user_id: payload.user_id,
+      p_model: payload.model,
+      p_error_code: payload.error_code,
+      p_error_message: payload.error_message,
+      p_source_text_hash: payload.source_text_hash,
+      p_source_text_length: payload.source_text_length,
+    });
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error("[generation] Failed to log error to database:", error);
+    }
+
+    // Also log to console for debugging
+    // eslint-disable-next-line no-console
+    console.error("[generation] Error occurred", {
+      userId: payload.user_id,
+      model: payload.model,
+      errorCode: payload.error_code,
+      errorMessage: payload.error_message,
+      sourceHash: payload.source_text_hash,
+      sourceLength: payload.source_text_length,
+    });
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.error("[generation] Unexpected error while logging generation error:", error);
+  }
 }
 
 type GenerationErrorLogRow = Tables<"generation_error_logs">;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { FileText, CheckSquare, Users, RotateCcw, LogOut, BarChart3, Settings } from "lucide-react";
+import { FileText, CheckSquare, Users, RotateCcw, LogOut, BarChart3, Settings, AlertTriangle } from "lucide-react";
 import { useIsAdmin } from "../hooks/useIsAdmin";
 import { SidebarMenuItemComponent, type MenuItemConfig } from "./SidebarMenuItemComponent";
 import {
@@ -34,6 +34,7 @@ const MENU_ITEMS: MenuItemConfig[] = [
   { href: "/reviews", label: "Reviews", icon: RotateCcw },
   { href: "/admin/kpi", label: "Admin KPI", icon: BarChart3, adminOnly: true },
   { href: "/admin/categories", label: "Category", icon: Settings, adminOnly: true },
+  { href: "/admin/generation-errors", label: "Generation Errors", icon: AlertTriangle, adminOnly: true },
   { href: "/admin/admins", label: "Administrators", icon: Users, adminOnly: true },
 ];
 

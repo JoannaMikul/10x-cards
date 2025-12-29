@@ -711,3 +711,54 @@ export interface UseAdminUsersReturn {
   confirmRevoke: () => Promise<void>;
   cancelRevoke: () => void;
 }
+
+export interface AdminGenerationErrorLogListItemVM {
+  id: string;
+  userId: string;
+  model: string;
+  errorCode: string;
+  errorMessage: string;
+  sourceTextHash: string;
+  sourceTextLength: number;
+  createdAt: IsoDateString;
+  createdAtFormatted: string;
+}
+
+export interface AdminGenerationErrorLogsFilters {
+  userId: string;
+  model: string;
+  from?: string;
+  to?: string;
+}
+
+export interface AdminGenerationErrorLogsViewState {
+  items: AdminGenerationErrorLogListItemVM[];
+  loading: boolean;
+  error: ApiErrorResponse | null;
+  filters: AdminGenerationErrorLogsFilters;
+  nextCursor: string | null;
+  hasMore: boolean;
+  authorizationError?: ApiErrorResponse | null;
+  lastStatusCode?: number;
+  validationErrors: string[];
+  isExporting: boolean;
+}
+
+export type GenerationErrorLogsExportFormat = "csv" | "json";
+
+export interface UseAdminGenerationErrorLogsReturn {
+  state: AdminGenerationErrorLogsViewState;
+  loadInitial: () => Promise<void>;
+  applyFilters: () => Promise<void>;
+  setFilters: (updater: (prev: AdminGenerationErrorLogsFilters) => AdminGenerationErrorLogsFilters) => void;
+  resetFilters: () => Promise<void>;
+  loadMore: () => Promise<void>;
+  openDetails: (log: AdminGenerationErrorLogListItemVM) => void;
+  closeDetails: () => void;
+  exportLogs: (format: GenerationErrorLogsExportFormat) => Promise<void>;
+}
+
+export interface AdminGenerationErrorLogsDetailsState {
+  open: boolean;
+  selectedLog: AdminGenerationErrorLogListItemVM | null;
+}
