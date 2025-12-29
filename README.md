@@ -74,9 +74,11 @@ Get up and running in a couple of minutes:
    Create a **.env** file in the project root with:
 
    ```env
-   OPENROUTER_API_KEY=your_openrouter_api_key
    SUPABASE_URL=your_supabase_project_url
-   SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_KEY=your_supabase_anon_key
+   OPENROUTER_API_KEY=your_openrouter_api_key
+   OPENROUTER_DEFAULT_MODEL=your_preferred_openrouter_model
+   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
    ```
 
 5. Start the dev server
