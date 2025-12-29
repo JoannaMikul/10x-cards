@@ -31,6 +31,8 @@ export function GeneratorPage({ availableModels, defaultModel }: GeneratorPagePr
   const handleNavigateToCandidates = () => {
     if (generation?.id) {
       window.location.href = `/candidates?generation_id=${generation.id}`;
+    } else {
+      window.location.href = `/candidates`;
     }
   };
 

@@ -21,12 +21,13 @@ async function fetchTags(): Promise<TagDTO[]> {
 }
 
 const tags = await fetchTags();
+const generationId = Astro.url.searchParams.get("generation_id");
 ---
 
 <Layout title="Kandydaci z AI - 10x-cards">
   <main class="min-h-[calc(100vh-3rem)] bg-background pr-6 pl-6">
     <div class="max-w-6xl mx-auto">
-      <CandidatesPage client:load {tags} />
+      <CandidatesPage client:load {tags} {generationId} />
     </div>
   </main>
 </Layout>

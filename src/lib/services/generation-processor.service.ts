@@ -130,6 +130,26 @@ export async function processGeneration(
 
     const candidatesCreated = await saveGenerationCandidates(supabase, generation, result.cards);
 
+    if (candidatesCreated === 0) {
+      const errorMessage = "No valid flashcards were generated from the provided text";
+      await updateGenerationStatus(supabase, generation.id, "failed", errorMessage);
+
+      await logGenerationError(supabase, {
+        user_id: generation.user_id,
+        model: generation.model,
+        error_code: "no_candidates_generated",
+        error_message: errorMessage,
+        source_text_hash: generation.sanitized_input_sha256 || "",
+        source_text_length: generation.sanitized_input_length || 0,
+      });
+
+      return {
+        success: false,
+        candidatesCreated: 0,
+        error: errorMessage,
+      };
+    }
+
     await updateGenerationStatus(supabase, generation.id, "succeeded");
 
     return {

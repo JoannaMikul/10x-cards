@@ -11,19 +11,23 @@ import type { CandidateEditState, TagDTO } from "../../types";
 
 interface CandidatesPageProps {
   tags?: TagDTO[];
+  generationId?: string | null;
 }
 
-export function CandidatesPage({ tags }: CandidatesPageProps) {
-  const [generationId, setGenerationId] = useState<string | null>(null);
+export function CandidatesPage({ tags, generationId: initialGenerationId }: CandidatesPageProps) {
+  const [generationId, setGenerationId] = useState<string | null>(initialGenerationId ?? null);
   const shouldFetchTags = !Array.isArray(tags);
   const { tagsById } = useTagsCatalog(undefined, { enabled: shouldFetchTags, initialTags: tags });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
-      setGenerationId(urlParams.get("generation_id"));
+      const currentGenerationId = urlParams.get("generation_id");
+      if (currentGenerationId !== generationId) {
+        setGenerationId(currentGenerationId);
+      }
     }
-  }, []);
+  }, [generationId]);
 
   const { candidates, loading, error, hasMore, loadMore, updateCandidate, acceptCandidate, rejectCandidate } =
     useCandidates(generationId || undefined);
