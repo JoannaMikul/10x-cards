@@ -10,16 +10,16 @@ export const adminKpiQuerySchema = z.object({
         message: `Range must be one of: ${RANGE_VALUES.join(", ")}.`,
       }),
     })
-    .default("7d")
-    .optional(),
+    .optional()
+    .default("7d"),
   group_by: z
     .enum(GROUP_BY_VALUES, {
       errorMap: () => ({
         message: `Group by must be one of: ${GROUP_BY_VALUES.join(", ")}.`,
       }),
     })
-    .default("day")
-    .optional(),
+    .optional()
+    .default("day"),
   from: z.string().datetime("From date must be a valid ISO date string.").optional(),
   to: z.string().datetime("To date must be a valid ISO date string.").optional(),
 });

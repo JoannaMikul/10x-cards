@@ -17,19 +17,14 @@ export interface TagsQuery {
   sort: TagSortField;
 }
 
-const searchSchema = z
-  .preprocess(
-    (value) => {
-      if (typeof value !== "string") {
-        return value ?? undefined;
-      }
+const searchSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
 
-      const trimmed = value.trim();
-      return trimmed.length === 0 ? undefined : trimmed;
-    },
-    z.string().min(1, "Search query cannot be empty.").max(200, "Search query cannot exceed 200 characters.")
-  )
-  .optional();
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
+}, z.string().min(1, "Search query cannot be empty.").max(200, "Search query cannot exceed 200 characters.").optional());
 
 const limitSchema = z.preprocess(
   (value) => {

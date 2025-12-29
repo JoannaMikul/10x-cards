@@ -149,10 +149,10 @@ const tagIdsSchema = z
   .refine((values) => new Set(values).size === values.length, "Tag ids must be unique.")
   .optional();
 
-const ACCEPTABLE_ORIGINS = ["ai-full", "ai-edited"] as const;
-const EDITABLE_CANDIDATE_STATUS = "edited" as const;
-const MAX_FRONT_LENGTH = 200;
-const MAX_BACK_LENGTH = 500;
+export const ACCEPTABLE_ORIGINS = ["ai-full", "ai-edited"] as const;
+export const EDITABLE_CANDIDATE_STATUS = "edited" as const;
+export const MAX_FRONT_LENGTH = 200;
+export const MAX_BACK_LENGTH = 500;
 
 export const getCandidateParamsSchema = z.object({
   id: z

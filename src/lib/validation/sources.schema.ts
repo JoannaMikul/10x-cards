@@ -21,37 +21,32 @@ export interface SourcesQuery {
   sort: SourceSortField;
 }
 
-const kindSchema = z
-  .preprocess(
-    (value) => {
-      if (typeof value !== "string") {
-        return value ?? undefined;
-      }
+const kindSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return undefined;
+    }
 
-      const normalized = value.trim().toLowerCase();
-      return normalized.length === 0 ? undefined : normalized;
-    },
-    z.enum(SOURCE_KIND_VALUES, {
+    const normalized = value.trim().toLowerCase();
+    return normalized.length === 0 ? undefined : normalized;
+  },
+  z
+    .enum(SOURCE_KIND_VALUES, {
       errorMap: () => ({
         message: `Kind must be one of: ${SOURCE_KIND_VALUES.join(", ")}.`,
       }),
     })
-  )
-  .optional();
+    .optional()
+);
 
-const searchSchema = z
-  .preprocess(
-    (value) => {
-      if (typeof value !== "string") {
-        return value ?? undefined;
-      }
+const searchSchema = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
 
-      const trimmed = value.trim();
-      return trimmed.length === 0 ? undefined : trimmed;
-    },
-    z.string().min(1, "Search query cannot be empty.").max(200, "Search query cannot exceed 200 characters.")
-  )
-  .optional();
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? undefined : trimmed;
+}, z.string().min(1, "Search query cannot be empty.").max(200, "Search query cannot exceed 200 characters.").optional());
 
 const limitSchema = z.preprocess(
   (value) => {

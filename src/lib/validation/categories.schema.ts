@@ -18,18 +18,12 @@ export interface CategoriesQuery {
 }
 
 const searchSchema = z
-  .preprocess(
-    (value) => {
-      if (typeof value !== "string") {
-        return value ?? undefined;
-      }
-
-      const trimmed = value.trim();
-      return trimmed.length === 0 ? undefined : trimmed;
-    },
-    z.string().min(1, "Search query cannot be empty.").max(200, "Search query cannot exceed 200 characters.")
-  )
-  .optional();
+  .string()
+  .transform((value) => value.trim())
+  .transform((value) => (value.length === 0 ? undefined : value))
+  .pipe(
+    z.string().min(1, "Search query cannot be empty.").max(200, "Search query cannot exceed 200 characters.").optional()
+  );
 
 const limitSchema = z.preprocess(
   (value) => {
@@ -81,9 +75,9 @@ const sortSchema = z.preprocess(
 const cursorSchema = z.string().trim().min(1, "Cursor cannot be empty.").optional();
 
 export const categoriesQuerySchema = z.object({
-  search: searchSchema,
+  search: searchSchema.optional(),
   limit: limitSchema,
-  cursor: cursorSchema,
+  cursor: cursorSchema.optional(),
   sort: sortSchema,
 });
 
@@ -105,6 +99,11 @@ export function decodeCategoryCursor(value: string): number {
   }
 
   const trimmed = decoded.trim();
+
+  if (!/^\d+$/.test(trimmed)) {
+    throw new InvalidCategoryCursorError("Cursor must decode to a positive integer identifier.");
+  }
+
   const cursorId = Number.parseInt(trimmed, 10);
 
   if (!Number.isFinite(cursorId) || cursorId <= 0) {
@@ -124,12 +123,10 @@ export function buildCategoriesQuery(payload: CategoriesQuerySchema): Categories
     : rest;
 }
 
-// Schema for creating a new category (POST /api/categories)
 const createCategoryNameSchema = z
   .string()
-  .min(1, "Category name cannot be empty.")
-  .max(255, "Category name cannot exceed 255 characters.")
-  .transform((value) => value.trim());
+  .transform((value) => value.trim())
+  .pipe(z.string().min(1, "Category name cannot be empty.").max(255, "Category name cannot exceed 255 characters."));
 
 const createCategorySlugSchema = z
   .string()
@@ -139,8 +136,9 @@ const createCategorySlugSchema = z
 
 const createCategoryDescriptionSchema = z
   .string()
-  .optional()
-  .transform((value) => (value ? value.trim() : undefined));
+  .transform((value) => value.trim())
+  .transform((value) => (value.length === 0 ? undefined : value))
+  .optional();
 
 const createCategoryColorSchema = z
   .string()

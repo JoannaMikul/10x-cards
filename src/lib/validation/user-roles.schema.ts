@@ -1,14 +1,12 @@
 import { z } from "zod";
 
-// User roles available in the system
 export const USER_ROLE_VALUES = ["admin"] as const;
 export type UserRole = (typeof USER_ROLE_VALUES)[number];
 
-// Schema for creating a new user role assignment (POST /api/admin/user-roles)
-const createUserRoleUserIdSchema = z
-  .string()
-  .uuid("User ID must be a valid UUID.")
-  .transform((value) => value.trim());
+const createUserRoleUserIdSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : value),
+  z.string().uuid("User ID must be a valid UUID.")
+);
 
 const createUserRoleRoleSchema = z.enum(USER_ROLE_VALUES, {
   errorMap: () => ({
@@ -23,11 +21,10 @@ export const createUserRoleSchema = z.object({
 
 export type CreateUserRoleSchema = z.infer<typeof createUserRoleSchema>;
 
-// Schema for path parameters in user role operations (DELETE /api/admin/user-roles/:user_id/:role)
-const userRolePathParamsUserIdSchema = z
-  .string()
-  .uuid("User ID must be a valid UUID.")
-  .transform((value) => value.trim());
+const userRolePathParamsUserIdSchema = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() : value),
+  z.string().uuid("User ID must be a valid UUID.")
+);
 
 const userRolePathParamsRoleSchema = z.enum(USER_ROLE_VALUES, {
   errorMap: () => ({

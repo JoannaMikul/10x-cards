@@ -5,7 +5,6 @@ import { decodeBase64 } from "../utils/base64.ts";
 
 const CARD_ORIGINS = ["ai-full", "ai-edited", "manual"] as const satisfies readonly Enums<"card_origin">[];
 
-// Query parameters constants
 const LIMIT_DEFAULT = 20;
 const LIMIT_MIN = 1;
 const LIMIT_MAX = 100;
@@ -64,6 +63,7 @@ export const createFlashcardSchema = z.object({
   content_source_id: positiveIntSchema.optional(),
   tag_ids: tagIdsSchema,
   metadata: jsonSchema.optional(),
+  next_review_at: z.string().datetime("Next review date must be a valid ISO date string.").optional(),
 });
 
 export type CreateFlashcardPayload = z.infer<typeof createFlashcardSchema>;
@@ -96,12 +96,12 @@ export const updateFlashcardSchema = z.object({
   content_source_id: positiveIntSchema.optional(),
   tag_ids: tagIdsSchema,
   metadata: jsonSchema.optional(),
+  next_review_at: z.string().datetime("Next review date must be a valid ISO date string.").optional(),
   deleted_at: z.union([z.literal(true), z.string().datetime()]).optional(),
 });
 
 export type UpdateFlashcardPayload = z.infer<typeof updateFlashcardSchema>;
 
-// Query validation schemas
 export const flashcardsQuerySchema = z.object({
   limit: z
     .string()
@@ -147,7 +147,6 @@ export const flashcardsQuerySchema = z.object({
 
 export type FlashcardsQueryPayload = z.infer<typeof flashcardsQuerySchema>;
 
-// Runtime query interface
 export interface FlashcardsQuery {
   limit: number;
   cursor?: FlashcardsCursor;
@@ -189,7 +188,6 @@ export function decodeFlashcardsCursor(value: string): FlashcardsCursor {
       throw new InvalidFlashcardsCursorError("Cursor parts cannot be empty.");
     }
 
-    // Validate ISO date format
     const date = new Date(createdAt);
     if (isNaN(date.getTime())) {
       throw new InvalidFlashcardsCursorError("Invalid created_at timestamp in cursor.");

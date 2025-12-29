@@ -55,7 +55,10 @@ export const generationErrorLogsQuerySchema = z.object({
 
 export type GenerationErrorLogsQuery = z.infer<typeof generationErrorLogsQuerySchema>;
 
-export function buildGenerationErrorLogsQuery(params: GenerationErrorLogsQuery): GenerationErrorLogsQuery & {
+export function buildGenerationErrorLogsQuery(params: GenerationErrorLogsQuery): Omit<
+  GenerationErrorLogsQuery,
+  "limit"
+> & {
   limit: number;
 } {
   return {
