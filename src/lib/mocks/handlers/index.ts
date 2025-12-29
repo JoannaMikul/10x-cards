@@ -4,6 +4,7 @@ import { adminKpiHandlers } from "./admin-kpi";
 import { categoriesHandlers } from "./categories";
 import { errorLogsHandlers } from "./error-logs";
 import { flashcardsHandlers } from "./flashcards";
+import { reviewSessionsHandlers } from "./review-sessions";
 import { sourcesHandlers } from "./sources";
 import { tagsHandlers } from "./tags";
 import { userRolesHandlers } from "./user-roles";
@@ -17,6 +18,7 @@ export const apiMockHandlers: HttpHandler[] = [
   ...categoriesHandlers,
   ...errorLogsHandlers,
   ...flashcardsHandlers,
+  ...reviewSessionsHandlers,
   ...sourcesHandlers,
   ...tagsHandlers,
   ...userRolesHandlers,

@@ -24,6 +24,11 @@ interface ReviewStatsItem {
   efactor: number;
 }
 
+const DEFAULT_EFACTOR = 2.5;
+const DEFAULT_PAGINATION_LIMIT = 20;
+const SUPERMEMO_DEFAULT_ITEM = { interval: 0, repetition: 0, efactor: DEFAULT_EFACTOR } as const;
+const PAGINATION_OVERFETCH = 1;
+
 export class ReviewCardNotFoundError extends Error {
   readonly code = REVIEW_ERROR_CODES.CARD_NOT_FOUND;
 
@@ -69,7 +74,7 @@ function reviewStatsToSuperMemoItem(stats: ReviewStatsRow): ReviewStatsItem {
   return {
     interval: stats.last_interval_days ?? 0,
     repetition: stats.consecutive_successes,
-    efactor: 2.5, // Default efactor if not stored, though it should be in aggregates
+    efactor: DEFAULT_EFACTOR,
   };
 }
 
@@ -128,12 +133,8 @@ function processReviewEntry(
 ): Omit<ReviewEventRow, "id" | "user_id" | "reviewed_at"> {
   const currentStats = statsMap[cardId];
 
-  // Get current SuperMemo state
-  const superMemoItem = currentStats
-    ? reviewStatsToSuperMemoItem(currentStats)
-    : { interval: 0, repetition: 0, efactor: 2.5 };
+  const superMemoItem = currentStats ? reviewStatsToSuperMemoItem(currentStats) : SUPERMEMO_DEFAULT_ITEM;
 
-  // Map outcome to grade and apply SuperMemo algorithm
   const grade = mapOutcomeToGrade(reviewEntry.outcome);
   const updatedItem = supermemo(superMemoItem, grade as 0 | 1 | 2 | 3 | 4 | 5);
 
@@ -180,17 +181,35 @@ export async function createReviewSession(
     return { logged: 0 };
   }
 
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+
   const cardIds = [...new Set(reviews.map((review) => review.card_id))];
 
   await validateCardOwnership(supabase, userId, cardIds);
 
-  const statsMap = await fetchReviewStatsBatch(supabase, userId, cardIds);
+  for (const review of reviews) {
+    if (!review.card_id || !review.outcome) {
+      throw new Error(`Invalid review entry: missing card_id or outcome`);
+    }
+    if (!["again", "fail", "hard", "good", "easy"].includes(review.outcome)) {
+      throw new Error(`Invalid review outcome: ${review.outcome}`);
+    }
+  }
 
-  const reviewEvents = reviews.map((review) => processReviewEntry(review.card_id, review, statsMap));
+  try {
+    const statsMap = await fetchReviewStatsBatch(supabase, userId, cardIds);
+    const reviewEvents = reviews.map((review) => processReviewEntry(review.card_id, review, statsMap));
 
-  await insertReviewEventsBatch(supabase, userId, reviewEvents);
+    await insertReviewEventsBatch(supabase, userId, reviewEvents);
 
-  return { logged: reviews.length };
+    return { logged: reviews.length };
+  } catch (error) {
+    // Log error for debugging (in production you'd use a proper logging service)
+    console.error("Failed to create review session:", error);
+    throw error;
+  }
 }
 
 export async function getReviewEvents(
@@ -198,15 +217,14 @@ export async function getReviewEvents(
   userId: string,
   query: ReviewEventsQuery
 ): Promise<ReviewEventListResponse> {
-  const { card_id, from, to, limit = 20, cursor } = query;
+  const { card_id, from, to, limit = DEFAULT_PAGINATION_LIMIT, cursor } = query;
 
-  // Build the base query with RLS filtering (user_id is handled by RLS)
   let dbQuery = supabase
     .from("review_events")
     .select("*", { count: "exact" })
-    .eq("user_id", userId) // Explicit filter for safety, though RLS should handle this
+    .eq("user_id", userId)
     .order("reviewed_at", { ascending: false })
-    .limit(limit + 1); // Fetch one extra to determine if there are more results
+    .limit(limit + PAGINATION_OVERFETCH);
 
   if (card_id) {
     dbQuery = dbQuery.eq("card_id", card_id);
@@ -259,15 +277,14 @@ export async function getReviewStats(
   userId: string,
   query: ReviewStatsQuery
 ): Promise<ReviewStatsListResponse> {
-  const { card_id, next_review_before, limit = 20, cursor } = query;
+  const { card_id, next_review_before, limit = DEFAULT_PAGINATION_LIMIT, cursor } = query;
 
-  // Build the base query with RLS filtering (user_id is handled by RLS)
   let dbQuery = supabase
     .from("review_stats")
     .select("*", { count: "exact" })
-    .eq("user_id", userId) // Explicit filter for safety, though RLS should handle this
+    .eq("user_id", userId)
     .order("next_review_at", { ascending: true })
-    .limit(limit + 1); // Fetch one extra to determine if there are more results
+    .limit(limit + PAGINATION_OVERFETCH);
 
   if (card_id) {
     dbQuery = dbQuery.eq("card_id", card_id);
@@ -313,14 +330,169 @@ export async function getReviewStats(
 
 interface ReviewSessionParams {
   cardIds?: string;
-  mode?: string;
+  mode?: "all" | string;
   q?: string;
   categoryId?: string;
   sourceId?: string;
   tagIds?: string;
-  origin?: string;
-  showDeleted?: string;
+  origin?: "manual" | "ai-full" | "ai-edited" | string;
+  showDeleted?: "true" | "false" | string;
   sort?: string;
+}
+
+interface FilteredCardsQuery {
+  supabase: SupabaseClient;
+  userId: string;
+  params: ReviewSessionParams;
+  cardIds?: string[];
+  showDeleted?: boolean;
+}
+
+/**
+ * Validates review session parameters
+ */
+function validateReviewSessionParams(params: ReviewSessionParams): void {
+  // Validate cardIds format
+  if (params.cardIds) {
+    const cardIds = params.cardIds.split(",").filter((id) => id.trim().length > 0);
+    if (cardIds.length === 0) {
+      throw new Error("cardIds parameter cannot be empty when provided");
+    }
+    // Basic UUID validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const id of cardIds) {
+      if (!uuidRegex.test(id.trim())) {
+        throw new Error(`Invalid card ID format: ${id}`);
+      }
+    }
+  }
+
+  // Validate numeric parameters
+  if (params.categoryId && isNaN(parseInt(params.categoryId))) {
+    throw new Error("categoryId must be a valid number");
+  }
+
+  if (params.sourceId && isNaN(parseInt(params.sourceId))) {
+    throw new Error("sourceId must be a valid number");
+  }
+
+  // Validate tagIds format
+  if (params.tagIds) {
+    const tagIds = params.tagIds.split(",").filter((id) => id.trim().length > 0);
+    for (const id of tagIds) {
+      if (isNaN(parseInt(id.trim()))) {
+        throw new Error(`Invalid tag ID format: ${id}`);
+      }
+    }
+  }
+
+  // Validate origin
+  if (params.origin && !["manual", "ai-full", "ai-edited"].includes(params.origin)) {
+    throw new Error(`Invalid origin value: ${params.origin}`);
+  }
+}
+
+/**
+ * Applies common filtering logic to flashcards query
+ */
+function applyFlashcardFilters(
+  query: ReturnType<SupabaseClient["from"]>,
+  params: ReviewSessionParams,
+  cardIds?: string[],
+  showDeleted = false
+): ReturnType<SupabaseClient["from"]> {
+  if (cardIds && cardIds.length > 0) {
+    query = query.in("id", cardIds);
+  }
+
+  const searchQuery = params.q?.trim();
+  if (searchQuery) {
+    query = query.or(`front.ilike.%${searchQuery}%,back.ilike.%${searchQuery}%`);
+  }
+
+  const categoryId = params.categoryId;
+  if (categoryId) {
+    query = query.eq("category_id", parseInt(categoryId));
+  }
+
+  const sourceId = params.sourceId;
+  if (sourceId) {
+    query = query.eq("content_source_id", parseInt(sourceId));
+  }
+
+  const tagIdsParam = params.tagIds;
+  if (tagIdsParam && cardIds) {
+    const tagIds = tagIdsParam
+      .split(",")
+      .map((id) => parseInt(id))
+      .filter((id) => !isNaN(id));
+
+    if (tagIds.length > 0) {
+      query = query.in("id", cardIds); // This will be filtered later with tag intersection
+    }
+  }
+
+  const origin = params.origin;
+  if (origin && ["manual", "ai-full", "ai-edited"].includes(origin)) {
+    query = query.eq("origin", origin as "manual" | "ai-full" | "ai-edited");
+  }
+
+  if (showDeleted) {
+    query = query.neq("deleted_at", null);
+  } else {
+    query = query.is("deleted_at", null);
+  }
+
+  const sort = params.sort || "-created_at";
+  const [column, direction] = sort.startsWith("-") ? [sort.slice(1), "desc" as const] : [sort, "asc" as const];
+  query = query.order(column, { ascending: direction === "asc" });
+
+  return query;
+}
+
+/**
+ * Fetches filtered flashcards with common filtering logic
+ */
+async function fetchFilteredFlashcards({
+  supabase,
+  userId,
+  params,
+  cardIds,
+  showDeleted = false,
+}: FilteredCardsQuery): Promise<FlashcardDTO[]> {
+  let query = supabase
+    .from("flashcards")
+    .select(
+      "id, front, back, origin, metadata, category_id, content_source_id, owner_id, created_at, updated_at, deleted_at"
+    )
+    .eq("owner_id", userId);
+
+  // Apply tag filtering separately if needed
+  let finalCardIds = cardIds;
+  const tagIdsParam = params.tagIds;
+  if (tagIdsParam && cardIds) {
+    const tagIds = tagIdsParam
+      .split(",")
+      .map((id) => parseInt(id))
+      .filter((id) => !isNaN(id));
+
+    if (tagIds.length > 0) {
+      const { data: cardTagData } = await supabase.from("card_tags").select("card_id").in("tag_id", tagIds);
+
+      const filteredCardIds = cardTagData?.map((row) => row.card_id) ?? [];
+      finalCardIds = cardIds.filter((id) => filteredCardIds.includes(id));
+    }
+  }
+
+  query = applyFlashcardFilters(query, params, finalCardIds, showDeleted);
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map(mapToFlashcardDTO);
 }
 
 interface FlashcardRow {
@@ -359,6 +531,8 @@ export async function prepareReviewSession(
   userId: string,
   params: ReviewSessionParams
 ): Promise<ReviewSessionConfig> {
+  validateReviewSessionParams(params);
+
   const cardIdsParam = params.cardIds;
 
   if (cardIdsParam) {
@@ -367,33 +541,14 @@ export async function prepareReviewSession(
       return { cards: [] };
     }
 
-    const { data, error } = await supabase
-      .from("flashcards")
-      .select(
-        `
-        id,
-        front,
-        back,
-        origin,
-        metadata,
-        category_id,
-        content_source_id,
-        owner_id,
-        created_at,
-        updated_at,
-        deleted_at
-      `
-      )
-      .in("id", cardIds)
-      .eq("owner_id", userId)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
+    const cards = await fetchFilteredFlashcards({
+      supabase,
+      userId,
+      params,
+      cardIds,
+      showDeleted: false,
+    });
 
-    if (error) {
-      throw error;
-    }
-
-    const cards = (data ?? []).map(mapToFlashcardDTO);
     if (cards.length === 0) {
       throw new Error(
         "No flashcards found with the provided IDs. They may have been deleted or you don't have access to them."
@@ -422,82 +577,14 @@ export async function prepareReviewSession(
     const cardIdsForReview = (reviewStatsData ?? []).map((stat) => stat.card_id);
 
     if (cardIdsForReview.length > 0 && !showAllCards) {
-      let query = supabase
-        .from("flashcards")
-        .select(
-          `
-          id,
-          front,
-          back,
-          origin,
-          metadata,
-          category_id,
-          content_source_id,
-          owner_id,
-          created_at,
-          updated_at,
-          deleted_at
-        `
-        )
-        .in("id", cardIdsForReview)
-        .eq("owner_id", userId)
-        .is("deleted_at", null);
-
-      const searchQuery = params.q?.trim();
-      if (searchQuery) {
-        query = query.or(`front.ilike.%${searchQuery}%,back.ilike.%${searchQuery}%`);
-      }
-
-      const categoryId = params.categoryId;
-      if (categoryId) {
-        query = query.eq("category_id", parseInt(categoryId));
-      }
-
-      const sourceId = params.sourceId;
-      if (sourceId) {
-        query = query.eq("content_source_id", parseInt(sourceId));
-      }
-
-      const tagIdsParam = params.tagIds;
-      if (tagIdsParam) {
-        const tagIds = tagIdsParam
-          .split(",")
-          .map((id) => parseInt(id))
-          .filter((id) => !isNaN(id));
-        if (tagIds.length > 0) {
-          const { data: cardTagData } = await supabase.from("card_tags").select("card_id").in("tag_id", tagIds);
-
-          const filteredCardIds = cardTagData?.map((row) => row.card_id) ?? [];
-          const intersectingCardIds = cardIdsForReview.filter((id) => filteredCardIds.includes(id));
-          if (intersectingCardIds.length > 0) {
-            query = query.in("id", intersectingCardIds);
-          } else {
-            query = query.eq("id", "00000000-0000-0000-0000-000000000000");
-          }
-        }
-      }
-
-      const origin = params.origin;
-      if (origin && ["manual", "ai-full", "ai-edited"].includes(origin)) {
-        query = query.eq("origin", origin as "manual" | "ai-full" | "ai-edited");
-      }
-
       const showDeleted = params.showDeleted === "true";
-      if (showDeleted) {
-        query = query.neq("deleted_at", null);
-      }
-
-      const sort = params.sort || "-created_at";
-      const [column, direction] = sort.startsWith("-") ? [sort.slice(1), "desc" as const] : [sort, "asc" as const];
-      query = query.order(column, { ascending: direction === "asc" });
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      const cards = (data ?? []).map(mapToFlashcardDTO);
+      const cards = await fetchFilteredFlashcards({
+        supabase,
+        userId,
+        params,
+        cardIds: cardIdsForReview,
+        showDeleted,
+      });
 
       const selection: FlashcardSelectionState = {
         mode: "due-for-review",
@@ -506,80 +593,13 @@ export async function prepareReviewSession(
 
       return { cards, selection };
     } else {
-      let query = supabase
-        .from("flashcards")
-        .select(
-          `
-          id,
-          front,
-          back,
-          origin,
-          metadata,
-          category_id,
-          content_source_id,
-          owner_id,
-          created_at,
-          updated_at,
-          deleted_at
-        `
-        )
-        .eq("owner_id", userId)
-        .is("deleted_at", null);
-
-      const searchQuery = params.q?.trim();
-      if (searchQuery) {
-        query = query.or(`front.ilike.%${searchQuery}%,back.ilike.%${searchQuery}%`);
-      }
-
-      const categoryId = params.categoryId;
-      if (categoryId) {
-        query = query.eq("category_id", parseInt(categoryId));
-      }
-
-      const sourceId = params.sourceId;
-      if (sourceId) {
-        query = query.eq("content_source_id", parseInt(sourceId));
-      }
-
-      const tagIdsParam = params.tagIds;
-      if (tagIdsParam) {
-        const tagIds = tagIdsParam
-          .split(",")
-          .map((id) => parseInt(id))
-          .filter((id) => !isNaN(id));
-        if (tagIds.length > 0) {
-          const { data: cardTagData } = await supabase.from("card_tags").select("card_id").in("tag_id", tagIds);
-
-          const filteredCardIds = cardTagData?.map((row) => row.card_id) ?? [];
-          if (filteredCardIds.length > 0) {
-            query = query.in("id", filteredCardIds);
-          } else {
-            query = query.eq("id", "00000000-0000-0000-0000-000000000000");
-          }
-        }
-      }
-
-      const origin = params.origin;
-      if (origin && ["manual", "ai-full", "ai-edited"].includes(origin)) {
-        query = query.eq("origin", origin as "manual" | "ai-full" | "ai-edited");
-      }
-
       const showDeleted = params.showDeleted === "true";
-      if (showDeleted) {
-        query = query.neq("deleted_at", null);
-      }
-
-      const sort = params.sort || "-created_at";
-      const [column, direction] = sort.startsWith("-") ? [sort.slice(1), "desc" as const] : [sort, "asc" as const];
-      query = query.order(column, { ascending: direction === "asc" });
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      const cards = (data ?? []).map(mapToFlashcardDTO);
+      const cards = await fetchFilteredFlashcards({
+        supabase,
+        userId,
+        params,
+        showDeleted,
+      });
 
       const selection: FlashcardSelectionState = {
         mode: showAllCards ? "all-cards" : "due-for-review-fallback",
