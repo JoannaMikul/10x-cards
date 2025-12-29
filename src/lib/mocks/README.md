@@ -85,6 +85,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - `categories.api.mocks.ts` - Category CRUD operations ✅ (integrated with MSW handlers, unit tests available)
 - `error-logs.api.mocks.ts` - Error logs listing operations ✅ (integrated with MSW handlers, unit tests available)
 - `flashcards.api.mocks.ts` - Flashcard CRUD operations ✅ (integrated with MSW handlers, unit tests available)
+- `tags.api.mocks.ts` - Tag listing operations ✅ (integrated with MSW handlers, unit tests available)
 - `flashcard-tags.api.mocks.ts` - Flashcard tag operations 🔄 (requires MSW integration)
 - `user-roles.api.mocks.ts` - User role management 🔄 (requires MSW integration)
 - `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
@@ -99,6 +100,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - ✅ **Categories mocks**: MSW handlers integrated for full CRUD operations (`/api/categories/*`) + unit tests available
 - ✅ **Error Logs mocks**: MSW handlers integrated for error logs listing (`/api/admin/generation-errors`) + unit tests available
 - ✅ **Flashcards mocks**: MSW handlers integrated for full CRUD operations (`/api/flashcards/*`) + unit tests available
+- ✅ **Tags mocks**: MSW handlers integrated for tag listing operations (`/api/tags`) + unit tests available
 - 🔄 **Other API mocks**: Available for reference but require refactoring for full MSW integration
 - 📋 **MSW handlers**: `msw-handlers.ts` provides basic handlers and can be extended
 
