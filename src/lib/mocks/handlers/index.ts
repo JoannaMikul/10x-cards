@@ -2,6 +2,7 @@ import { http, HttpResponse, type HttpHandler } from "msw";
 
 import { adminKpiHandlers } from "./admin-kpi";
 import { categoriesHandlers } from "./categories";
+import { errorLogsHandlers } from "./error-logs";
 
 /**
  * All MSW handlers for API mocking in tests
@@ -10,6 +11,7 @@ import { categoriesHandlers } from "./categories";
 export const apiMockHandlers: HttpHandler[] = [
   ...adminKpiHandlers,
   ...categoriesHandlers,
+  ...errorLogsHandlers,
 
   // Catch-all handlers for unhandled requests - return 404 (must be last)
   http.get("*", ({ request }) => {

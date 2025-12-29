@@ -82,6 +82,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - `admin-kpi.api.mocks.ts` - Admin KPI analytics endpoints ✅ (integrated with MSW)
 - `analytics.api.mocks.ts` - Database mock data for AnalyticsService unit tests 🔧 (database tables)
 - `categories.api.mocks.ts` - Category CRUD operations ✅ (integrated with MSW handlers, unit tests available)
+- `error-logs.api.mocks.ts` - Error logs listing operations ✅ (integrated with MSW handlers, unit tests available)
 - `flashcard-tags.api.mocks.ts` - Flashcard tag operations 🔄 (requires MSW integration)
 - `user-roles.api.mocks.ts` - User role management 🔄 (requires MSW integration)
 - `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
@@ -95,6 +96,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 
 - ✅ **Admin KPI mocks**: Integrated with MSW handlers for unit tests
 - ✅ **Categories mocks**: MSW handlers integrated for full CRUD operations (`/api/categories/*`) + unit tests available
+- ✅ **Error Logs mocks**: MSW handlers integrated for error logs listing (`/api/admin/generation-errors`) + unit tests available
 - 🔄 **Other API mocks**: Available for reference but require refactoring for full MSW integration
 - 📋 **MSW handlers**: `msw-handlers.ts` provides basic handlers and can be extended
 
