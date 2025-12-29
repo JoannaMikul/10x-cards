@@ -11,6 +11,8 @@ src/lib/mocks/
 │   ├── admin-kpi.ts    # Admin KPI handlers
 │   ├── categories.ts   # Categories CRUD handlers
 │   ├── flashcards.ts   # Flashcards CRUD handlers
+│   ├── tags.ts         # Tags handlers
+│   ├── user-roles.ts   # User roles CRUD handlers
 │   └── ...             # Other handlers (to be added)
 ├── mocks/              # API mock data
 │   ├── admin-kpi.api.mocks.ts
@@ -87,7 +89,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - `flashcards.api.mocks.ts` - Flashcard CRUD operations ✅ (integrated with MSW handlers, unit tests available)
 - `tags.api.mocks.ts` - Tag listing operations ✅ (integrated with MSW handlers, unit tests available)
 - `flashcard-tags.api.mocks.ts` - Flashcard tag operations 🔄 (requires MSW integration)
-- `user-roles.api.mocks.ts` - User role management 🔄 (requires MSW integration)
+- `user-roles.api.mocks.ts` - User role management ✅ (integrated with MSW handlers, unit tests available)
 - `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
 - `generation-candidates.api.mocks.ts` - AI generation candidates 🔄 (requires MSW integration)
 - `generations.api.mocks.ts` - AI generation requests 🔄 (requires MSW integration)
@@ -101,6 +103,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - ✅ **Error Logs mocks**: MSW handlers integrated for error logs listing (`/api/admin/generation-errors`) + unit tests available
 - ✅ **Flashcards mocks**: MSW handlers integrated for full CRUD operations (`/api/flashcards/*`) + unit tests available
 - ✅ **Tags mocks**: MSW handlers integrated for tag listing operations (`/api/tags`) + unit tests available
+- ✅ **User Roles mocks**: MSW handlers integrated for user role management (`/api/admin/user-roles`) + unit tests available
 - 🔄 **Other API mocks**: Available for reference but require refactoring for full MSW integration
 - 📋 **MSW handlers**: `msw-handlers.ts` provides basic handlers and can be extended
 

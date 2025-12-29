@@ -5,6 +5,7 @@ import { categoriesHandlers } from "./categories";
 import { errorLogsHandlers } from "./error-logs";
 import { flashcardsHandlers } from "./flashcards";
 import { tagsHandlers } from "./tags";
+import { userRolesHandlers } from "./user-roles";
 
 /**
  * All MSW handlers for API mocking in tests
@@ -16,6 +17,7 @@ export const apiMockHandlers: HttpHandler[] = [
   ...errorLogsHandlers,
   ...flashcardsHandlers,
   ...tagsHandlers,
+  ...userRolesHandlers,
 
   // Catch-all handlers for unhandled requests - return 404 (must be last)
   http.get("*", ({ request }) => {
