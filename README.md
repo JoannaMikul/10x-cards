@@ -15,6 +15,9 @@
   - [Tech stack](#tech-stack)
   - [Getting started locally](#getting-started-locally)
   - [Available scripts](#available-scripts)
+  - [Testing strategy](#testing-strategy)
+    - [Unit and Integration Tests](#unit-and-integration-tests)
+    - [End-to-End Tests](#end-to-end-tests)
   - [Project scope](#project-scope)
   - [Project status](#project-status)
   - [License](#license)
@@ -42,6 +45,8 @@ The app uses email/password authentication with RLS restrictions in Supabase. It
 **🤖 AI**: OpenRouter (multi-model access, budget controls)
 
 **🚀 CI/CD & Hosting**: GitHub Actions • DigitalOcean (Docker)
+
+**🧪 Testing**: Vitest • Playwright • React Testing Library • MSW • Axe-core
 
 **🧰 Tooling** : ESLint • 9 Prettier (Astro plugin) • Husky • lint-staged
 
@@ -109,6 +114,41 @@ Get up and running in a couple of minutes:
 - **`npm run lint`**: Lint the codebase
 - **`npm run lint:fix`**: Lint and attempt to fix issues
 - **`npm run format`**: Format files with Prettier
+- **`npm run test`**: Run unit and integration tests with Vitest
+- **`npm run test:e2e`**: Run end-to-end tests with Playwright
+- **`npm run test:ui`**: Open Vitest UI for interactive test debugging
+
+## Testing strategy
+
+The application uses a comprehensive testing approach to ensure quality and reliability:
+
+### Unit and Integration Tests
+
+- **Vitest** – Fast unit test runner optimized for Vite/Astro with native TypeScript/ESM support
+- **React Testing Library** – Testing React components following best practices (testing behavior, not implementation)
+- **@testing-library/user-event** – Realistic user interaction simulations
+- **@testing-library/jest-dom** – Custom DOM matchers for better assertions
+- **MSW (Mock Service Worker)** – HTTP mocking for API and Supabase in tests and development
+
+**Coverage focus**:
+
+- Zod validation schemas (`src/lib/validation/*.ts`)
+- Domain services (`src/lib/services/*.ts`)
+- Custom hooks and utilities
+- AI integration logic (`openrouter-service.ts`)
+- Spaced repetition calculations (SuperMemo integration)
+
+### End-to-End Tests
+
+- **Playwright** – Browser-based E2E testing with support for multiple browsers (Chromium, Firefox, WebKit)
+- **@axe-core/playwright** – Automated accessibility testing integrated with E2E scenarios
+
+**Test scenarios**:
+
+- Full user flows: registration → login → AI generation → candidate review → flashcard management → review sessions
+- Admin panel functionality (KPIs, categories, tags, sources, error logs)
+- Error handling and edge cases
+- Responsive design across desktop, tablet, and mobile viewports
 
 ## Project scope
 
