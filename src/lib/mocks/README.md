@@ -11,6 +11,8 @@ src/lib/mocks/
 │   ├── admin-kpi.ts    # Admin KPI handlers
 │   ├── categories.ts   # Categories CRUD handlers
 │   ├── flashcards.ts   # Flashcards CRUD handlers
+│   ├── generation-processor.ts  # Generation processor dependencies
+│   ├── openrouter.ts   # OpenRouter API handlers
 │   ├── tags.ts         # Tags handlers
 │   ├── user-roles.ts   # User roles CRUD handlers
 │   └── ...             # Other handlers (to be added)
@@ -19,6 +21,7 @@ src/lib/mocks/
 │   ├── analytics.api.mocks.ts
 │   ├── categories.api.mocks.ts
 │   ├── flashcards.api.mocks.ts
+│   ├── openrouter.api.mocks.ts     # OpenRouter API mock data
 │   └── ...             # All .api.mocks.ts files
 ├── msw-handlers.ts     # Backward compatibility (redirects to handlers/)
 └── README.md           # This documentation
@@ -92,7 +95,9 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - `user-roles.api.mocks.ts` - User role management ✅ (integrated with MSW handlers, unit tests available)
 - `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
 - `generation-candidates.api.mocks.ts` - AI generation candidates ✅ (integrated with MSW handlers, unit tests available)
+- `generation-processor.service.test.ts` - Generation processor service ✅ (comprehensive unit tests with MSW integration)
 - `generations.api.mocks.ts` - AI generation requests 🔄 (requires MSW integration)
+- `openrouter.api.mocks.ts` - OpenRouter AI API mock data ✅ (integrated with MSW handlers for unit tests)
 - `review-sessions.api.mocks.ts` - Review session handling ✅ (integrated with MSW handlers, unit tests available)
 - `sources.api.mocks.ts` - Source management ✅ (integrated with MSW handlers, unit tests available)
 - `tags.api.mocks.ts` - Tag operations 🔄 (requires MSW integration)
@@ -108,6 +113,8 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - ✅ **User Roles mocks**: MSW handlers integrated for user role management (`/api/admin/user-roles`) + unit tests available
 - ✅ **Review Sessions mocks**: MSW handlers integrated for review session creation (`/api/review-sessions`) + unit tests available
 - ✅ **Generation Candidates mocks**: MSW handlers integrated for generation candidate operations (`/api/generation-candidates/*`) + unit tests available
+- ✅ **Generation Processor mocks**: MSW handlers for generation processor service dependencies (tags, error logs) + comprehensive unit tests
+- ✅ **OpenRouter mocks**: MSW handlers for OpenRouter AI API endpoints (`https://openrouter.ai/api/v1/chat/completions`) + unit tests
 - 🔄 **Other API mocks**: Available for reference but require refactoring for full MSW integration
 - 📋 **MSW handlers**: `msw-handlers.ts` provides basic handlers and can be extended
 
@@ -132,6 +139,48 @@ fetchSpy.mockResolvedValueOnce({
   json: vi.fn().mockResolvedValueOnce(mockData.response),
 });
 ```
+
+### Generation Processor Service Testing
+
+The generation processor service has comprehensive unit tests that demonstrate advanced MSW usage patterns:
+
+```typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { processGeneration } from "../generation-processor.service";
+import { server } from "../../../test/setup";
+import { openRouterHandlers } from "../../mocks/handlers/openrouter";
+
+describe("generation-processor.service", () => {
+  beforeEach(() => {
+    server.use(...openRouterHandlers);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("should handle OpenRouter rate limit with retry", async () => {
+    // Mock OpenRouter service to simulate rate limiting and recovery
+    const mockService = vi.mocked(openRouterService);
+    mockService.completeStructuredChat.mockRejectedValueOnce(new Error("Rate limit exceeded")).mockResolvedValueOnce({
+      cards: [
+        /* valid cards */
+      ],
+    });
+
+    const result = await processGeneration(mockSupabase, generation);
+    expect(result.success).toBe(true);
+  });
+});
+```
+
+Key testing patterns covered:
+
+- **Resilience testing**: Circuit breaker, retry logic, timeout handling
+- **Error scenarios**: Rate limits, server errors, network failures
+- **Data validation**: Flashcard sanitization, tag ID filtering
+- **Batch processing**: Multiple generation handling
+- **External API mocking**: OpenRouter AI service simulation
 
 ## Best Practices
 
@@ -182,3 +231,4 @@ describe("API Service", () => {
 - Refactor `.api.mocks.ts` files to remove Supabase type dependencies
 - Create MSW handler factories for common response patterns
 - Add selective mock loading for better performance
+- Expand OpenRouter mock scenarios for more comprehensive AI service testing

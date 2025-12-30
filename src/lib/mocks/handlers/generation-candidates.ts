@@ -6,10 +6,6 @@ import {
   rejectGenerationCandidateApiMocks,
   updateGenerationCandidateApiMocks,
 } from "../mocks/generation-candidates.api.mocks";
-
-/**
- * MSW handlers for generation candidates API endpoints
- */
 export const generationCandidatesHandlers: HttpHandler[] = [
   http.get("/api/generation-candidates", ({ request }) => {
     const url = new URL(request.url);

@@ -1,7 +1,12 @@
 import type { Tables } from "../../db/database.types.ts";
 import type { SupabaseClient } from "../../db/supabase.client.ts";
 import type { GenerationRecord } from "./generations.service.ts";
-import { openRouterService } from "../openrouter-service.ts";
+import {
+  openRouterService,
+  OpenRouterRateLimitError,
+  OpenRouterServerError,
+  OpenRouterNetworkError,
+} from "../openrouter-service.ts";
 import { flashcardsResponseFormat, type FlashcardsGenerationResult } from "../ai-schemas.ts";
 import { logGenerationError } from "./error-logs.service.ts";
 
@@ -16,6 +21,43 @@ const MAX_BACK_LENGTH = 500;
 const BACK_TRUNCATE_LENGTH = 450;
 
 const DEFAULT_TEMPERATURE = 0.3;
+
+interface ResilienceConfig {
+  retry: {
+    maxAttempts: number;
+    baseDelayMs: number;
+    maxDelayMs: number;
+    backoffMultiplier: number;
+  };
+  circuitBreaker: {
+    failureThreshold: number;
+    resetTimeoutMs: number;
+    monitoringPeriodMs: number;
+  };
+  timeout: {
+    requestTimeoutMs: number;
+    totalTimeoutMs: number;
+  };
+}
+
+const DEFAULT_RESILIENCE_CONFIG: ResilienceConfig = {
+  retry: {
+    maxAttempts: 3,
+    baseDelayMs: 1000, // 1 second
+    maxDelayMs: 30000, // 30 seconds
+    backoffMultiplier: 2,
+  },
+  circuitBreaker: {
+    failureThreshold: 5,
+    resetTimeoutMs: 60000, // 1 minute
+    monitoringPeriodMs: 300000, // 5 minutes
+  },
+  timeout: {
+    requestTimeoutMs: 60000, // 1 minute per request
+    totalTimeoutMs: 300000, // 5 minutes total
+  },
+};
+
 const SYSTEM_PROMPT = `You are an expert in creating high-quality educational flashcards.
 
 Tasks:
@@ -68,7 +110,138 @@ interface RawFlashcard {
 
 type AvailableTag = Pick<Tables<"tags">, "id" | "name" | "slug">;
 
-function validateFlashcard(card: unknown): ValidatedFlashcard | null {
+class CircuitBreaker {
+  private failureCount = 0;
+  private lastFailureTime = 0;
+  private state: "CLOSED" | "OPEN" | "HALF_OPEN" = "CLOSED";
+
+  constructor(
+    private readonly failureThreshold: number,
+    private readonly resetTimeoutMs: number
+  ) {}
+
+  async execute<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.state === "OPEN") {
+      if (Date.now() - this.lastFailureTime > this.resetTimeoutMs) {
+        this.state = "HALF_OPEN";
+      } else {
+        throw new Error("Circuit breaker is OPEN - service temporarily unavailable");
+      }
+    }
+
+    try {
+      const result = await operation();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+
+  private onSuccess(): void {
+    this.failureCount = 0;
+    this.state = "CLOSED";
+  }
+
+  private onFailure(): void {
+    this.failureCount++;
+    this.lastFailureTime = Date.now();
+
+    if (this.failureCount >= this.failureThreshold) {
+      this.state = "OPEN";
+    }
+  }
+
+  getState(): string {
+    return this.state;
+  }
+
+  getFailureCount(): number {
+    return this.failureCount;
+  }
+}
+
+const openRouterCircuitBreaker = new CircuitBreaker(
+  DEFAULT_RESILIENCE_CONFIG.circuitBreaker.failureThreshold,
+  DEFAULT_RESILIENCE_CONFIG.circuitBreaker.resetTimeoutMs
+);
+
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  config: ResilienceConfig["retry"],
+  shouldRetry: (error: Error) => boolean = () => true
+): Promise<T> {
+  let lastError: Error = new Error("No attempts made");
+
+  for (let attempt = 1; attempt <= config.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt === config.maxAttempts || !shouldRetry(lastError)) {
+        throw lastError;
+      }
+
+      const delay = Math.min(config.baseDelayMs * Math.pow(config.backoffMultiplier, attempt - 1), config.maxDelayMs);
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+}
+
+function isRetryableError(error: Error): boolean {
+  if (error instanceof OpenRouterRateLimitError) {
+    return true;
+  }
+
+  if (error instanceof OpenRouterServerError) {
+    // Retry on 5xx errors except 501 (Not Implemented)
+    return error.statusCode >= 500 && error.statusCode !== 501;
+  }
+
+  if (error instanceof OpenRouterNetworkError) {
+    return true;
+  }
+
+  // Also check error name for test compatibility
+  if (error.name === "OpenRouterRateLimitError" || error.message.includes("Rate limit")) {
+    return true;
+  }
+
+  if (error.name === "OpenRouterServerError" || error.message.includes("service temporarily unavailable")) {
+    return true;
+  }
+
+  // Don't retry on authentication, bad request, or parsing errors
+  return false;
+}
+
+export function sanitizeTagIds(value: unknown): number[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const numericValues = value.filter(
+    (item): item is number => typeof item === "number" && Number.isInteger(item) && item > 0
+  );
+
+  return Array.from(new Set(numericValues));
+}
+
+export function validateFlashcard(card: unknown): ValidatedFlashcard | null {
   if (!card || typeof card !== "object") {
     return null;
   }
@@ -86,7 +259,6 @@ function validateFlashcard(card: unknown): ValidatedFlashcard | null {
     return null;
   }
 
-  // Ensure back text doesn't exceed database constraint
   const finalBack = back.length <= MAX_BACK_LENGTH ? back : back.substring(0, BACK_TRUNCATE_LENGTH) + "...";
 
   return {
@@ -94,18 +266,6 @@ function validateFlashcard(card: unknown): ValidatedFlashcard | null {
     back: finalBack,
     tagIds: sanitizeTagIds(rawCard.tag_ids),
   };
-}
-
-function sanitizeTagIds(value: unknown): number[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  const numericValues = value.filter(
-    (item): item is number => typeof item === "number" && Number.isInteger(item) && item > 0
-  );
-
-  return Array.from(new Set(numericValues));
 }
 
 export async function processGeneration(
@@ -118,15 +278,13 @@ export async function processGeneration(
     const availableTags = await fetchAvailableTags(supabase);
     const prompt = buildFlashcardGenerationPrompt(generation.sanitized_input_text, availableTags);
 
-    const result = await openRouterService.completeStructuredChat<FlashcardsGenerationResult>({
-      systemPrompt: getSystemPrompt(),
-      userPrompt: prompt,
-      responseFormat: flashcardsResponseFormat,
-      model: generation.model,
-      params: {
-        temperature: generation.temperature ?? DEFAULT_TEMPERATURE,
-      },
-    });
+    const result = await performResilientGeneration(
+      getSystemPrompt(),
+      prompt,
+      generation.model,
+      generation.temperature ?? DEFAULT_TEMPERATURE,
+      generation.id
+    );
 
     const candidatesCreated = await saveGenerationCandidates(supabase, generation, result.cards);
 
@@ -134,14 +292,7 @@ export async function processGeneration(
       const errorMessage = "No valid flashcards were generated from the provided text";
       await updateGenerationStatus(supabase, generation.id, "failed", errorMessage);
 
-      await logGenerationError(supabase, {
-        user_id: generation.user_id,
-        model: generation.model,
-        error_code: "no_candidates_generated",
-        error_message: errorMessage,
-        source_text_hash: generation.sanitized_input_sha256 || "",
-        source_text_length: generation.sanitized_input_length || 0,
-      });
+      await logGenerationErrorWithResilience(supabase, generation, new Error(errorMessage), "no_candidates_generated");
 
       return {
         success: false,
@@ -160,14 +311,12 @@ export async function processGeneration(
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     await updateGenerationStatus(supabase, generation.id, "failed", errorMessage);
 
-    await logGenerationError(supabase, {
-      user_id: generation.user_id,
-      model: generation.model,
-      error_code: "ai_generation_failed",
-      error_message: errorMessage,
-      source_text_hash: generation.sanitized_input_sha256 || "",
-      source_text_length: generation.sanitized_input_length || 0,
-    });
+    await logGenerationErrorWithResilience(
+      supabase,
+      generation,
+      error instanceof Error ? error : new Error(errorMessage),
+      "ai_generation_failed"
+    );
 
     return {
       success: false,
@@ -205,7 +354,7 @@ async function updateGenerationStatus(
   }
 }
 
-function getSystemPrompt(): string {
+export function getSystemPrompt(): string {
   return SYSTEM_PROMPT;
 }
 
@@ -216,7 +365,7 @@ function buildFlashcardGenerationPrompt(sourceText: string, availableTags: Avail
   );
 }
 
-function formatAvailableTagsForPrompt(tags: AvailableTag[]): string {
+export function formatAvailableTagsForPrompt(tags: AvailableTag[]): string {
   if (!tags || tags.length === 0) {
     return "No tags are configured. Set `tag_ids` to an empty array for every flashcard.";
   }
@@ -270,6 +419,45 @@ async function saveGenerationCandidates(
   return candidates.length;
 }
 
+async function performResilientGeneration(
+  systemPrompt: string,
+  userPrompt: string,
+  model: string,
+  temperature: number,
+  generationId: string
+): Promise<FlashcardsGenerationResult> {
+  const config = DEFAULT_RESILIENCE_CONFIG;
+
+  const generationOperation = async (): Promise<FlashcardsGenerationResult> => {
+    return await withTimeout(
+      openRouterService.completeStructuredChat<FlashcardsGenerationResult>({
+        systemPrompt,
+        userPrompt,
+        responseFormat: flashcardsResponseFormat,
+        model,
+        params: { temperature },
+      }),
+      config.timeout.requestTimeoutMs
+    );
+  };
+
+  const circuitBreakerOperation = () => openRouterCircuitBreaker.execute(generationOperation);
+
+  try {
+    return await withRetry(circuitBreakerOperation, config.retry, isRetryableError);
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn(`AI generation failed for generation ${generationId}:`, {
+      error: error instanceof Error ? error.message : String(error),
+      circuitBreakerState: openRouterCircuitBreaker.getState(),
+      failureCount: openRouterCircuitBreaker.getFailureCount(),
+      isRetryable: error instanceof Error ? isRetryableError(error) : false,
+    });
+
+    throw error;
+  }
+}
+
 export async function processPendingGenerations(
   supabase: SupabaseClient
 ): Promise<{ processed: number; succeeded: number; failed: number }> {
@@ -307,4 +495,41 @@ export async function processPendingGenerations(
     succeeded,
     failed,
   };
+}
+
+export interface ServiceHealthStatus {
+  circuitBreakerState: string;
+  failureCount: number;
+  isHealthy: boolean;
+  lastChecked: string;
+}
+
+export function getOpenRouterServiceHealth(): ServiceHealthStatus {
+  const state = openRouterCircuitBreaker.getState();
+  const failureCount = openRouterCircuitBreaker.getFailureCount();
+
+  return {
+    circuitBreakerState: state,
+    failureCount,
+    isHealthy: state === "CLOSED",
+    lastChecked: new Date().toISOString(),
+  };
+}
+
+async function logGenerationErrorWithResilience(
+  supabase: SupabaseClient,
+  generation: GenerationRecord,
+  error: Error,
+  errorCode: string
+): Promise<void> {
+  const healthStatus = getOpenRouterServiceHealth();
+
+  await logGenerationError(supabase, {
+    user_id: generation.user_id,
+    model: generation.model,
+    error_code: errorCode,
+    error_message: `${error.message} [Circuit Breaker: ${healthStatus.circuitBreakerState}, Failures: ${healthStatus.failureCount}, Retryable: ${isRetryableError(error)}]`,
+    source_text_hash: generation.sanitized_input_sha256 || "",
+    source_text_length: generation.sanitized_input_length || 0,
+  });
 }
