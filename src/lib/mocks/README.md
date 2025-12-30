@@ -100,6 +100,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - `generations.service.test.ts` - Generations service ✅ (comprehensive unit tests covering all functions)
 - `generations.api.mocks.ts` - AI generation requests ✅ (integrated with MSW handlers, unit tests available)
 - `openrouter.api.mocks.ts` - OpenRouter AI API mock data ✅ (integrated with MSW handlers for unit tests)
+- `openrouter-service.test.ts` - OpenRouter service unit tests ✅ (comprehensive unit tests with MSW integration covering all service methods and error scenarios)
 - `review-sessions.api.mocks.ts` - Review session handling ✅ (integrated with MSW handlers, unit tests available)
 - `sources.api.mocks.ts` - Source management ✅ (integrated with MSW handlers, unit tests available)
 - `tags.api.mocks.ts` - Tag operations 🔄 (requires MSW integration)
@@ -117,7 +118,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - ✅ **Generation Candidates mocks**: MSW handlers integrated for generation candidate operations (`/api/generation-candidates/*`) + unit tests available
 - ✅ **Generations mocks**: MSW handlers integrated for generation operations (`/api/generations/*`) + comprehensive unit tests
 - ✅ **Generation Processor mocks**: MSW handlers for generation processor service dependencies (tags, error logs) + comprehensive unit tests
-- ✅ **OpenRouter mocks**: MSW handlers for OpenRouter AI API endpoints (`https://openrouter.ai/api/v1/chat/completions`) + unit tests
+- ✅ **OpenRouter mocks**: MSW handlers for OpenRouter AI API endpoints (`https://openrouter.ai/api/v1/chat/completions`) + comprehensive unit tests for OpenRouterService class
 - 🔄 **Other API mocks**: Available for reference but require refactoring for full MSW integration
 - 📋 **MSW handlers**: `msw-handlers.ts` provides basic handlers and can be extended
 
@@ -184,6 +185,81 @@ Key testing patterns covered:
 - **Data validation**: Flashcard sanitization, tag ID filtering
 - **Batch processing**: Multiple generation handling
 - **External API mocking**: OpenRouter AI service simulation
+
+### OpenRouter Service Testing
+
+The OpenRouter service has comprehensive unit tests covering all key functionalities with MSW integration:
+
+```typescript
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { server } from "../../../test/setup";
+import { http, HttpResponse } from "msw";
+import { OpenRouterService } from "../../openrouter-service";
+
+describe("OpenRouterService", () => {
+  let service: OpenRouterService;
+
+  beforeEach(() => {
+    service = new OpenRouterService({
+      apiKey: "test-key",
+      defaultModel: "openai/gpt-3.5-turbo",
+      defaultParams: { temperature: 0.2 },
+    });
+  });
+
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("should successfully complete chat", async () => {
+    server.use(
+      http.post("https://openrouter.ai/api/v1/chat/completions", () => {
+        return HttpResponse.json({
+          choices: [{ message: { content: "Test response" } }],
+          usage: { prompt_tokens: 10, completion_tokens: 15, total_tokens: 25 },
+        });
+      })
+    );
+
+    const result = await service.completeChat({ userPrompt: "Hello" });
+    expect(result.text).toBe("Test response");
+  });
+
+  it("should handle structured responses with JSON parsing", async () => {
+    const mockResponse = {
+      choices: [{
+        message: {
+          content: JSON.stringify({
+            cards: [{ front: "Q", back: "A", tag_ids: [1] }]
+          })
+        }
+      }],
+      usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+    };
+
+    server.use(
+      http.post("https://openrouter.ai/api/v1/chat/completions", () => {
+        return HttpResponse.json(mockResponse);
+      })
+    );
+
+    const result = await service.completeStructuredChat({
+      userPrompt: "Generate cards",
+      responseFormat: { type: "json_schema", json_schema: { schema: {} } }
+    });
+
+    expect(result.cards).toHaveLength(1);
+  });
+});
+```
+
+Key testing patterns covered:
+
+- **Constructor validation**: API key requirements, default parameter handling
+- **HTTP client integration**: Headers, request body structure, authentication
+- **Response parsing**: Text responses, structured JSON responses, partial JSON recovery
+- **Error handling**: Network errors, HTTP status codes, parsing failures, rate limits
+- **MSW integration**: Mock server setup, request/response interception, error simulation
 
 ## Best Practices
 
