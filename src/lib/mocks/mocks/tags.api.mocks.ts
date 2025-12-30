@@ -1,5 +1,5 @@
-import type { ApiErrorResponse, TagListResponse } from "../../types";
-import type { TagErrorCode } from "../errors.ts";
+import type { ApiErrorResponse, TagListResponse } from "../../../types";
+import type { TagErrorCode } from "../../errors";
 
 export interface TagsApiMock {
   description: string;

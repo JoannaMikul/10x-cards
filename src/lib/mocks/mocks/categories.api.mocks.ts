@@ -1,11 +1,11 @@
-import type { CategoryErrorCode } from "../errors.ts";
+import type { CategoryErrorCode } from "../../errors";
 import type {
   ApiErrorResponse,
   CategoryDTO,
   CategoryListResponse,
   CreateCategoryCommand,
   UpdateCategoryCommand,
-} from "../../types";
+} from "../../../types";
 
 export interface CategoriesApiMock {
   description: string;

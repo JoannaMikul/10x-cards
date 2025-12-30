@@ -18,10 +18,8 @@ src/lib/mocks/
 │   └── ...             # Other handlers (to be added)
 ├── mocks/              # API mock data
 │   ├── admin-kpi.api.mocks.ts
-│   ├── analytics.api.mocks.ts
 │   ├── categories.api.mocks.ts
 │   ├── flashcards.api.mocks.ts
-│   ├── generation-projection.api.mocks.ts # Generation projection test data
 │   ├── openrouter.api.mocks.ts     # OpenRouter API mock data
 │   └── ...             # All .api.mocks.ts files
 ├── msw-handlers.ts     # Backward compatibility (redirects to handlers/)
@@ -87,12 +85,10 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 ### API Mock Files
 
 - `admin-kpi.api.mocks.ts` - Admin KPI analytics endpoints ✅ (integrated with MSW)
-- `analytics.api.mocks.ts` - Database mock data for AnalyticsService unit tests 🔧 (database tables)
 - `categories.api.mocks.ts` - Category CRUD operations ✅ (integrated with MSW handlers, unit tests available)
 - `error-logs.api.mocks.ts` - Error logs listing operations ✅ (integrated with MSW handlers, unit tests available)
 - `flashcards.api.mocks.ts` - Flashcard CRUD operations ✅ (integrated with MSW handlers, unit tests available)
 - `tags.api.mocks.ts` - Tag listing operations ✅ (integrated with MSW handlers, unit tests available)
-- `flashcard-tags.api.mocks.ts` - Flashcard tag operations 🔄 (requires MSW integration)
 - `user-roles.api.mocks.ts` - User role management ✅ (integrated with MSW handlers, unit tests available)
 - `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
 - `generation-candidates.api.mocks.ts` - AI generation candidates ✅ (integrated with MSW handlers, unit tests available)

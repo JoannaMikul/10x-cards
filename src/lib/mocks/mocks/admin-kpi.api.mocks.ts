@@ -1,5 +1,5 @@
-import type { ApiErrorResponse, AnalyticsKpiResponse } from "../../types";
-import type { AnalyticsErrorCode } from "../errors.ts";
+import type { ApiErrorResponse, AnalyticsKpiResponse } from "../../../types";
+import type { AnalyticsErrorCode } from "../../errors";
 
 export interface AdminKpiApiMock {
   description: string;
@@ -25,7 +25,7 @@ export const adminKpiApiMocks: AdminKpiApiMock[] = [
     },
     response: {
       ai_acceptance_rate: 0.75,
-      ai_share: 0.60,
+      ai_share: 0.6,
       totals: {
         ai: 42,
         manual: 28,

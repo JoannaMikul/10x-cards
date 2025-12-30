@@ -1,5 +1,5 @@
-import type { UserRolesErrorCode } from "../errors.ts";
-import type { ApiErrorResponse, UserRoleListResponse, CreateUserRoleCommand } from "../../types";
+import type { UserRolesErrorCode } from "../../errors";
+import type { ApiErrorResponse, UserRoleListResponse, CreateUserRoleCommand } from "../../../types";
 
 export interface UserRolesApiMock {
   description: string;

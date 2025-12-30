@@ -1,6 +1,6 @@
-import type { Enums } from "../../db/database.types.ts";
-import type { ApiErrorResponse, CreateGenerationCommand } from "../../types";
-import type { GenerationErrorCode } from "../errors";
+import type { Enums } from "../../../db/database.types.ts";
+import type { ApiErrorResponse, CreateGenerationCommand } from "../../../types";
+import type { GenerationErrorCode } from "../../errors";
 
 type HttpMethod = "GET" | "POST" | "PATCH";
 type CandidateStatusKey = Enums<"candidate_status">;

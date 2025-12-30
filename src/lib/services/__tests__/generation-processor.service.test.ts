@@ -57,11 +57,14 @@ describe("generation-processor.service", () => {
     } as TestableSupabaseClient;
 
     vi.clearAllMocks();
+    vi.spyOn(console, "error").mockReturnValue(undefined);
+    vi.spyOn(console, "warn").mockReturnValue(undefined);
     server.use(...openRouterHandlers, ...generationProcessorHandlers);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
     server.resetHandlers();
   });
 
@@ -205,6 +208,10 @@ describe("generation-processor.service", () => {
               update: vi.fn().mockReturnThis(),
               eq: vi.fn().mockResolvedValue({ error: null }),
             };
+          case "generation_error_logs":
+            return {
+              insert: vi.fn().mockResolvedValue({ error: null }),
+            };
           default:
             return {};
         }
@@ -239,6 +246,10 @@ describe("generation-processor.service", () => {
             return {
               insert: vi.fn().mockResolvedValue({ error: null }),
             };
+          case "generation_error_logs":
+            return {
+              insert: vi.fn().mockResolvedValue({ error: null }),
+            };
           default:
             return {};
         }
@@ -270,6 +281,10 @@ describe("generation-processor.service", () => {
             return {
               update: vi.fn().mockReturnThis(),
               eq: vi.fn().mockResolvedValue({ error: null }),
+            };
+          case "generation_error_logs":
+            return {
+              insert: vi.fn().mockResolvedValue({ error: null }),
             };
           default:
             return {};

@@ -1,4 +1,4 @@
-import type { CandidateAcceptErrorCode, CandidateErrorCode } from "../../errors.ts";
+import type { CandidateAcceptErrorCode, CandidateErrorCode } from "../../errors";
 import type {
   ApiErrorResponse,
   FlashcardDTO,

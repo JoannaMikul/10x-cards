@@ -1,4 +1,4 @@
-import type { FlashcardErrorCode } from "../../errors.ts";
+import type { FlashcardErrorCode } from "../../errors";
 import type {
   ApiErrorResponse,
   FlashcardDTO,

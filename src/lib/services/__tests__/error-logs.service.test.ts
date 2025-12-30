@@ -7,9 +7,8 @@ import type { GenerationErrorLogsQuery } from "../../validation/generation-error
  * Test-compatible Supabase client that allows method overrides
  * Extends the real SupabaseClient but makes 'from' writable for mocking
  */
-type TestableSupabaseClient = Omit<SupabaseClient, "from" | "rpc"> & {
+type TestableSupabaseClient = Omit<SupabaseClient, "from"> & {
   from: SupabaseClient["from"] | ReturnType<typeof vi.fn>;
-  rpc: SupabaseClient["rpc"] | ReturnType<typeof vi.fn>;
 };
 
 describe("error-logs.service", () => {
@@ -18,15 +17,19 @@ describe("error-logs.service", () => {
   beforeEach(() => {
     mockSupabase = {
       from: vi.fn(),
-      rpc: vi.fn(),
     } as TestableSupabaseClient;
   });
 
   describe("logGenerationError", () => {
     it("should successfully log generation error", async () => {
-      const mockRpcResponse = { error: null };
+      const consoleErrorSpy = vi.spyOn(console, "error").mockReturnValue(undefined);
+      const mockInsertResponse = { error: null };
 
-      mockSupabase.rpc = vi.fn().mockResolvedValue(mockRpcResponse);
+      const mockBuilder = {
+        insert: vi.fn().mockResolvedValue(mockInsertResponse),
+      };
+
+      mockSupabase.from = vi.fn(() => mockBuilder);
 
       const payload = {
         user_id: "123e4567-e89b-12d3-a456-426614174000",
@@ -39,21 +42,21 @@ describe("error-logs.service", () => {
 
       await expect(logGenerationError(mockSupabase as SupabaseClient, payload)).resolves.toBeUndefined();
 
-      expect(mockSupabase.rpc).toHaveBeenCalledWith("log_generation_error", {
-        p_user_id: payload.user_id,
-        p_model: payload.model,
-        p_error_code: payload.error_code,
-        p_error_message: payload.error_message,
-        p_source_text_hash: payload.source_text_hash,
-        p_source_text_length: payload.source_text_length,
-      });
+      expect(mockSupabase.from).toHaveBeenCalledWith("generation_error_logs");
+      expect(mockBuilder.insert).toHaveBeenCalledWith(payload);
+
+      consoleErrorSpy.mockRestore();
     });
 
     it("should handle database error gracefully", async () => {
-      const consoleErrorSpy = vi.spyOn(console, "error");
+      const consoleErrorSpy = vi.spyOn(console, "error").mockReturnValue(undefined);
       const mockError = new Error("Database connection failed");
 
-      mockSupabase.rpc = vi.fn().mockResolvedValue({ error: mockError });
+      const mockBuilder = {
+        insert: vi.fn().mockResolvedValue({ error: mockError }),
+      };
+
+      mockSupabase.from = vi.fn(() => mockBuilder);
 
       const payload = {
         user_id: "123e4567-e89b-12d3-a456-426614174000",
@@ -72,10 +75,14 @@ describe("error-logs.service", () => {
     });
 
     it("should handle unexpected errors gracefully", async () => {
-      const consoleErrorSpy = vi.spyOn(console, "error");
+      const consoleErrorSpy = vi.spyOn(console, "error").mockReturnValue(undefined);
       const mockError = new Error("Unexpected error");
 
-      mockSupabase.rpc = vi.fn().mockRejectedValue(mockError);
+      const mockBuilder = {
+        insert: vi.fn().mockRejectedValue(mockError),
+      };
+
+      mockSupabase.from = vi.fn(() => mockBuilder);
 
       const payload = {
         user_id: "123e4567-e89b-12d3-a456-426614174000",
@@ -97,9 +104,13 @@ describe("error-logs.service", () => {
     });
 
     it("should log error details to console for debugging", async () => {
-      const consoleErrorSpy = vi.spyOn(console, "error");
+      const consoleErrorSpy = vi.spyOn(console, "error").mockReturnValue(undefined);
 
-      mockSupabase.rpc = vi.fn().mockResolvedValue({ error: null });
+      const mockBuilder = {
+        insert: vi.fn().mockResolvedValue({ error: null }),
+      };
+
+      mockSupabase.from = vi.fn(() => mockBuilder);
 
       const payload = {
         user_id: "123e4567-e89b-12d3-a456-426614174000",

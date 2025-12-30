@@ -12,14 +12,7 @@ export type GenerationErrorLogPayload = Pick<
 
 export async function logGenerationError(supabase: SupabaseClient, payload: GenerationErrorLogPayload): Promise<void> {
   try {
-    const { error } = await supabase.rpc("log_generation_error", {
-      p_user_id: payload.user_id,
-      p_model: payload.model,
-      p_error_code: payload.error_code,
-      p_error_message: payload.error_message,
-      p_source_text_hash: payload.source_text_hash,
-      p_source_text_length: payload.source_text_length,
-    });
+    const { error } = await supabase.from("generation_error_logs").insert(payload);
 
     if (error) {
       // eslint-disable-next-line no-console
