@@ -21,6 +21,7 @@ src/lib/mocks/
 │   ├── analytics.api.mocks.ts
 │   ├── categories.api.mocks.ts
 │   ├── flashcards.api.mocks.ts
+│   ├── generation-projection.api.mocks.ts # Generation projection test data
 │   ├── openrouter.api.mocks.ts     # OpenRouter API mock data
 │   └── ...             # All .api.mocks.ts files
 ├── msw-handlers.ts     # Backward compatibility (redirects to handlers/)

@@ -138,6 +138,7 @@ The application uses a comprehensive testing approach to ensure quality and reli
 
 - Zod validation schemas (`src/lib/validation/*.ts`)
 - Domain services (`src/lib/services/*.ts`)
+  - Data projection services (e.g., `generation-projection.service.ts` - pure functions for API response shaping)
 - Custom hooks and utilities
 - AI integration logic (`openrouter-service.ts`)
 - Spaced repetition calculations (SuperMemo integration)
