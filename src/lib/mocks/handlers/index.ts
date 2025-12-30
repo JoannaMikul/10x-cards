@@ -5,6 +5,7 @@ import { categoriesHandlers } from "./categories";
 import { errorLogsHandlers } from "./error-logs";
 import { flashcardsHandlers } from "./flashcards";
 import { generationCandidatesHandlers } from "./generation-candidates";
+import { generationHandlers } from "./generation";
 import { generationProcessorHandlers } from "./generation-processor";
 import { openRouterHandlers } from "./openrouter";
 import { reviewSessionsHandlers } from "./review-sessions";
@@ -22,6 +23,7 @@ export const apiMockHandlers: HttpHandler[] = [
   ...errorLogsHandlers,
   ...flashcardsHandlers,
   ...generationCandidatesHandlers,
+  ...generationHandlers,
   ...generationProcessorHandlers,
   ...openRouterHandlers,
   ...reviewSessionsHandlers,

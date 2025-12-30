@@ -97,7 +97,8 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
 - `generation-candidates.api.mocks.ts` - AI generation candidates ✅ (integrated with MSW handlers, unit tests available)
 - `generation-processor.service.test.ts` - Generation processor service ✅ (comprehensive unit tests with MSW integration)
-- `generations.api.mocks.ts` - AI generation requests 🔄 (requires MSW integration)
+- `generations.service.test.ts` - Generations service ✅ (comprehensive unit tests covering all functions)
+- `generations.api.mocks.ts` - AI generation requests ✅ (integrated with MSW handlers, unit tests available)
 - `openrouter.api.mocks.ts` - OpenRouter AI API mock data ✅ (integrated with MSW handlers for unit tests)
 - `review-sessions.api.mocks.ts` - Review session handling ✅ (integrated with MSW handlers, unit tests available)
 - `sources.api.mocks.ts` - Source management ✅ (integrated with MSW handlers, unit tests available)
@@ -114,6 +115,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - ✅ **User Roles mocks**: MSW handlers integrated for user role management (`/api/admin/user-roles`) + unit tests available
 - ✅ **Review Sessions mocks**: MSW handlers integrated for review session creation (`/api/review-sessions`) + unit tests available
 - ✅ **Generation Candidates mocks**: MSW handlers integrated for generation candidate operations (`/api/generation-candidates/*`) + unit tests available
+- ✅ **Generations mocks**: MSW handlers integrated for generation operations (`/api/generations/*`) + comprehensive unit tests
 - ✅ **Generation Processor mocks**: MSW handlers for generation processor service dependencies (tags, error logs) + comprehensive unit tests
 - ✅ **OpenRouter mocks**: MSW handlers for OpenRouter AI API endpoints (`https://openrouter.ai/api/v1/chat/completions`) + unit tests
 - 🔄 **Other API mocks**: Available for reference but require refactoring for full MSW integration
