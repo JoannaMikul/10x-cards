@@ -1,11 +1,10 @@
-import { DEFAULT_USER_ID } from "../../db/supabase.client.ts";
-import type { CandidateAcceptErrorCode, CandidateErrorCode } from "../errors.ts";
+import type { CandidateAcceptErrorCode, CandidateErrorCode } from "../../errors.ts";
 import type {
   ApiErrorResponse,
   FlashcardDTO,
   GenerationCandidateDTO,
   GenerationCandidateListResponse,
-} from "../../types";
+} from "../../../types";
 
 export interface GenerationCandidatesApiMock {
   description: string;
@@ -31,7 +30,7 @@ export const generationCandidatesApiMocks: GenerationCandidatesApiMock[] = [
         {
           id: "c1b38d86-d0a5-4e2d-a70b-02f4b0071b4a",
           generation_id: "794d9f4a-3b8f-482f-a61c-0b4cce9b2f95",
-          owner_id: DEFAULT_USER_ID,
+          owner_id: "user-123",
           front: "How does TCP differ from UDP?",
           back: "TCP provides reliable, connection-oriented delivery; UDP is connectionless and offers no delivery guarantees.",
           front_back_fingerprint: "4e6c3cfa05404f5ea266e7f0f86b1a52",
@@ -61,7 +60,7 @@ export const generationCandidatesApiMocks: GenerationCandidatesApiMock[] = [
         {
           id: "a0b8de45-4c63-4d17-8f9c-7a0ef6a5a9d7",
           generation_id: "794d9f4a-3b8f-482f-a61c-0b4cce9b2f95",
-          owner_id: DEFAULT_USER_ID,
+          owner_id: "user-123",
           front: "List the main stages of the TCP three-way handshake.",
           back: "SYN → SYN-ACK → ACK.",
           front_back_fingerprint: "c7c5df31f1184b6bb8b57c0f94921666",
@@ -162,7 +161,7 @@ export const acceptGenerationCandidateApiMocks: AcceptGenerationCandidateApiMock
       },
       category_id: 3,
       content_source_id: 8,
-      owner_id: DEFAULT_USER_ID,
+      owner_id: "user-123",
       created_at: "2025-12-03T10:20:00.000Z",
       updated_at: "2025-12-03T10:20:00.000Z",
       deleted_at: null,
@@ -302,7 +301,7 @@ export const rejectGenerationCandidateApiMocks: RejectGenerationCandidateApiMock
       candidate: {
         id: "6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
         generation_id: "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
-        owner_id: DEFAULT_USER_ID,
+        owner_id: "user-123",
         front: "What is TCP three-way handshake?",
         back: "SYN → SYN-ACK → ACK.",
         front_back_fingerprint: "51b3022f1b8848fd9e430ad5a3dc1a2e",
@@ -326,7 +325,7 @@ export const rejectGenerationCandidateApiMocks: RejectGenerationCandidateApiMock
       candidate: {
         id: "6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
         generation_id: "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
-        owner_id: DEFAULT_USER_ID,
+        owner_id: "user-123",
         front: "What is TCP three-way handshake?",
         back: "SYN → SYN-ACK → ACK.",
         front_back_fingerprint: "51b3022f1b8848fd9e430ad5a3dc1a2e",
@@ -442,7 +441,7 @@ export const updateGenerationCandidateApiMocks: UpdateGenerationCandidateApiMock
       candidate: {
         id: "6a4b1d8c-6bb3-48b6-a4d6-9f8f2d3b5e9c",
         generation_id: "0a4f02a0-8ddc-4c02-8714-5b3469d3b0ac",
-        owner_id: DEFAULT_USER_ID,
+        owner_id: "user-123",
         front: "What is TCP three-way handshake?",
         back: "SYN → SYN-ACK → ACK.",
         front_back_fingerprint: "51b3022f1b8848fd9e430ad5a3dc1a2e",

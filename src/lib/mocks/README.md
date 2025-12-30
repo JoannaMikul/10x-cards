@@ -91,7 +91,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - `flashcard-tags.api.mocks.ts` - Flashcard tag operations 🔄 (requires MSW integration)
 - `user-roles.api.mocks.ts` - User role management ✅ (integrated with MSW handlers, unit tests available)
 - `review-sessions.api.mocks.ts` - Review session handling 🔄 (requires MSW integration)
-- `generation-candidates.api.mocks.ts` - AI generation candidates 🔄 (requires MSW integration)
+- `generation-candidates.api.mocks.ts` - AI generation candidates ✅ (integrated with MSW handlers, unit tests available)
 - `generations.api.mocks.ts` - AI generation requests 🔄 (requires MSW integration)
 - `review-sessions.api.mocks.ts` - Review session handling ✅ (integrated with MSW handlers, unit tests available)
 - `sources.api.mocks.ts` - Source management ✅ (integrated with MSW handlers, unit tests available)
@@ -107,6 +107,7 @@ Detailed API mocks are available in `.api.mocks.ts` files and contain comprehens
 - ✅ **Tags mocks**: MSW handlers integrated for tag listing operations (`/api/tags`) + unit tests available
 - ✅ **User Roles mocks**: MSW handlers integrated for user role management (`/api/admin/user-roles`) + unit tests available
 - ✅ **Review Sessions mocks**: MSW handlers integrated for review session creation (`/api/review-sessions`) + unit tests available
+- ✅ **Generation Candidates mocks**: MSW handlers integrated for generation candidate operations (`/api/generation-candidates/*`) + unit tests available
 - 🔄 **Other API mocks**: Available for reference but require refactoring for full MSW integration
 - 📋 **MSW handlers**: `msw-handlers.ts` provides basic handlers and can be extended
 
