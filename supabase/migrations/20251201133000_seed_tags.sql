@@ -10,7 +10,22 @@ values
     ('TypeScript', 'typescript', 'Type-safe JavaScript'),
     ('CSS', 'css', 'Styling, layouts, responsive design'),
     ('HTML', 'html', 'Semantic markup and browser APIs'),
-    ('English', 'english', 'Language-learning and vocabulary')
+    ('English', 'english', 'Language-learning and vocabulary'),
+    ('Astro', 'astro', 'Astro framework topics'),
+    ('Git', 'git', 'Version control with Git'),
+    ('Vite', 'vite', 'Vite build tool and development'),
+    ('Performance', 'performance', 'Web performance optimization'),
+    ('A11y', 'a11y', 'Accessibility and inclusive design'),
+    ('API', 'api', 'API design and development'),
+    ('State Management', 'state-management', 'State management patterns and libraries'),
+    ('SSR', 'ssr', 'Server-side rendering techniques'),
+    ('Testowanie', 'testowanie', 'Testing methodologies and frameworks'),
+    ('Vitest', 'vitest', 'Vitest testing framework'),
+    ('Playwright', 'playwright', 'Playwright testing framework'),
+    ('UI/UX', 'ui-ux', 'User interface and user experience design'),
+    ('Algorithms', 'algorithms', 'Algorithm design and analysis'),
+    ('Design Patterns', 'design-patterns', 'Software design patterns'),
+    ('Security', 'security', 'Security best practices and vulnerabilities')
 on conflict (slug) do update
 set
     description = excluded.description,

@@ -3,13 +3,14 @@
 -- touches: extensions citext/pg_trgm/pgcrypto/unaccent, enums card_origin/generation_status/candidate_status/review_outcome, functions normalize_flashcard_text/is_admin/enforce_generation_rate_limit/sync_review_stats, tables user_roles/categories/tags/sources/flashcards/card_tags/generations/generation_candidates/generation_error_logs/review_events/review_stats plus all supporting indexes and policies.
 -- notes: every table has row level security enabled, destructive statements are avoided, and triggers protect data integrity and sr metrics.
 
-begin;
-
 -- ensure required extensions exist for case-insensitive text, trigram search, crypto hashing, and text normalization.
+-- NOTE: extensions must be created outside of transactions in PostgreSQL
 create extension if not exists citext with schema public;
 create extension if not exists pg_trgm with schema public;
 create extension if not exists pgcrypto with schema public;
 create extension if not exists unaccent with schema public;
+
+begin;
 
 do $$
 begin
@@ -145,7 +146,7 @@ create table public.generations (
     model text not null,
     sanitized_input_text text not null check (char_length(sanitized_input_text) between 1000 and 10000),
     sanitized_input_length integer generated always as (char_length(sanitized_input_text)) stored,
-    sanitized_input_sha256 bytea generated always as (digest(sanitized_input_text, 'sha256'::text)) stored,
+    sanitized_input_sha256 bytea,
     prompt_tokens integer check (prompt_tokens >= 0),
     temperature numeric(3, 2) check (temperature between 0 and 2),
     started_at timestamptz,
@@ -212,6 +213,32 @@ create table public.review_stats (
     aggregates jsonb,
     primary key (user_id, card_id)
 );
+
+-- trigger helper to compute SHA256 hash for sanitized input text
+create or replace function public.compute_generation_sha256()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    if new.sanitized_input_sha256 is null then
+        new.sanitized_input_sha256 := digest(new.sanitized_input_text, 'sha256');
+    end if;
+    return new;
+end;
+$$;
+
+create trigger generations_before_insert_compute_sha256
+    before insert on public.generations
+    for each row
+    execute function public.compute_generation_sha256();
+
+create trigger generations_before_update_compute_sha256
+    before update on public.generations
+    for each row
+    when (old.sanitized_input_text is distinct from new.sanitized_input_text)
+    execute function public.compute_generation_sha256();
 
 -- trigger helper preventing more than 5 generations per hour per user.
 create or replace function public.enforce_generation_rate_limit()
