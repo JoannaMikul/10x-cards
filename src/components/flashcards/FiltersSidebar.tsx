@@ -267,11 +267,21 @@ export function FiltersForm({
       className={isPanelLayout ? "space-y-4" : "space-y-6"}
       aria-describedby={layout === "drawer" ? "filters-drawer-description" : undefined}
       onSubmit={(event) => event.preventDefault()}
+      data-testid="filters-form"
     >
       {isPanelLayout ? <div>{filterFields}</div> : <FieldGroup>{filterFields}</FieldGroup>}
 
-      <div className={`${isPanelLayout ? "flex flex-wrap justify-end gap-2" : "flex flex-col gap-2"} mt-4`}>
-        <Button type="button" variant="secondary" onClick={onReset} className={isPanelLayout ? "w-full md:w-auto" : ""}>
+      <div
+        className={`${isPanelLayout ? "flex flex-wrap justify-end gap-2" : "flex flex-col gap-2"} mt-4`}
+        data-testid="filters-actions"
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onReset}
+          className={isPanelLayout ? "w-full md:w-auto" : ""}
+          data-testid="reset-filters-button"
+        >
           Reset filters
         </Button>
       </div>

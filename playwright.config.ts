@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { config } from "dotenv";
 
+// Load test environment variables for Playwright
 config({ path: ".env.test" });
 
 /**
@@ -37,8 +38,11 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "npm run dev",
+    command: "NODE_ENV=test npm run dev",
     url: process.env.TEST_BASE_URL || "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
+    env: {
+      NODE_ENV: "test",
+    },
   },
 });

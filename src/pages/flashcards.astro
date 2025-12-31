@@ -94,7 +94,7 @@ const { tags, filterTags } = tagsCatalog;
 ---
 
 <Layout title="Flashcards - 10x-cards">
-  <main class="min-h-[calc(100vh-3rem)] bg-background">
+  <main class="min-h-[calc(100vh-3rem)] bg-background" data-testid="flashcards-page">
     <div class="mx-auto max-w-7xl">
       <FlashcardsPage client:load {categories} {tags} {sources} {canShowDeleted} {filterTags} />
     </div>

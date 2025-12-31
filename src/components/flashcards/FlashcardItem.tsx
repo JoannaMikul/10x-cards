@@ -56,17 +56,20 @@ function FlashcardItemComponent({
         isDeleted && "border-dashed bg-muted/40 opacity-85",
         selected && !isDeleted && "border-primary/70 ring-2 ring-primary/30"
       )}
+      data-testid={`flashcard-item-${card.id}`}
     >
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="order-1 flex items-start gap-2 md:order-2 md:justify-end">
           <Label
             htmlFor={reviewCheckboxId}
             className="flex cursor-pointer select-none items-center gap-2 text-sm font-medium"
+            data-testid={`select-checkbox-${card.id}`}
           >
             <Checkbox
               id={reviewCheckboxId}
               checked={selected}
               onCheckedChange={() => onToggleSelectForReview(card.id)}
+              data-testid={`select-checkbox-input-${card.id}`}
             />
             <span>Select for review</span>
           </Label>
@@ -175,25 +178,42 @@ function FlashcardItemComponent({
       </CardContent>
 
       <CardFooter className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => onEdit(card)} disabled={isDeleted}>
+        <div className="flex flex-wrap gap-2" data-testid="flashcard-actions">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(card)}
+            disabled={isDeleted}
+            data-testid={`edit-button-${card.id}`}
+          >
             <PencilLineIcon className="size-4" /> Edit
           </Button>
           {!isDeleted && (
-            <Button variant="ghost" size="sm" onClick={() => onDelete(card)} className="text-destructive">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(card)}
+              className="text-destructive"
+              data-testid={`delete-button-${card.id}`}
+            >
               <TrashIcon className="size-4" /> Delete
             </Button>
           )}
           {isDeleted && canRestore && (
-            <Button variant="ghost" size="sm" onClick={() => onRestore(card)}>
+            <Button variant="ghost" size="sm" onClick={() => onRestore(card)} data-testid={`restore-button-${card.id}`}>
               <RotateCcwIcon className="size-4" /> Restore
             </Button>
           )}
         </div>
 
         {onStartReviewFromCard && (
-          <div className="flex flex-wrap gap-2">
-            <Button variant="default" size="sm" onClick={() => onStartReviewFromCard(card)}>
+          <div className="flex flex-wrap gap-2" data-testid="review-actions">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => onStartReviewFromCard(card)}
+              data-testid={`review-card-button-${card.id}`}
+            >
               <PlayIcon className="size-4" /> Review this card
             </Button>
           </div>

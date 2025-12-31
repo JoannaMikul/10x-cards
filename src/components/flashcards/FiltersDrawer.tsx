@@ -8,7 +8,7 @@ interface FiltersDrawerProps extends FiltersControlsProps {
 
 export function FiltersDrawer({ open, onOpenChange, ...props }: FiltersDrawerProps) {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={onOpenChange} data-testid="filters-drawer">
       <SheetContent side="left" className="flex w-full max-w-sm flex-col gap-0 p-0">
         <SheetHeader className="px-5 pt-6 pb-0 text-left">
           <SheetTitle>Filters</SheetTitle>

@@ -21,9 +21,9 @@ export function ConfirmDialog({ open, mode, card, onConfirm, onCancel, isProcess
 
   return (
     <Dialog open={open} onOpenChange={(next) => !isProcessing && !next && onCancel()}>
-      <DialogContent showCloseButton={!isProcessing}>
+      <DialogContent showCloseButton={!isProcessing} data-testid="confirm-dialog">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+          <DialogTitle className="flex items-center gap-2 text-lg font-semibold" data-testid="confirm-dialog-title">
             <AlertTriangleIcon className="size-4 text-yellow-500" aria-hidden="true" />
             {isDelete ? "Delete flashcard?" : "Restore flashcard?"}
           </DialogTitle>
@@ -36,7 +36,13 @@ export function ConfirmDialog({ open, mode, card, onConfirm, onCancel, isProcess
         </div>
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isProcessing}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isProcessing}
+            data-testid="confirm-cancel-button"
+          >
             Cancel
           </Button>
           <Button
@@ -44,6 +50,7 @@ export function ConfirmDialog({ open, mode, card, onConfirm, onCancel, isProcess
             variant={isDelete ? "destructive" : "default"}
             onClick={onConfirm}
             disabled={isProcessing || !card}
+            data-testid="confirm-action-button"
           >
             {isProcessing ? "Processing…" : actionLabel}
           </Button>

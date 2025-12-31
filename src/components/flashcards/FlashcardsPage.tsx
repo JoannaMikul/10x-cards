@@ -279,14 +279,16 @@ function FlashcardsPageContent({
       : `Using all cards that match current filters (${totalSelectedCount.toLocaleString()} total)`;
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2 text-center md:text-left p-6">
-        <h1 className="text-3xl font-semibold text-foreground">Flashcards</h1>
-        <p className="text-muted-foreground">
+    <div className="space-y-6" data-testid="flashcards-content">
+      <div className="space-y-2 text-center md:text-left p-6" data-testid="flashcards-header">
+        <h1 className="text-3xl font-semibold text-foreground" data-testid="flashcards-title">
+          Flashcards
+        </h1>
+        <p className="text-muted-foreground" data-testid="flashcards-subtitle">
           Manage your personal collection, refine filters, and start review sessions faster.
         </p>
         {state.aggregates && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground" data-testid="flashcards-count">
             {state.aggregates.total.toLocaleString()} flashcards in your workspace
           </p>
         )}
@@ -329,7 +331,7 @@ function FlashcardsPageContent({
         )}
       </div>
 
-      <div className="flex w-full shrink-0 self-stretch pr-6 pl-6">
+      <div className="flex w-full shrink-0 self-stretch pr-6 pl-6" data-testid="selection-panel">
         <div
           className={cn(
             "rounded-lg border px-4 py-3 text-sm flex h-full w-full flex-col transition-colors",
@@ -337,17 +339,24 @@ function FlashcardsPageContent({
               ? "border-primary/60 bg-primary/10 shadow-sm dark:border-primary/50 dark:bg-primary/20"
               : "border-border bg-muted/30"
           )}
+          data-testid="selection-status"
         >
           <div>
-            <p className={cn("font-medium", hasActiveSelection ? "text-primary" : "text-foreground")}>
+            <p
+              className={cn("font-medium", hasActiveSelection ? "text-primary" : "text-foreground")}
+              data-testid="selection-mode"
+            >
               {selectionModeLabel}
             </p>
-            <p className={cn(hasActiveSelection ? "text-primary/80 dark:text-primary/70" : "text-muted-foreground")}>
+            <p
+              className={cn(hasActiveSelection ? "text-primary/80 dark:text-primary/70" : "text-muted-foreground")}
+              data-testid="selection-description"
+            >
               {selectionDescription}
             </p>
           </div>
           {filters.includeDeleted && (
-            <Badge variant="default" className="mt-3">
+            <Badge variant="default" className="mt-3" data-testid="deleted-cards-badge">
               Showing deleted cards
             </Badge>
           )}

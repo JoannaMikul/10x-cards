@@ -52,7 +52,6 @@ export class LoginPage extends BasePage {
 
   async fillEmail(email: string): Promise<void> {
     await this.emailInput.fill(email);
-    // Trigger validation events for React Hook Form
     await this.emailInput.dispatchEvent("input");
     await this.emailInput.dispatchEvent("change");
     await this.emailInput.dispatchEvent("blur");
@@ -60,7 +59,6 @@ export class LoginPage extends BasePage {
 
   async fillPassword(password: string): Promise<void> {
     await this.passwordInput.fill(password);
-    // Trigger validation events for React Hook Form
     await this.passwordInput.dispatchEvent("input");
     await this.passwordInput.dispatchEvent("change");
     await this.passwordInput.dispatchEvent("blur");
@@ -96,7 +94,6 @@ export class LoginPage extends BasePage {
   }
 
   async isLoading(): Promise<boolean> {
-    // Check if the button contains the loading spinner
     return this.signInButton.locator("svg").isVisible();
   }
 

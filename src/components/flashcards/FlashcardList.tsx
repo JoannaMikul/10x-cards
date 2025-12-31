@@ -52,9 +52,14 @@ export function FlashcardList({
   const showEmptyState = !loading && items.length === 0 && !error;
 
   return (
-    <section aria-label="Flashcard list" aria-live="polite" className="space-y-4 pr-6 pl-6">
+    <section
+      aria-label="Flashcard list"
+      aria-live="polite"
+      className="space-y-4 pr-6 pl-6"
+      data-testid="flashcard-list"
+    >
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" data-testid="flashcard-list-error">
           <AlertTitle>Cannot load flashcards</AlertTitle>
           <AlertDescription>{error.error.message}</AlertDescription>
         </Alert>
@@ -63,7 +68,10 @@ export function FlashcardList({
       {showSkeletons && <FlashcardListSkeleton />}
 
       {showEmptyState && (
-        <div className="border-border/60 bg-muted/30 rounded-xl border p-8 text-center">
+        <div
+          className="border-border/60 bg-muted/30 rounded-xl border p-8 text-center"
+          data-testid="flashcard-list-empty"
+        >
           <p className="text-lg font-semibold text-foreground">No flashcards found</p>
           <p className="text-sm text-muted-foreground mt-2">
             Try adjusting your filters or search query to find different cards.
@@ -71,7 +79,7 @@ export function FlashcardList({
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-4" data-testid="flashcard-items">
         {items.map((card) => {
           const category = card.category_id ? categoriesById.get(card.category_id) : undefined;
           const source = card.content_source_id ? sourcesById.get(card.content_source_id) : undefined;

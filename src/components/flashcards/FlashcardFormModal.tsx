@@ -63,10 +63,12 @@ export function FlashcardFormModal({
 
   const form = useForm<FlashcardFormFields>({
     resolver: zodResolver(formSchema),
+    mode: "all",
     defaultValues,
   });
 
   const { register, handleSubmit, reset, setValue, setError, watch, clearErrors, formState } = form;
+  const { isValid } = formState;
 
   const selectedTags = watch("tagIds") ?? [];
   const categoryId = watch("categoryId");
@@ -171,25 +173,25 @@ export function FlashcardFormModal({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto" data-testid="flashcard-form-modal">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle data-testid="flashcard-form-title">{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <form className="space-y-5" onSubmit={handleSubmit(onSubmitForm)}>
+        <form className="space-y-5" onSubmit={handleSubmit(onSubmitForm)} data-testid="flashcard-form">
           <FormError errors={serverErrors} visible={serverErrors.length > 0} />
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="front">Front</FieldLabel>
-              <Textarea id="front" rows={3} maxLength={200} {...register("front")} />
+              <Textarea id="front" rows={3} maxLength={200} {...register("front")} data-testid="front-textarea" />
               <FieldDescription>Maximum 200 characters</FieldDescription>
               <FieldError errors={[formState.errors.front]} />
             </Field>
 
             <Field>
               <FieldLabel htmlFor="back">Back</FieldLabel>
-              <Textarea id="back" rows={4} maxLength={500} {...register("back")} />
+              <Textarea id="back" rows={4} maxLength={500} {...register("back")} data-testid="back-textarea" />
               <FieldDescription>Maximum 500 characters</FieldDescription>
               <FieldError errors={[formState.errors.back]} />
             </Field>
@@ -199,8 +201,9 @@ export function FlashcardFormModal({
               <Select
                 value={typeof categoryId === "number" ? String(categoryId) : NO_CATEGORY_VALUE}
                 onValueChange={handleCategoryChange}
+                data-testid="category-select"
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="category-select-trigger">
                   <SelectValue placeholder="Select category (optional)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -220,8 +223,9 @@ export function FlashcardFormModal({
               <Select
                 value={typeof contentSourceId === "number" ? String(contentSourceId) : NO_SOURCE_VALUE}
                 onValueChange={handleSourceChange}
+                data-testid="source-select"
               >
-                <SelectTrigger>
+                <SelectTrigger data-testid="source-select-trigger">
                   <SelectValue placeholder="Select source (optional)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -292,10 +296,10 @@ export function FlashcardFormModal({
           </FieldGroup>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} data-testid="cancel-button">
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={!isValid || isSubmitting} data-testid="submit-button">
               {isSubmitting ? "Saving..." : mode === "create" ? "Create" : "Save changes"}
             </Button>
           </DialogFooter>

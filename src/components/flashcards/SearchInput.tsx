@@ -74,6 +74,7 @@ export function SearchInput({
           aria-label={label}
           maxLength={MAX_QUERY_LENGTH}
           autoComplete="off"
+          data-testid="search-input"
           className="[&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:appearance-none"
         />
         <InputGroupAddon align="inline-end">
@@ -88,6 +89,7 @@ export function SearchInput({
             onClick={handleClear}
             aria-label="Clear search"
             disabled={!hasValue}
+            data-testid="clear-search-button"
           >
             <XIcon className="size-3.5" aria-hidden="true" />
           </InputGroupButton>
