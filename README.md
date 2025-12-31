@@ -18,6 +18,7 @@
   - [Testing strategy](#testing-strategy)
     - [Unit and Integration Tests](#unit-and-integration-tests)
     - [End-to-End Tests](#end-to-end-tests)
+  - [Test Environment Configuration](#test-environment-configuration)
   - [Project scope](#project-scope)
   - [Project status](#project-status)
   - [License](#license)
@@ -147,6 +148,7 @@ The application uses a comprehensive testing approach to ensure quality and reli
 
 - **Playwright** – Browser-based E2E testing with support for multiple browsers (Chromium, Firefox, WebKit)
 - **@axe-core/playwright** – Automated accessibility testing integrated with E2E scenarios
+- **dotenv** – Environment variable management for test configuration
 
 **Test scenarios**:
 
@@ -154,6 +156,29 @@ The application uses a comprehensive testing approach to ensure quality and reli
 - Admin panel functionality (KPIs, categories, tags, sources, error logs)
 - Error handling and edge cases
 - Responsive design across desktop, tablet, and mobile viewports
+
+## Test Environment Configuration
+
+For E2E tests, create a `.env.test` file in the project root with test-specific environment variables:
+
+```env
+# Test environment configuration
+TEST_BASE_URL=http://localhost:3000
+SUPABASE_URL=###
+SUPABASE_KEY=###
+OPENROUTER_API_KEY=###
+OPENROUTER_DEFAULT_MODEL=###
+SUPABASE_SERVICE_ROLE_KEY=###
+E2E_USERNAME_ID=###
+E2E_USERNAME=###
+E2E_PASSWORD=###
+```
+
+The Playwright configuration automatically loads variables from `.env.test` using dotenv, allowing you to:
+
+- Use different base URLs for different test environments (development, staging, production)
+- Configure test-specific timeouts and settings
+- Manage test user credentials securely
 
 ## Project scope
 

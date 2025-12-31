@@ -7,12 +7,17 @@ const title = "Sign in - 10x-cards";
 ---
 
 <Layout title={title}>
-  <main class="min-h-[calc(100vh-3rem)] flex items-center justify-center bg-gray-50 p-6">
-    <div class="max-w-md w-full space-y-4 bg-primary/5 rounded-lg p-4 border border-primary/10">
+  <main class="min-h-[calc(100vh-3rem)] flex items-center justify-center bg-gray-50 p-6" data-testid="login-page">
+    <div
+      class="max-w-md w-full space-y-4 bg-primary/5 rounded-lg p-4 border border-primary/10"
+      data-testid="login-container"
+    >
       <div class="text-center">
-        <img src="/10xcards_logo.svg" alt="10x-cards" class="mx-auto h-16 w-auto" />
-        <h2 class="mt-4 text-3xl font-extrabold text-gray-900">Welcome to 10x-cards</h2>
-        <p class="mt-2 text-sm text-gray-600">Sign in to start generating smart flashcards</p>
+        <img src="/10xcards_logo.svg" alt="10x-cards" class="mx-auto h-16 w-auto" data-testid="login-logo" />
+        <h2 class="mt-4 text-3xl font-extrabold text-gray-900" data-testid="login-title">Welcome to 10x-cards</h2>
+        <p class="mt-2 text-sm text-gray-600" data-testid="login-subtitle">
+          Sign in to start generating smart flashcards
+        </p>
       </div>
 
       <LoginForm redirect={redirect} client:load />

@@ -9,7 +9,7 @@ interface AuthLayoutCardProps {
 
 export function AuthLayoutCard({ title, description, children }: AuthLayoutCardProps) {
   return (
-    <Card className="w-full max-w-md mx-auto">
+    <Card className="w-full max-w-md mx-auto" data-testid="auth-layout-card">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>

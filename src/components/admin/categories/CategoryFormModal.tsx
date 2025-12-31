@@ -45,6 +45,7 @@ export function CategoryFormModal({
 
   const methods = useForm<CategoryFormData>({
     resolver: zodResolver(categoryFormSchema),
+    mode: "all",
     defaultValues: {
       name: "",
       slug: "",
@@ -63,6 +64,7 @@ export function CategoryFormModal({
   } = methods;
 
   const watchedColor = watch("color");
+  const isFormValid = isValid;
 
   useEffect(() => {
     if (open) {
@@ -189,7 +191,7 @@ export function CategoryFormModal({
             <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting || !isValid}>
+            <Button type="submit" disabled={submitting || !isFormValid}>
               {submitting ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
