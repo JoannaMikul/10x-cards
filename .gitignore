@@ -26,3 +26,15 @@ pnpm-debug.log*
 
 # cursorignore
 .cursorignore
+
+# e2e
+test-results/
+test-results/**/*
+playwright-report/
+playwright-report/**/*
+playwright/.cache/
+**/.playwright/
+*.trace
+.last-run.json
+screenshots/
+videos/
