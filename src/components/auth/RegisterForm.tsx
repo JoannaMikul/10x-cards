@@ -25,6 +25,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
 
   const methods = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
+    mode: "all",
     defaultValues: {
       email: "",
       password: "",

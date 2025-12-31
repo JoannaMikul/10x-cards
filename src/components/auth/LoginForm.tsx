@@ -30,6 +30,7 @@ export function LoginForm({ redirect, onSuccess }: LoginFormProps) {
 
   const methods = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
+    mode: "all",
     defaultValues: {
       email: "",
       password: "",
@@ -84,11 +85,18 @@ export function LoginForm({ redirect, onSuccess }: LoginFormProps) {
   return (
     <AuthLayoutCard title="Sign in" description="Enter your credentials to access the application.">
       <FormProvider {...methods}>
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4" data-testid="login-form">
           <FieldGroup>
             <Field>
               <Label htmlFor="email">Email address</Label>
-              <Input id="email" type="email" placeholder="your@email.com" {...register("email")} disabled={isLoading} />
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                {...register("email")}
+                disabled={isLoading}
+                data-testid="email-input"
+              />
               {!errors.email && (
                 <p className="text-xs text-gray-500 mt-0.5">Enter a valid email address (e.g., user@example.com)</p>
               )}
@@ -104,6 +112,7 @@ export function LoginForm({ redirect, onSuccess }: LoginFormProps) {
                   placeholder="Enter password"
                   {...register("password")}
                   disabled={isLoading}
+                  data-testid="password-input"
                 />
                 <Button
                   type="button"
@@ -112,6 +121,7 @@ export function LoginForm({ redirect, onSuccess }: LoginFormProps) {
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
+                  data-testid="toggle-password-visibility"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -122,26 +132,26 @@ export function LoginForm({ redirect, onSuccess }: LoginFormProps) {
           </FieldGroup>
 
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" data-testid="login-error-alert">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <CardFooter className="px-0 pb-0 mt-6">
-            <Button type="submit" className="w-full" disabled={!isFormValid}>
+            <Button type="submit" className="w-full" disabled={!isFormValid} data-testid="sign-in-button">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Sign in
             </Button>
           </CardFooter>
 
           <div className="text-center text-sm">
-            <a href="/auth/register" className="text-primary hover:underline">
+            <a href="/auth/register" className="text-primary hover:underline" data-testid="register-link">
               Don&apos;t have an account? Sign up
             </a>
           </div>
 
           <div className="text-center text-sm">
-            <a href="/auth/reset-password" className="text-primary hover:underline">
+            <a href="/auth/reset-password" className="text-primary hover:underline" data-testid="reset-password-link">
               Forgot your password?
             </a>
           </div>

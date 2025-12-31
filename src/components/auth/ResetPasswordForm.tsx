@@ -21,6 +21,7 @@ export function ResetPasswordForm() {
 
   const methods = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
+    mode: "all",
     defaultValues: {
       email: "",
     },

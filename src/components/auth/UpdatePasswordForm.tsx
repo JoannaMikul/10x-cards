@@ -22,6 +22,7 @@ export function UpdatePasswordForm() {
 
   const methods = useForm<UpdatePasswordFormData>({
     resolver: zodResolver(updatePasswordSchema),
+    mode: "all",
     defaultValues: {
       password: "",
     },
