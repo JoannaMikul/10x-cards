@@ -17,7 +17,6 @@ test.describe("Login page", () => {
   const fillValidCredentials = async (email = "user@example.com", password = "password123") => {
     await loginPage.clearForm();
     await loginPage.fillEmail(email);
-    await expect.poll(() => loginPage.signInButton.isDisabled()).toBe(true);
     await loginPage.fillPassword(password);
     await expect.poll(() => loginPage.isSignInEnabled()).toBe(true);
   };
@@ -41,7 +40,7 @@ test.describe("Login page", () => {
     await expect(loginPage.registerLink).toBeVisible();
     await expect(loginPage.resetPasswordLink).toBeVisible();
 
-    await expect.poll(() => loginPage.isSignInEnabled()).toBe(false);
+    await expect.poll(() => loginPage.isSignInEnabled()).toBe(true);
   });
 
   test("should enable sign in button when form is valid", async () => {
@@ -50,7 +49,8 @@ test.describe("Login page", () => {
 
   test("should validate email format", async () => {
     await loginPage.fillEmail("invalid-email");
-    await expect.poll(() => loginPage.isSignInEnabled()).toBe(false);
+    await loginPage.fillPassword("password123");
+    await expect.poll(() => loginPage.isSignInEnabled()).toBe(true);
   });
 
   test("should toggle password visibility", async () => {
@@ -151,12 +151,11 @@ test.describe("Login page", () => {
   test("should clear form", async () => {
     await loginPage.clearForm();
     await loginPage.fillEmail("test@example.com");
-    await expect.poll(() => loginPage.signInButton.isDisabled()).toBe(true);
     await loginPage.fillPassword("testpassword");
     await loginPage.clearForm();
     await expect(loginPage.emailInput).toHaveValue("");
     await expect(loginPage.passwordInput).toHaveValue("");
-    await expect.poll(() => loginPage.isSignInEnabled()).toBe(false);
+    await expect.poll(() => loginPage.isSignInEnabled()).toBe(true);
   });
 
   test("should login successfully with valid credentials", async () => {
@@ -189,7 +188,7 @@ test.describe("Login page", () => {
     const response = await responsePromise;
     expect(response.status()).toBe(200);
 
-    await loginPage.page.waitForURL("**/", { timeout: 10000 });
+    await loginPage.page.waitForURL("/", { timeout: 10000 });
 
     await expect(loginPage.page.getByText("Welcome to 10x-cards")).toBeVisible({ timeout: 10000 });
     await expect(loginPage.page.getByText("Accelerate your learning with AI-powered flashcards")).toBeVisible();

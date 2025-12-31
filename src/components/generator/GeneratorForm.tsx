@@ -2,8 +2,8 @@ import React from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import sanitizeHtml from "sanitize-html";
-import { MIN_SANITIZED_TEXT_LENGTH, MAX_SANITIZED_TEXT_LENGTH } from "../../lib/validation/generations.schema";
+import { MAX_SANITIZED_TEXT_LENGTH } from "../../lib/validation/generations.schema";
+import { useTextValidation } from "../hooks/useTextValidation";
 import type { CreateGenerationCommand } from "../../types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "../ui/card";
 import { FieldGroup, Field } from "../ui/field";
@@ -40,6 +40,8 @@ export function GeneratorForm({
   availableModels,
   defaultModel,
 }: GeneratorFormProps) {
+  const { sanitizeAndValidate, isValidLength } = useTextValidation();
+
   const methods = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -57,73 +59,8 @@ export function GeneratorForm({
 
   const rawInputText = watch("raw_input_text");
 
-  const sanitizeInputText = (text: string): string => {
-    const sanitized = sanitizeHtml(text, {
-      allowedTags: [
-        "h1",
-        "h2",
-        "h3",
-        "h4",
-        "h5",
-        "h6",
-        "p",
-        "span",
-        "div",
-        "br",
-        "strong",
-        "b",
-        "em",
-        "i",
-        "ul",
-        "ol",
-        "li",
-        "a",
-        "code",
-        "pre",
-        "blockquote",
-        "hr",
-        "mark",
-        "sup",
-        "sub",
-      ],
-      allowedAttributes: {
-        a: ["href", "target", "rel", "title"],
-        "*": ["class", "id", "style"],
-      },
-      allowedSchemes: ["http", "https", "ftp", "mailto"],
-    });
-
-    return sanitized
-      .replace(/\r\n?/g, "\n")
-      .replace(/[ \t]{2,}/g, " ")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  };
-
-  const getSanitizedText = (rawText: string): { sanitized: string; isValid: boolean; error?: string } => {
-    const sanitized = sanitizeInputText(rawText);
-
-    if (sanitized.length < MIN_SANITIZED_TEXT_LENGTH) {
-      return {
-        sanitized,
-        isValid: false,
-        error: `Text must have at least ${MIN_SANITIZED_TEXT_LENGTH} characters (after cleaning)`,
-      };
-    }
-
-    if (sanitized.length > MAX_SANITIZED_TEXT_LENGTH) {
-      return {
-        sanitized,
-        isValid: false,
-        error: `Text can have maximum ${MAX_SANITIZED_TEXT_LENGTH} characters (after cleaning)`,
-      };
-    }
-
-    return { sanitized, isValid: true };
-  };
-
   const handleFormSubmit = (data: FormData) => {
-    const { sanitized, isValid: textValid } = getSanitizedText(data.raw_input_text);
+    const { sanitized, isValid: textValid } = sanitizeAndValidate(data.raw_input_text);
 
     if (!textValid) {
       return;
@@ -139,7 +76,7 @@ export function GeneratorForm({
   };
 
   const hasFormErrors = Object.keys(errors).length > 0;
-  const isFormValid = !hasFormErrors && getSanitizedText(rawInputText).isValid;
+  const isFormValid = !hasFormErrors && isValidLength(rawInputText);
   const isDisabled =
     isLoading ||
     currentGenerationStatus === "pending" ||
@@ -162,7 +99,7 @@ export function GeneratorForm({
               <TextAreaWithCounter
                 maxLength={MAX_SANITIZED_TEXT_LENGTH}
                 placeholder="Paste your source text here (article, book, notes)..."
-                getSanitizedText={getSanitizedText}
+                getSanitizedText={sanitizeAndValidate}
               />
               <ModelSelector options={availableModels} />
               <TemperatureSlider min={0} max={2} step={0.1} />

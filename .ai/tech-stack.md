@@ -1,3 +1,5 @@
+# Tech Stack - 10x-cards
+
 Frontend - Astro z React dla komponentów interaktywnych:
 
 - Astro 5 pozwala na tworzenie szybkich, wydajnych stron i aplikacji z minimalną ilością JavaScript
@@ -5,6 +7,7 @@ Frontend - Astro z React dla komponentów interaktywnych:
 - TypeScript 5 dla statycznego typowania kodu i lepszego wsparcia IDE
 - Tailwind 4 pozwala na wygodne stylowanie aplikacji
 - Shadcn/ui zapewnia bibliotekę dostępnych komponentów React, na których oprzemy UI
+- Formularze będą wykorzystywać Zod do walidacji schematów oraz React Hook Form do zarządzania stanem i walidacją formularzy
 
 Backend - Supabase jako kompleksowe rozwiązanie backendowe:
 

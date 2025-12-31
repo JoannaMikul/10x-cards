@@ -470,10 +470,19 @@ export interface RegisterCommand {
   password: string;
 }
 
+export interface LoginFormData {
+  email: string;
+  password: string;
+}
+
 export interface RegisterFormData {
   email: string;
   password: string;
   passwordConfirm: string;
+}
+
+export interface UpdatePasswordFormData {
+  password: string;
 }
 
 export interface ResetPasswordCommand {

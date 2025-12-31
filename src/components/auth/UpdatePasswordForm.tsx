@@ -1,28 +1,38 @@
 import React, { useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { CardFooter } from "../ui/card";
-import { FieldGroup, Field } from "../ui/field";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
+import { FieldGroup } from "../ui/field";
 import { Button } from "../ui/button";
-import { Alert, AlertDescription } from "../ui/alert";
-import { Loader2, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle } from "lucide-react";
 import { AuthLayoutCard } from "./AuthLayoutCard";
+import { PasswordInput } from "../ui/password-input";
+import { FormField } from "../ui/form-field";
+import { FormAlertError } from "../ui/form-error";
 import { updatePasswordSchema } from "../../lib/validation/auth.schema";
-
-type UpdatePasswordFormData = z.infer<typeof updatePasswordSchema>;
+import type { UpdatePasswordFormData } from "../../types";
+import { useAuth } from "../hooks/useAuth";
+import { useFormSubmission } from "../hooks/useFormSubmission";
+import { toast } from "sonner";
 
 export function UpdatePasswordForm() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const { updatePassword, isLoading, error, clearError } = useAuth();
+
+  const { handleSubmit: handleFormSubmission } = useFormSubmission({
+    onSuccess: () => {
+      setSuccess(true);
+      toast.success("Password updated successfully!", {
+        description: "You will be redirected to the login page.",
+      });
+    },
+    redirect: "/auth/login",
+    successRedirectDelay: 2000,
+  });
 
   const methods = useForm<UpdatePasswordFormData>({
     resolver: zodResolver(updatePasswordSchema),
-    mode: "all",
+    mode: "onSubmit",
     defaultValues: {
       password: "",
     },
@@ -30,56 +40,25 @@ export function UpdatePasswordForm() {
 
   const {
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
     register,
   } = methods;
 
   const handleFormSubmit = async (data: UpdatePasswordFormData) => {
-    setIsLoading(true);
-    setError(null);
-    setSuccess(false);
+    clearError();
 
     const urlParams = new URLSearchParams(window.location.search);
     const tokenHash = urlParams.get("token_hash");
     const token = urlParams.get("token");
 
-    try {
-      const response = await fetch("/api/auth/update-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...data,
-          ...(tokenHash && { tokenHash }),
-          ...(token && { token }),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        if (response.status === 400) {
-          setError(errorData.error?.message || "An error occurred while updating password");
-        } else {
-          setError("An error occurred while updating password");
-        }
-        return;
-      }
-
-      setSuccess(true);
-
-      // Redirect to login after successful password update
-      setTimeout(() => {
-        window.location.href = "/auth/login";
-      }, 2000);
-    } catch {
-      setError("An unexpected error occurred. Please try again later.");
-    } finally {
-      setIsLoading(false);
-    }
+    await handleFormSubmission(() =>
+      updatePassword({
+        ...data,
+        ...(tokenHash && { tokenHash }),
+        ...(token && { token }),
+      })
+    );
   };
-
-  const isFormValid = isValid && !isLoading;
 
   return (
     <AuthLayoutCard
@@ -92,46 +71,35 @@ export function UpdatePasswordForm() {
     >
       <FormProvider {...methods}>
         {!success && (
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4" data-testid="update-password-form">
             <FieldGroup>
-              <Field>
-                <Label htmlFor="password">New password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter new password"
-                    {...register("password")}
-                    disabled={isLoading}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={isLoading}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-                {!errors.password && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Password must be at least 8 characters with uppercase, lowercase, and digit
-                  </p>
-                )}
-                {errors.password && <p className="text-sm text-red-600 mt-1">{errors.password.message}</p>}
-              </Field>
+              <FormField
+                label="New password"
+                htmlFor="password"
+                error={errors.password}
+                hint={
+                  !errors.password
+                    ? "Password must be at least 8 characters with uppercase, lowercase, and digit"
+                    : undefined
+                }
+                required
+                data-testid="password-field"
+              >
+                <PasswordInput
+                  id="password"
+                  placeholder="Enter new password"
+                  {...register("password")}
+                  disabled={isLoading}
+                  data-testid="password-input"
+                  toggleTestId="toggle-password-visibility"
+                />
+              </FormField>
             </FieldGroup>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+            <FormAlertError error={error} data-testid="update-password-error-alert" />
 
             <CardFooter className="px-0 pb-0 mt-6">
-              <Button type="submit" className="w-full" disabled={!isFormValid}>
+              <Button type="submit" className="w-full" disabled={isLoading} data-testid="update-password-button">
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Update password
               </Button>
