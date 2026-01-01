@@ -24,7 +24,19 @@ jobs:
         run: npm ci
 
       - name: Create test environment file
-        run: touch .env.test
+        run: |
+          cat > .env.test << EOF
+          # Test environment configuration
+          TEST_BASE_URL=http://localhost:3000
+          SUPABASE_URL=${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_KEY=${{ secrets.SUPABASE_TEST_KEY }}
+          OPENROUTER_API_KEY=${{ secrets.OPENROUTER_TEST_API_KEY }}
+          OPENROUTER_DEFAULT_MODEL=${{ secrets.OPENROUTER_TEST_DEFAULT_MODEL }}
+          SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
+          E2E_USERNAME_ID=${{ secrets.E2E_TEST_USERNAME_ID }}
+          E2E_USERNAME=${{ secrets.E2E_TEST_USERNAME }}
+          E2E_PASSWORD=${{ secrets.E2E_TEST_PASSWORD }}
+          EOF
 
       - name: Install Playwright browsers
         run: npm run playwright:install
