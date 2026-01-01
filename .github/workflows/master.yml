@@ -6,7 +6,8 @@ on:
     branches: [master]
 
 jobs:
-  test:
+  test-unit-e2e:
+    name: Test Unit & E2E
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -52,9 +53,10 @@ jobs:
           DOTENV_CONFIG_QUIET: true
 
   build:
+    name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: test
+    needs: test-unit-e2e
 
     steps:
       - name: Checkout code
