@@ -5,6 +5,7 @@ import {
   flashcardsQuerySchema,
   flashcardIdParamSchema,
   setFlashcardTagsSchema,
+  filtersFormSchema,
   decodeFlashcardsCursor,
   buildFlashcardsQuery,
   parseFlashcardId,
@@ -531,5 +532,88 @@ describe("InvalidFlashcardsCursorError", () => {
     expect(error.message).toBe("test message");
     expect(error.name).toBe("InvalidFlashcardsCursorError");
     expect(error.code).toBe("INVALID_CURSOR");
+  });
+});
+
+describe("filtersFormSchema", () => {
+  describe("valid inputs", () => {
+    it("accepts minimal valid filters", () => {
+      const result = filtersFormSchema.safeParse({
+        tagIds: [],
+        sort: "created_at",
+      });
+      expect(result.success).toBe(true);
+      expect(result.data).toMatchInlineSnapshot(`
+        {
+          "sort": "created_at",
+          "tagIds": [],
+        }
+      `);
+    });
+
+    it("accepts full filters with all optional fields", () => {
+      const result = filtersFormSchema.safeParse({
+        categoryId: 1,
+        contentSourceId: 2,
+        tagIds: [1, 2, 3],
+        origin: "ai-full",
+        sort: "-created_at",
+      });
+      expect(result.success).toBe(true);
+      expect(result.data?.tagIds).toEqual([1, 2, 3]);
+      expect(result.data?.origin).toBe("ai-full");
+    });
+  });
+
+  describe("invalid inputs", () => {
+    it("rejects invalid categoryId", () => {
+      const result = filtersFormSchema.safeParse({
+        tagIds: [],
+        sort: "created_at",
+        categoryId: -1,
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("Value must be greater than 0.");
+    });
+
+    it("rejects invalid tagIds array", () => {
+      const result = filtersFormSchema.safeParse({
+        tagIds: [1, 1, 2], // duplicate
+        sort: "created_at",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("Tag IDs must be unique.");
+    });
+
+    it("rejects too many tags", () => {
+      const tooManyTags = Array.from({ length: 51 }, (_, i) => i + 1);
+      const result = filtersFormSchema.safeParse({
+        tagIds: tooManyTags,
+        sort: "created_at",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("Tag selection cannot exceed 50 entries.");
+    });
+
+    it("rejects invalid origin", () => {
+      const result = filtersFormSchema.safeParse({
+        tagIds: [],
+        sort: "created_at",
+        origin: "invalid",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe("Origin must be one of: ai-full, ai-edited, manual.");
+    });
+
+    it("rejects invalid sort", () => {
+      const result = filtersFormSchema.safeParse({
+        tagIds: [],
+        sort: "invalid_sort",
+      });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe(
+        "Sort must be one of: created_at, -created_at, updated_at, next_review_at."
+      );
+    });
   });
 });

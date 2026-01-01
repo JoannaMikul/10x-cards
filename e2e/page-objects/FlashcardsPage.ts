@@ -29,6 +29,13 @@ export class FlashcardsPage extends BasePage {
   readonly filtersForm: Locator;
   readonly resetFiltersButton: Locator;
 
+  // Filter controls
+  readonly categoryFilter: Locator;
+  readonly sourceFilter: Locator;
+  readonly originFilter: Locator;
+  readonly sortFilter: Locator;
+  readonly tagsFilter: Locator;
+
   constructor(page: Page) {
     super(page);
 
@@ -58,6 +65,13 @@ export class FlashcardsPage extends BasePage {
 
     this.filtersForm = page.getByTestId("filters-form");
     this.resetFiltersButton = page.getByTestId("reset-filters-button");
+
+    // Filter controls
+    this.categoryFilter = page.locator('[aria-label="Filter by category"]');
+    this.sourceFilter = page.locator('[aria-label="Filter by source"]');
+    this.originFilter = page.locator('[aria-label="Filter by origin"]');
+    this.sortFilter = page.locator('label:has-text("Sort order")').locator("..").locator("button");
+    this.tagsFilter = page.locator('label:has-text("Tags")').locator("..").locator(".flex.flex-row");
   }
 
   async goto(): Promise<void> {
@@ -159,8 +173,84 @@ export class FlashcardsPage extends BasePage {
     return this.filtersForm.isVisible();
   }
 
+  async selectCategoryFilter(value: string): Promise<void> {
+    await this.categoryFilter.click();
+    await this.page.getByRole("option", { name: value }).click();
+  }
+
+  async selectSourceFilter(value: string): Promise<void> {
+    await this.sourceFilter.click();
+    await this.page.getByRole("option", { name: value }).click();
+  }
+
+  async selectOriginFilter(value: string): Promise<void> {
+    await this.originFilter.click();
+    await this.page.getByRole("option", { name: value }).click();
+  }
+
+  async selectSortFilter(value: string): Promise<void> {
+    await this.sortFilter.click();
+    await this.page.getByRole("option", { name: value }).click();
+  }
+
+  async toggleTagFilter(tagName: string): Promise<void> {
+    const tagLabel = this.tagsFilter.locator(`label:has-text("${tagName}")`);
+    await tagLabel.click();
+  }
+
+  async getSelectedCategoryFilter(): Promise<string | null> {
+    return this.categoryFilter.locator(".select-value").textContent();
+  }
+
+  async getSelectedSourceFilter(): Promise<string | null> {
+    return this.sourceFilter.locator(".select-value").textContent();
+  }
+
+  async getSelectedOriginFilter(): Promise<string | null> {
+    return this.originFilter.locator(".select-value").textContent();
+  }
+
+  async getSelectedSortFilter(): Promise<string | null> {
+    return this.sortFilter.locator(".select-value").textContent();
+  }
+
+  async getActiveTagFilters(): Promise<string[]> {
+    const activeTags: string[] = [];
+    const tagLabels = this.tagsFilter.locator('label[class*="border-primary"]');
+    const count = await tagLabels.count();
+
+    for (let i = 0; i < count; i++) {
+      const tagText = await tagLabels.nth(i).textContent();
+      if (tagText) {
+        activeTags.push(tagText.trim());
+      }
+    }
+
+    return activeTags;
+  }
+
   async waitForFlashcardsToLoad(): Promise<void> {
     await this.page.waitForLoadState("networkidle");
+    await this.page.locator('[data-testid="flashcard-list"]').waitFor({ state: "visible", timeout: 5000 });
+  }
+
+  async waitForFlashcardsUpdate(): Promise<void> {
+    // Wait for any network requests to complete
+    await this.page.waitForLoadState("networkidle");
+
+    // Wait for flashcard list to be updated by checking if it's not in a loading state
+    // and that the items are rendered (wait up to 5 seconds for updates)
+    await this.page.waitForFunction(
+      () => {
+        const flashcardList = document.querySelector('[data-testid="flashcard-list"]');
+        const flashcardItems = document.querySelectorAll('[data-testid^="flashcard-item-"]');
+        return flashcardList && flashcardItems.length >= 0; // Allow for 0 items when filtered
+      },
+      { timeout: 5000 }
+    );
+
+    // Additional small delay to ensure all DOM updates are complete
+    await this.page.waitForTimeout(500);
   }
 
   async getPageTitle(): Promise<string | null> {

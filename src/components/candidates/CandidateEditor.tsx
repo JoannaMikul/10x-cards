@@ -1,9 +1,10 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
-import { useForm, Controller } from "react-hook-form";
+import React, { forwardRef, useImperativeHandle } from "react";
+import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Field, FieldLabel, FieldError } from "../ui/field";
 import { InputGroup, InputGroupTextarea, InputGroupAddon, InputGroupText } from "../ui/input-group";
+import { FormField } from "../ui/form-field";
+import { FormAlertError } from "../ui/form-error";
 import type { GenerationCandidateDTO } from "../../types";
 
 const editSchema = z.object({
@@ -17,39 +18,50 @@ interface CandidateEditorProps {
   candidate: GenerationCandidateDTO;
   onSave: (changes: { front: string; back: string }) => void;
   onCancel: () => void;
-  errors: string[];
+  errors: readonly string[];
 }
 
 export interface CandidateEditorRef {
   submit: () => void;
 }
 
+interface CharacterCountResult {
+  count: number;
+  isOverLimit: boolean;
+  counterText: string;
+  counterClassName: string;
+}
+
+function useCharacterCount(value: string | undefined, maxLength: number): CharacterCountResult {
+  const count = value?.length || 0;
+  const isOverLimit = count > maxLength;
+
+  return {
+    count,
+    isOverLimit,
+    counterText: `${count}/${maxLength}`,
+    counterClassName: `tabular-nums text-xs ${isOverLimit ? "text-red-500" : "text-muted-foreground"}`,
+  };
+}
+
 const CandidateEditorComponent = forwardRef<CandidateEditorRef, CandidateEditorProps>(
   ({ candidate, onSave, errors }, ref) => {
-    const [frontCount, setFrontCount] = useState(candidate.front.length);
-    const [backCount, setBackCount] = useState(candidate.back.length);
-
-    const { control, handleSubmit, watch } = useForm<EditFormData>({
+    const methods = useForm<EditFormData>({
       resolver: zodResolver(editSchema),
       defaultValues: {
         front: candidate.front,
         back: candidate.back,
       },
-      mode: "onBlur",
+      mode: "all",
     });
 
-    const watchedFront = watch("front");
-    const watchedBack = watch("back");
+    const { control, handleSubmit, watch } = methods;
+    const { front: watchedFront, back: watchedBack } = watch();
 
-    useEffect(() => {
-      setFrontCount(watchedFront?.length || 0);
-    }, [watchedFront]);
+    const frontCounter = useCharacterCount(watchedFront, 200);
+    const backCounter = useCharacterCount(watchedBack, 500);
 
-    useEffect(() => {
-      setBackCount(watchedBack?.length || 0);
-    }, [watchedBack]);
-
-    const onSubmit = (data: EditFormData) => {
+    const onSubmit = (data: EditFormData): void => {
       onSave({
         front: data.front.trim(),
         back: data.back.trim(),
@@ -63,69 +75,81 @@ const CandidateEditorComponent = forwardRef<CandidateEditorRef, CandidateEditorP
     }));
 
     return (
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <Controller
-          name="front"
-          control={control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={`front-${candidate.id}`}>Question</FieldLabel>
-              <InputGroup>
-                <InputGroupTextarea
-                  {...field}
-                  id={`front-${candidate.id}`}
-                  placeholder="Enter question..."
-                  className="min-h-[40px] resize-none"
-                  aria-invalid={fieldState.invalid}
-                />
-                <InputGroupAddon align="block-end" className="justify-end">
-                  <InputGroupText
-                    id={`front-counter-${candidate.id}`}
-                    className={`tabular-nums text-xs ${frontCount > 200 ? "text-red-500" : "text-muted-foreground"}`}
-                  >
-                    {frontCount}/200
-                  </InputGroupText>
-                </InputGroupAddon>
-              </InputGroup>
-              {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
-            </Field>
+      <FormProvider {...methods}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" data-testid="candidate-editor-form">
+          <Controller
+            name="front"
+            control={control}
+            render={({ field, fieldState }) => (
+              <FormField
+                label="Question"
+                htmlFor={`front-${candidate.id}`}
+                error={fieldState.error}
+                hint={`Enter your question (${frontCounter.counterText})`}
+                required
+                data-testid="question-field"
+              >
+                <InputGroup>
+                  <InputGroupTextarea
+                    {...field}
+                    id={`front-${candidate.id}`}
+                    placeholder="Enter question..."
+                    className="min-h-[40px] resize-none"
+                    aria-invalid={fieldState.invalid}
+                    data-testid="question-input"
+                  />
+                  <InputGroupAddon align="block-end" className="justify-end">
+                    <InputGroupText
+                      id={`front-counter-${candidate.id}`}
+                      className={frontCounter.counterClassName}
+                      data-testid="question-counter"
+                    >
+                      {frontCounter.counterText}
+                    </InputGroupText>
+                  </InputGroupAddon>
+                </InputGroup>
+              </FormField>
+            )}
+          />
+          <Controller
+            name="back"
+            control={control}
+            render={({ field, fieldState }) => (
+              <FormField
+                label="Answer"
+                htmlFor={`back-${candidate.id}`}
+                error={fieldState.error}
+                hint={`Enter your answer (${backCounter.counterText})`}
+                required
+                data-testid="answer-field"
+              >
+                <InputGroup>
+                  <InputGroupTextarea
+                    {...field}
+                    id={`back-${candidate.id}`}
+                    placeholder="Enter answer..."
+                    className="min-h-[120px] resize-none"
+                    aria-invalid={fieldState.invalid}
+                    data-testid="answer-input"
+                  />
+                  <InputGroupAddon align="block-end" className="justify-end">
+                    <InputGroupText
+                      id={`back-counter-${candidate.id}`}
+                      className={backCounter.counterClassName}
+                      data-testid="answer-counter"
+                    >
+                      {backCounter.counterText}
+                    </InputGroupText>
+                  </InputGroupAddon>
+                </InputGroup>
+              </FormField>
+            )}
+          />
+          {errors.length > 0 && (
+            <FormAlertError error={{ message: errors.join(", ") }} data-testid="candidate-editor-error-alert" />
           )}
-        />
-        <Controller
-          name="back"
-          control={control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor={`back-${candidate.id}`}>Answer</FieldLabel>
-              <InputGroup>
-                <InputGroupTextarea
-                  {...field}
-                  id={`back-${candidate.id}`}
-                  placeholder="Enter answer..."
-                  className="min-h-[120px] resize-none"
-                  aria-invalid={fieldState.invalid}
-                />
-                <InputGroupAddon align="block-end" className="justify-end">
-                  <InputGroupText
-                    id={`back-counter-${candidate.id}`}
-                    className={`tabular-nums text-xs ${backCount > 500 ? "text-red-500" : "text-muted-foreground"}`}
-                  >
-                    {backCount}/500
-                  </InputGroupText>
-                </InputGroupAddon>
-              </InputGroup>
-              {fieldState.error && <FieldError>{fieldState.error.message}</FieldError>}
-            </Field>
-          )}
-        />
-        {errors.length > 0 && (
-          <div className="text-sm text-red-600 space-y-1">
-            {errors.map((error, index) => (
-              <div key={index}>{error}</div>
-            ))}
-          </div>
-        )}
-      </form>
+        </form>
+      </FormProvider>
     );
   }
 );

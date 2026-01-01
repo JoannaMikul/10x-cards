@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Enums, Json } from "../../db/database.types.ts";
+import type { Enums, Json } from "../../db/database.types";
 import { decodeBase64 } from "../utils/base64.ts";
 
 const CARD_ORIGINS = ["ai-full", "ai-edited", "manual"] as const satisfies readonly Enums<"card_origin">[];
@@ -234,3 +234,23 @@ export const setFlashcardTagsSchema = z.object({
 });
 
 export type SetFlashcardTagsPayload = z.infer<typeof setFlashcardTagsSchema>;
+
+export const filtersFormSchema = z.object({
+  categoryId: positiveIntSchema.optional(),
+  contentSourceId: positiveIntSchema.optional(),
+  tagIds: tagIdsArraySchema,
+  origin: z
+    .enum(CARD_ORIGINS, {
+      errorMap: () => ({
+        message: `Origin must be one of: ${CARD_ORIGINS.join(", ")}.`,
+      }),
+    })
+    .optional(),
+  sort: z.enum(SORT_FIELDS, {
+    errorMap: () => ({
+      message: `Sort must be one of: ${SORT_FIELDS.join(", ")}.`,
+    }),
+  }),
+});
+
+export type FiltersFormData = z.infer<typeof filtersFormSchema>;

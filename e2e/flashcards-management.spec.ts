@@ -113,7 +113,6 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
     await expect(flashcardsPage.reviewFlashcardsButton).toBeEnabled();
 
-    // Cleanup: remove test data created by this test
     const testUserId = getTestUserId();
     await cleanupTestFlashcards(testUserId);
   });
@@ -163,7 +162,6 @@ test.describe.serial("Flashcards Management Workflow", () => {
   });
 
   test("should handle flashcard search functionality", async () => {
-    // Setup: create test data for this test
     const testUserId = getTestUserId();
     await createTestFlashcards(3, testUserId, "display-info-test");
 
@@ -195,7 +193,6 @@ test.describe.serial("Flashcards Management Workflow", () => {
       })
       .toBe(initialCount);
 
-    // Cleanup: remove test data (at the very end)
     await cleanupTestFlashcards(testUserId);
   });
 
@@ -215,7 +212,6 @@ test.describe.serial("Flashcards Management Workflow", () => {
   });
 
   test("should handle confirm dialog cancellation", async () => {
-    // Setup: create test data for this test
     const testUserId = getTestUserId();
     await createTestFlashcards(1, testUserId, "confirm-dialog-test");
 
@@ -239,12 +235,10 @@ test.describe.serial("Flashcards Management Workflow", () => {
     const finalCount = await flashcardsPage.getFlashcardCount();
     expect(finalCount).toBe(initialCount);
 
-    // Cleanup: remove test data
     await cleanupTestFlashcards(testUserId);
   });
 
   test("should display correct flashcard information", async () => {
-    // Setup: create test data for this test
     const testUserId = getTestUserId();
     await createTestFlashcards(3, testUserId, "display-info-test");
 
@@ -266,7 +260,287 @@ test.describe.serial("Flashcards Management Workflow", () => {
     await flashcardsPage.selectFlashcardForReview(flashcardIds[0]);
     await expect(flashcardsPage.reviewFlashcardsButton).toBeEnabled();
 
-    // Cleanup: remove test data
     await cleanupTestFlashcards(testUserId);
+  });
+
+  test.describe("Filters Functionality", () => {
+    test("should display filters sidebar and controls", async () => {
+      await loginWithValidCredentials();
+
+      await flashcardsPage.goto();
+      await flashcardsPage.waitForFlashcardsToLoad();
+
+      await flashcardsPage.toggleFilters();
+
+      await expect(flashcardsPage.filtersForm).toBeVisible();
+      await expect(flashcardsPage.resetFiltersButton).toBeVisible();
+      await expect(flashcardsPage.categoryFilter).toBeVisible();
+      await expect(flashcardsPage.sourceFilter).toBeVisible();
+      await expect(flashcardsPage.originFilter).toBeVisible();
+      await expect(flashcardsPage.sortFilter).toBeVisible();
+      await expect(flashcardsPage.tagsFilter).toBeVisible();
+    });
+
+    test("should filter flashcards by category", async () => {
+      const testUserId = getTestUserId();
+
+      await cleanupTestFlashcards(testUserId);
+
+      await createTestFlashcards(3, testUserId, "filter-category-test", [
+        { front: "Category IT Card 1 - filter test", back: "Answer 1 for IT", categoryId: 1 }, // IT
+        { front: "Category IT Card 2 - filter test", back: "Answer 2 for IT", categoryId: 1 }, // IT
+        { front: "Category Language Card 1 - filter test", back: "Answer 3 for Language", categoryId: 2 }, // Language
+      ]);
+
+      await loginWithValidCredentials();
+
+      await flashcardsPage.goto();
+      await flashcardsPage.waitForFlashcardsToLoad();
+
+      await flashcardsPage.toggleFilters();
+
+      const initialCount = await flashcardsPage.getFlashcardCount();
+      expect(initialCount).toBeGreaterThanOrEqual(3);
+
+      await flashcardsPage.selectCategoryFilter("IT");
+      await flashcardsPage.waitForFlashcardsUpdate();
+
+      const filteredCount = await flashcardsPage.getFlashcardCount();
+      expect(filteredCount).toBeLessThanOrEqual(initialCount);
+
+      await flashcardsPage.resetFilters();
+
+      await Promise.all([
+        flashcardsPage.page.waitForResponse(
+          (response) => response.url().includes("/api/flashcards") && response.status() === 200
+        ),
+        flashcardsPage.waitForFlashcardsUpdate(),
+      ]);
+
+      const resetCount = await flashcardsPage.getFlashcardCount();
+      expect(resetCount).toBe(initialCount);
+
+      await cleanupTestFlashcards(testUserId);
+    });
+
+    test("should filter flashcards by origin", async () => {
+      const testUserId = getTestUserId();
+
+      await cleanupTestFlashcards(testUserId);
+
+      await createTestFlashcards(3, testUserId, "filter-origin-test", [
+        { front: "Manual Card", back: "Manual Answer", origin: "manual" },
+        { front: "AI Edited Card", back: "AI Edited Answer", origin: "ai-edited" },
+        { front: "AI Full Card", back: "AI Full Answer", origin: "ai-full" },
+      ]);
+
+      await loginWithValidCredentials();
+
+      await flashcardsPage.goto();
+      await flashcardsPage.waitForFlashcardsToLoad();
+
+      await flashcardsPage.toggleFilters();
+
+      const initialCount = await flashcardsPage.getFlashcardCount();
+      expect(initialCount).toBeGreaterThanOrEqual(3);
+
+      await flashcardsPage.selectOriginFilter("Manual");
+
+      await Promise.all([
+        flashcardsPage.page.waitForResponse(
+          (response) => response.url().includes("/api/flashcards") && response.status() === 200
+        ),
+        flashcardsPage.waitForFlashcardsUpdate(),
+      ]);
+
+      const manualCount = await flashcardsPage.getFlashcardCount();
+      expect(manualCount).toBeGreaterThanOrEqual(1);
+      expect(manualCount).toBeLessThanOrEqual(initialCount);
+
+      await flashcardsPage.selectOriginFilter("AI full");
+
+      await Promise.all([
+        flashcardsPage.page.waitForResponse(
+          (response) => response.url().includes("/api/flashcards") && response.status() === 200
+        ),
+        flashcardsPage.waitForFlashcardsUpdate(),
+      ]);
+
+      const aiFullCount = await flashcardsPage.getFlashcardCount();
+      expect(aiFullCount).toBeGreaterThanOrEqual(1);
+      expect(aiFullCount).toBeLessThanOrEqual(initialCount);
+
+      await cleanupTestFlashcards(testUserId);
+    });
+
+    test("should handle tag filtering", async () => {
+      const testUserId = getTestUserId();
+
+      await cleanupTestFlashcards(testUserId);
+
+      await createTestFlashcards(3, testUserId, "filter-tags-test", [
+        { front: "JavaScript Card", back: "JS Answer", tags: ["JavaScript"] },
+        { front: "React Card", back: "React Answer", tags: ["React"] },
+        { front: "CSS Card", back: "CSS Answer", tags: ["CSS"] },
+      ]);
+
+      await loginWithValidCredentials();
+
+      await flashcardsPage.goto();
+      await flashcardsPage.waitForFlashcardsToLoad();
+
+      await flashcardsPage.toggleFilters();
+
+      const initialCount = await flashcardsPage.getFlashcardCount();
+      expect(initialCount).toBeGreaterThanOrEqual(3);
+
+      await flashcardsPage.toggleTagFilter("JavaScript");
+
+      await Promise.all([
+        flashcardsPage.page.waitForResponse(
+          (response) => response.url().includes("/api/flashcards") && response.status() === 200
+        ),
+        flashcardsPage.waitForFlashcardsUpdate(),
+      ]);
+
+      const jsFilteredCount = await flashcardsPage.getFlashcardCount();
+
+      expect(jsFilteredCount).toBeGreaterThanOrEqual(1);
+      expect(jsFilteredCount).toBeLessThanOrEqual(initialCount);
+
+      await flashcardsPage.toggleTagFilter("JavaScript");
+      await flashcardsPage.toggleTagFilter("React");
+
+      const reactResponsePromise = flashcardsPage.page.waitForResponse(
+        (response) => response.url().includes("/api/flashcards") && response.status() === 200
+      );
+      await flashcardsPage.waitForFlashcardsUpdate();
+      await reactResponsePromise;
+
+      const reactFilteredCount = await flashcardsPage.getFlashcardCount();
+      expect(reactFilteredCount).toBeGreaterThanOrEqual(1);
+
+      await cleanupTestFlashcards(testUserId);
+    });
+
+    test("should handle sort order changes", async () => {
+      const testUserId = getTestUserId();
+
+      await cleanupTestFlashcards(testUserId);
+
+      await createTestFlashcards(3, testUserId, "sort-test");
+
+      await loginWithValidCredentials();
+
+      await flashcardsPage.goto();
+      await flashcardsPage.waitForFlashcardsToLoad();
+
+      await flashcardsPage.toggleFilters();
+
+      const initialCount = await flashcardsPage.getFlashcardCount();
+      expect(initialCount).toBeGreaterThanOrEqual(3);
+
+      await flashcardsPage.selectSortFilter("Oldest");
+
+      await Promise.all([
+        flashcardsPage.page.waitForResponse(
+          (response) => response.url().includes("/api/flashcards") && response.status() === 200
+        ),
+        flashcardsPage.waitForFlashcardsUpdate(),
+      ]);
+
+      const sortedCount = await flashcardsPage.getFlashcardCount();
+      expect(sortedCount).toBe(initialCount);
+
+      await flashcardsPage.selectSortFilter("Newest");
+
+      await Promise.all([
+        flashcardsPage.page.waitForResponse(
+          (response) => response.url().includes("/api/flashcards") && response.status() === 200
+        ),
+        flashcardsPage.waitForFlashcardsUpdate(),
+      ]);
+
+      const finalCount = await flashcardsPage.getFlashcardCount();
+      expect(finalCount).toBe(initialCount);
+
+      await cleanupTestFlashcards(testUserId);
+    });
+
+    test("should reset all filters correctly", async () => {
+      const testUserId = getTestUserId();
+
+      await cleanupTestFlashcards(testUserId);
+
+      await createTestFlashcards(5, testUserId, "reset-filters-test", [
+        {
+          front: "Reset Test Card 1 - JS",
+          back: "Answer 1 for reset test",
+          categoryId: 1,
+          origin: "manual",
+          tags: ["JavaScript"],
+        },
+        {
+          front: "Reset Test Card 2 - Language",
+          back: "Answer 2 for reset test",
+          categoryId: 2,
+          origin: "ai-edited",
+          tags: ["English"],
+        },
+        {
+          front: "Reset Test Card 3 - React",
+          back: "Answer 3 for reset test",
+          categoryId: 1,
+          origin: "ai-full",
+          tags: ["React"],
+        },
+        {
+          front: "Reset Test Card 4 - CSS",
+          back: "Answer 4 for reset test",
+          categoryId: 2,
+          origin: "manual",
+          tags: ["CSS"],
+        },
+        {
+          front: "Reset Test Card 5 - TypeScript",
+          back: "Answer 5 for reset test",
+          categoryId: 1,
+          origin: "ai-edited",
+          tags: ["TypeScript"],
+        },
+      ]);
+
+      await loginWithValidCredentials();
+
+      await flashcardsPage.goto();
+      await flashcardsPage.waitForFlashcardsToLoad();
+
+      await flashcardsPage.toggleFilters();
+
+      const initialCount = await flashcardsPage.getFlashcardCount();
+      expect(initialCount).toBeGreaterThanOrEqual(5);
+
+      await flashcardsPage.selectCategoryFilter("IT");
+      await flashcardsPage.selectOriginFilter("Manual");
+      await flashcardsPage.toggleTagFilter("JavaScript");
+      await flashcardsPage.waitForFlashcardsUpdate();
+
+      const filteredCount = await flashcardsPage.getFlashcardCount();
+      expect(filteredCount).toBeLessThan(initialCount);
+
+      await flashcardsPage.resetFilters();
+
+      await Promise.all([
+        flashcardsPage.page.waitForResponse(
+          (response) => response.url().includes("/api/flashcards") && response.status() === 200
+        ),
+        flashcardsPage.waitForFlashcardsUpdate(),
+      ]);
+
+      const resetCount = await flashcardsPage.getFlashcardCount();
+      expect(resetCount).toBe(initialCount);
+
+      await cleanupTestFlashcards(testUserId);
+    });
   });
 });

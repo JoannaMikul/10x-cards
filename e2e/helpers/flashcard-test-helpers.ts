@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { supabaseServiceClient } from "../../src/db/supabase.client";
+import type { Database } from "../../src/db/database.types";
 
 config({ path: ".env.test" });
 
@@ -11,6 +12,7 @@ export interface TestFlashcardData {
   categoryId?: number;
   contentSourceId?: number;
   tags?: string[];
+  origin?: Database["public"]["Enums"]["card_origin"];
 }
 
 export function generateTestFlashcard(index = 1, testId = ""): TestFlashcardData {
@@ -34,7 +36,8 @@ export function generateTestFlashcard(index = 1, testId = ""): TestFlashcardData
 export async function createTestFlashcards(
   count: number,
   testUserId: string,
-  testId = ""
+  testId = "",
+  additionalFlashcards?: TestFlashcardData[]
 ): Promise<TestFlashcardData[]> {
   const flashcards: TestFlashcardData[] = [];
 
@@ -47,12 +50,64 @@ export async function createTestFlashcards(
       back: flashcardData.back,
       category_id: flashcardData.categoryId,
       content_source_id: flashcardData.contentSourceId,
-      origin: "manual",
+      origin: flashcardData.origin || "manual",
       owner_id: testUserId,
     });
 
     if (error) {
       throw new Error(`Failed to create test flashcard ${i}: ${error.message}`);
+    }
+  }
+
+  if (additionalFlashcards) {
+    for (let i = 0; i < additionalFlashcards.length; i++) {
+      const flashcardData = additionalFlashcards[i];
+      flashcards.push(flashcardData);
+
+      const { data: insertedCard, error } = await supabaseServiceClient
+        .from("flashcards")
+        .insert({
+          front: flashcardData.front,
+          back: flashcardData.back,
+          category_id: flashcardData.categoryId,
+          content_source_id: flashcardData.contentSourceId,
+          origin: flashcardData.origin || "manual",
+          owner_id: testUserId,
+        })
+        .select("id")
+        .single();
+
+      if (error || !insertedCard) {
+        throw new Error(`Failed to create additional test flashcard ${i}: ${error.message}`);
+      }
+
+      if (flashcardData.tags && flashcardData.tags.length > 0) {
+        const tagIds: number[] = [];
+        for (const tagName of flashcardData.tags) {
+          const { data: tag, error: tagError } = await supabaseServiceClient
+            .from("tags")
+            .select("id")
+            .eq("name", tagName)
+            .single();
+
+          if (tagError || !tag) {
+            throw new Error(`Failed to find tag "${tagName}": ${tagError?.message}`);
+          }
+
+          tagIds.push(tag.id);
+        }
+
+        const { error: tagError } = await supabaseServiceClient.from("card_tags").insert(
+          tagIds.map((tagId) => ({
+            card_id: insertedCard.id,
+            tag_id: tagId,
+          }))
+        );
+
+        if (tagError) {
+          throw new Error(`Failed to add tags to flashcard ${i}: ${tagError.message}`);
+        }
+      }
     }
   }
 

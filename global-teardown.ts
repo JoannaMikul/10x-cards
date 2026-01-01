@@ -45,7 +45,7 @@ async function globalTeardown() {
     const { error: generationsError } = await supabaseServiceClient
       .from("generations")
       .delete()
-      .eq("owner_id", testUserId);
+      .eq("user_id", testUserId);
 
     if (generationsError) {
       console.error("❌ Error cleaning generations:", generationsError);
