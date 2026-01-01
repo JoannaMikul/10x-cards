@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { config } from "dotenv";
 import { supabaseServiceClient } from "./src/db/supabase.client";
 
@@ -12,10 +13,11 @@ config({ path: ".env.test" });
  */
 async function globalTeardown() {
   console.log("🧹 GLOBAL TEARDOWN STARTED - E2E test cleanup...");
-  console.log("Process env keys:", Object.keys(process.env));
-  console.log("E2E_USERNAME_ID:", process.env.E2E_USERNAME_ID);
 
   const testUserId = process.env.E2E_USERNAME_ID;
+
+  // Log relevant environment variables for debugging
+  console.log("E2E_USERNAME_ID:", testUserId ? "✅ Set" : "❌ Missing");
 
   if (!testUserId) {
     console.warn("⚠️  E2E_USERNAME_ID not found in environment variables. Skipping cleanup.");
