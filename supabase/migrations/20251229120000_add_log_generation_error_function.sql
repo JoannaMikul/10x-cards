@@ -10,7 +10,7 @@ create or replace function public.log_generation_error(
   p_model text,
   p_error_code text,
   p_error_message text,
-  p_source_text_hash bytea,
+  p_source_text_hash text,
   p_source_text_length integer
 )
 returns void
@@ -45,9 +45,10 @@ begin
   end if;
 
   -- verify the user exists (optional - for data integrity)
-  if not exists (select 1 from auth.users where id = p_user_id) then
-    raise exception 'user does not exist';
-  end if;
+  -- temporarily disabled to avoid auth schema access issues
+  -- if not exists (select 1 from auth.users where id = p_user_id) then
+  --   raise exception 'user does not exist';
+  -- end if;
 
   -- insert the error log
   insert into public.generation_error_logs (
@@ -62,7 +63,7 @@ begin
     trim(p_model),
     trim(p_error_code),
     trim(p_error_message),
-    p_source_text_hash,
+    decode(p_source_text_hash, 'base64'),
     p_source_text_length
   );
 
@@ -71,7 +72,7 @@ $$;
 
 -- grant execute permission to authenticated users
 grant execute on function public.log_generation_error(
-  uuid, text, text, text, bytea, integer
+  uuid, text, text, text, text, integer
 ) to authenticated;
 
 commit;

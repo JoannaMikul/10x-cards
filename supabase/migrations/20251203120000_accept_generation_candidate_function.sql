@@ -86,5 +86,8 @@ begin
 end;
 $$;
 
+revoke all on function public.accept_generation_candidate(uuid, uuid, card_origin, bigint, bigint[], bigint, jsonb) from public;
+grant execute on function public.accept_generation_candidate(uuid, uuid, card_origin, bigint, bigint[], bigint, jsonb) to authenticated;
+
 commit;
 

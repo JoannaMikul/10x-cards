@@ -778,18 +778,24 @@ create policy generation_candidates_delete_authenticated_owner_or_admin
     to authenticated
     using (owner_id = auth.uid() or public.is_admin());
 
--- generation error logs: admins only (no anon policy to avoid leakage).
+-- generation error logs: authenticated users can insert, admins can read/update/delete.
 create policy generation_error_logs_select_authenticated_admins
     on public.generation_error_logs
     for select
     to authenticated
     using (public.is_admin());
 
-create policy generation_error_logs_insert_authenticated_admins
+create policy generation_error_logs_insert_authenticated_users
     on public.generation_error_logs
     for insert
     to authenticated
-    with check (public.is_admin());
+    with check (true);
+
+create policy generation_error_logs_insert_anon_users
+    on public.generation_error_logs
+    for insert
+    to anon
+    with check (true);
 
 create policy generation_error_logs_update_authenticated_admins
     on public.generation_error_logs
