@@ -1,20 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, useId } from "react";
-import type {
-  CategoryDTO,
-  CreateFlashcardCommand,
-  FlashcardDTO,
-  FlashcardFormMode,
-  FlashcardFormValues,
-  FlashcardSelectionState,
-  FlashcardsFilters,
-  SourceDTO,
-  TagDTO,
-  UpdateFlashcardCommand,
-} from "../../types";
-import { Badge } from "../ui/badge";
+import { useCallback, useEffect, useId, useState } from "react";
+import type { CategoryDTO, FlashcardDTO, FlashcardFormValues, FlashcardsFilters, SourceDTO, TagDTO } from "../../types";
 import { Separator } from "../ui/separator";
 import { Toaster } from "../ui/sonner";
 import { useFlashcards } from "../hooks/useFlashcards";
+import { useFlashcardSelection } from "../hooks/useFlashcardSelection";
+import { useFlashcardModals } from "../hooks/useFlashcardModals";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { FiltersDrawer } from "./FiltersDrawer";
 import { FlashcardFormModal } from "./FlashcardFormModal";
@@ -22,7 +12,14 @@ import { FlashcardList } from "./FlashcardList";
 import { FlashcardsFiltersProvider, useFlashcardsFilters } from "./FlashcardsFiltersContext";
 import { FiltersForm } from "./FiltersSidebar";
 import { FlashcardsToolbar } from "./FlashcardsToolbar";
-import { cn } from "../../lib/utils";
+import { FlashcardsPageHeader } from "./FlashcardsPageHeader";
+import { FlashcardsSelectionPanel } from "./FlashcardsSelectionPanel";
+import {
+  buildReviewsUrl,
+  cloneFilters,
+  mapFormValuesToCreateCommand,
+  mapFormValuesToUpdateCommand,
+} from "../../lib/utils/flashcard-form-mappers";
 
 interface FlashcardsPageProps {
   categories?: CategoryDTO[];
@@ -30,20 +27,6 @@ interface FlashcardsPageProps {
   filterTags?: TagDTO[];
   sources?: SourceDTO[];
   canShowDeleted?: boolean;
-}
-
-interface FormState {
-  open: boolean;
-  mode: FlashcardFormMode;
-  cardId?: string;
-  initialValues?: FlashcardFormValues;
-}
-
-interface ConfirmState {
-  open: boolean;
-  mode: "delete" | "restore";
-  card?: FlashcardDTO;
-  isProcessing: boolean;
 }
 
 export function FlashcardsPage(props: FlashcardsPageProps) {
@@ -68,39 +51,20 @@ function FlashcardsPageContent({
   });
 
   const [isFiltersDrawerOpen, setFiltersDrawerOpen] = useState(false);
-  const [formState, setFormState] = useState<FormState>({
-    open: false,
-    mode: "create",
-    initialValues: createEmptyFormValues(),
-  });
-  const [confirmState, setConfirmState] = useState<ConfirmState>({
-    open: false,
-    mode: "delete",
-    isProcessing: false,
-  });
-  const [selectionState, setSelectionState] = useState<FlashcardSelectionState>({
-    selectedIds: [],
-    mode: "manual",
-  });
   const [areFiltersExpanded, setAreFiltersExpanded] = useState(false);
   const includeDeletedCheckboxId = useId();
 
-  const filtersSignature = useMemo(() => JSON.stringify(filters), [filters]);
-  useEffect(() => {
-    setSelectionState({ selectedIds: [], mode: "manual" });
-  }, [filtersSignature]);
+  const selection = useFlashcardSelection({
+    items: state.items,
+    aggregates: state.aggregates,
+  });
 
-  const derivedSelectedIds =
-    selectionState.mode === "all-filtered" ? state.items.map((card) => card.id) : selectionState.selectedIds;
-  const totalSelectedCount =
-    selectionState.mode === "all-filtered"
-      ? (state.aggregates?.total ?? state.items.length)
-      : selectionState.selectedIds.length;
-  const canStartReview =
-    selectionState.mode === "all-filtered"
-      ? (state.aggregates?.total ?? state.items.length) > 0
-      : selectionState.selectedIds.length > 0;
-  const hasActiveSelection = canStartReview;
+  const modals = useFlashcardModals(canShowDeleted);
+
+  const filtersSignature = JSON.stringify(filters);
+  useEffect(() => {
+    // Reset selection when filters change - this is handled internally by the hook
+  }, [filtersSignature]);
 
   const handleSearchChange = useCallback(
     (value: string) => {
@@ -119,40 +83,13 @@ function FlashcardsPageContent({
   const handleFiltersChange = useCallback(
     (next: FlashcardsFilters) => {
       setFilters(() => cloneFilters(next));
-      setSelectionState({ selectedIds: [], mode: "manual" });
     },
     [setFilters]
   );
 
   const handleResetFilters = useCallback(() => {
     resetFilters();
-    setSelectionState({ selectedIds: [], mode: "manual" });
   }, [resetFilters]);
-
-  const handleToggleSelectForReview = useCallback((cardId: string) => {
-    setSelectionState((prev) => {
-      if (prev.mode === "all-filtered") {
-        const exists = prev.selectedIds.includes(cardId);
-        return {
-          mode: "manual",
-          selectedIds: exists ? prev.selectedIds.filter((id) => id !== cardId) : [...prev.selectedIds, cardId],
-        };
-      }
-
-      const exists = prev.selectedIds.includes(cardId);
-      return {
-        ...prev,
-        selectedIds: exists ? prev.selectedIds.filter((id) => id !== cardId) : [...prev.selectedIds, cardId],
-      };
-    });
-  }, []);
-
-  const handleSelectionModeToggle = useCallback(() => {
-    setSelectionState((prev) => ({
-      ...prev,
-      mode: prev.mode === "manual" ? "all-filtered" : "manual",
-    }));
-  }, []);
 
   const handleIncludeDeletedToggle = useCallback(
     (checked: boolean) => {
@@ -168,98 +105,48 @@ function FlashcardsPageContent({
     setAreFiltersExpanded((prev) => !prev);
   }, []);
 
-  const handleOpenCreateModal = () => {
-    setFormState({
-      open: true,
-      mode: "create",
-      initialValues: createEmptyFormValues(),
-    });
-  };
-
-  const handleOpenEditModal = (card: FlashcardDTO) => {
-    setFormState({
-      open: true,
-      mode: "edit",
-      cardId: card.id,
-      initialValues: mapCardToFormValues(card),
-    });
-  };
-
-  const handleCloseFormModal = () => {
-    setFormState((prev) => ({ ...prev, open: false }));
-  };
-
   const handleSubmitForm = async (values: FlashcardFormValues) => {
-    if (formState.mode === "create") {
+    if (modals.formState.mode === "create") {
       const payload = mapFormValuesToCreateCommand(values);
       await createFlashcard(payload);
       return;
     }
 
-    if (!formState.cardId) {
+    if (!modals.formState.cardId) {
       return;
     }
 
     const payload = mapFormValuesToUpdateCommand(values);
-    await updateFlashcard(formState.cardId, payload);
-  };
-
-  const handleRequestDelete = (card: FlashcardDTO) => {
-    setConfirmState({
-      open: true,
-      mode: "delete",
-      card,
-      isProcessing: false,
-    });
+    await updateFlashcard(modals.formState.cardId, payload);
   };
 
   const canRestoreCards = canShowDeleted;
 
-  const handleRequestRestore = (card: FlashcardDTO) => {
-    if (!canRestoreCards) {
-      return;
-    }
-    setConfirmState({
-      open: true,
-      mode: "restore",
-      card,
-      isProcessing: false,
-    });
-  };
-
-  const closeConfirmDialog = () => {
-    setConfirmState((prev) => ({
-      ...prev,
-      open: false,
-      isProcessing: false,
-    }));
-  };
-
   const handleConfirmAction = async () => {
-    if (!confirmState.card) {
+    if (!modals.confirmState.card) {
       return;
     }
 
-    setConfirmState((prev) => ({ ...prev, isProcessing: true }));
+    modals.setConfirmProcessing(true);
     try {
-      if (confirmState.mode === "delete") {
-        await deleteFlashcard(confirmState.card.id);
+      if (modals.confirmState.mode === "delete") {
+        await deleteFlashcard(modals.confirmState.card.id);
       } else {
-        await restoreFlashcard(confirmState.card.id);
+        await restoreFlashcard(modals.confirmState.card.id);
       }
-      closeConfirmDialog();
+      modals.closeConfirmDialog();
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error(error);
-      setConfirmState((prev) => ({ ...prev, isProcessing: false }));
+      modals.setConfirmProcessing(false);
     }
   };
 
   const handleStartReview = () => {
-    if (!canStartReview) {
+    if (!selection.canStartReview) {
       return;
     }
-    const url = buildReviewsUrl(filters, selectionState);
+    const url = buildReviewsUrl(filters, selection.selectionState);
     window.location.href = url;
   };
 
@@ -272,27 +159,9 @@ function FlashcardsPageContent({
     setFiltersDrawerOpen(open);
   };
 
-  const selectionModeLabel = selectionState.mode === "manual" ? "Manual selection" : "All filtered cards";
-  const selectionDescription =
-    selectionState.mode === "manual"
-      ? `${totalSelectedCount} card${totalSelectedCount === 1 ? "" : "s"} selected`
-      : `Using all cards that match current filters (${totalSelectedCount.toLocaleString()} total)`;
-
   return (
     <div className="space-y-6" data-testid="flashcards-content">
-      <div className="space-y-2 text-center md:text-left p-6" data-testid="flashcards-header">
-        <h1 className="text-3xl font-semibold text-foreground" data-testid="flashcards-title">
-          Flashcards
-        </h1>
-        <p className="text-muted-foreground" data-testid="flashcards-subtitle">
-          Manage your personal collection, refine filters, and start review sessions faster.
-        </p>
-        {state.aggregates && (
-          <p className="text-sm text-muted-foreground" data-testid="flashcards-count">
-            {state.aggregates.total.toLocaleString()} flashcards in your workspace
-          </p>
-        )}
-      </div>
+      <FlashcardsPageHeader aggregates={state.aggregates} />
 
       <div className="sticky top-0 z-20 w-full rounded-none border border-border/60 bg-muted p-4 shadow-md">
         <FlashcardsToolbar
@@ -300,13 +169,13 @@ function FlashcardsPageContent({
           includeDeleted={Boolean(filters.includeDeleted)}
           canShowDeleted={canShowDeleted}
           includeDeletedCheckboxId={includeDeletedCheckboxId}
-          canStartReview={canStartReview}
-          isManualSelectionMode={selectionState.mode === "manual"}
+          canStartReview={selection.canStartReview}
+          isManualSelectionMode={selection.selectionState.mode === "manual"}
           areFiltersExpanded={areFiltersExpanded}
           onSearchChange={handleSearchChange}
           onSearchDebouncedChange={handleSearchDebouncedChange}
-          onCreateClick={handleOpenCreateModal}
-          onSelectionModeToggle={handleSelectionModeToggle}
+          onCreateClick={modals.handleOpenCreateModal}
+          onSelectionModeToggle={selection.handleSelectionModeToggle}
           onStartReview={handleStartReview}
           onToggleFilters={toggleFiltersExpansion}
           onIncludeDeletedToggle={handleIncludeDeletedToggle}
@@ -331,37 +200,12 @@ function FlashcardsPageContent({
         )}
       </div>
 
-      <div className="flex w-full shrink-0 self-stretch pr-6 pl-6" data-testid="selection-panel">
-        <div
-          className={cn(
-            "rounded-lg border px-4 py-3 text-sm flex h-full w-full flex-col transition-colors",
-            hasActiveSelection
-              ? "border-primary/60 bg-primary/10 shadow-sm dark:border-primary/50 dark:bg-primary/20"
-              : "border-border bg-muted/30"
-          )}
-          data-testid="selection-status"
-        >
-          <div>
-            <p
-              className={cn("font-medium", hasActiveSelection ? "text-primary" : "text-foreground")}
-              data-testid="selection-mode"
-            >
-              {selectionModeLabel}
-            </p>
-            <p
-              className={cn(hasActiveSelection ? "text-primary/80 dark:text-primary/70" : "text-muted-foreground")}
-              data-testid="selection-description"
-            >
-              {selectionDescription}
-            </p>
-          </div>
-          {filters.includeDeleted && (
-            <Badge variant="default" className="mt-3" data-testid="deleted-cards-badge">
-              Showing deleted cards
-            </Badge>
-          )}
-        </div>
-      </div>
+      <FlashcardsSelectionPanel
+        hasActiveSelection={selection.hasActiveSelection}
+        selectionModeLabel={selection.selectionModeLabel}
+        selectionDescription={selection.selectionDescription}
+        showDeletedBadge={Boolean(filters.includeDeleted)}
+      />
 
       <div className="space-y-6">
         <FlashcardList
@@ -370,11 +214,11 @@ function FlashcardsPageContent({
           error={state.error}
           hasMore={state.hasMore}
           onLoadMore={loadMore}
-          onEdit={handleOpenEditModal}
-          onDelete={handleRequestDelete}
-          onRestore={handleRequestRestore}
-          onToggleSelectForReview={handleToggleSelectForReview}
-          selectedForReview={derivedSelectedIds}
+          onEdit={modals.handleOpenEditModal}
+          onDelete={modals.handleRequestDelete}
+          onRestore={modals.handleRequestRestore}
+          onToggleSelectForReview={selection.handleToggleSelectForReview}
+          selectedForReview={selection.derivedSelectedIds}
           onStartReviewFromCard={handleStartReviewFromCard}
           categories={categories}
           sources={sources}
@@ -399,115 +243,26 @@ function FlashcardsPageContent({
       />
 
       <FlashcardFormModal
-        open={formState.open}
-        mode={formState.mode}
-        initialValues={formState.initialValues}
+        open={modals.formState.open}
+        mode={modals.formState.mode}
+        initialValues={modals.formState.initialValues}
         categories={categories}
         sources={sources}
         tags={tags}
-        onClose={handleCloseFormModal}
+        onClose={modals.handleCloseFormModal}
         onSubmit={handleSubmitForm}
       />
 
       <ConfirmDialog
-        open={confirmState.open}
-        mode={confirmState.mode}
-        card={confirmState.card}
-        onCancel={closeConfirmDialog}
+        open={modals.confirmState.open}
+        mode={modals.confirmState.mode}
+        card={modals.confirmState.card}
+        onCancel={modals.closeConfirmDialog}
         onConfirm={handleConfirmAction}
-        isProcessing={confirmState.isProcessing}
+        isProcessing={modals.confirmState.isProcessing}
       />
 
       <Toaster />
     </div>
   );
-}
-
-function cloneFilters(filters: FlashcardsFilters): FlashcardsFilters {
-  return {
-    ...filters,
-    tagIds: Array.isArray(filters.tagIds) ? [...filters.tagIds] : [],
-  };
-}
-
-function createEmptyFormValues(): FlashcardFormValues {
-  return {
-    front: "",
-    back: "",
-    categoryId: undefined,
-    contentSourceId: undefined,
-    origin: "manual",
-    tagIds: [],
-    metadata: undefined,
-  };
-}
-
-function mapCardToFormValues(card: FlashcardDTO): FlashcardFormValues {
-  return {
-    front: card.front,
-    back: card.back,
-    categoryId: card.category_id ?? undefined,
-    contentSourceId: card.content_source_id ?? undefined,
-    origin: card.origin,
-    tagIds: (card.tags ?? []).map((tag) => tag.id),
-    metadata: card.metadata ?? undefined,
-  };
-}
-
-function mapFormValuesToCreateCommand(values: FlashcardFormValues): CreateFlashcardCommand {
-  return {
-    front: values.front,
-    back: values.back,
-    category_id: values.categoryId,
-    content_source_id: values.contentSourceId,
-    origin: values.origin,
-    metadata: values.metadata,
-    tag_ids: values.tagIds,
-  };
-}
-
-function mapFormValuesToUpdateCommand(values: FlashcardFormValues): UpdateFlashcardCommand {
-  return {
-    front: values.front,
-    back: values.back,
-    category_id: values.categoryId,
-    content_source_id: values.contentSourceId,
-    origin: values.origin,
-    metadata: values.metadata,
-    tag_ids: values.tagIds,
-  };
-}
-
-function buildReviewsUrl(filters: FlashcardsFilters, selection: FlashcardSelectionState): string {
-  const params = new URLSearchParams();
-
-  if (selection.mode === "manual" && selection.selectedIds.length > 0) {
-    params.set("cardIds", selection.selectedIds.join(","));
-  } else {
-    const trimmedSearch = filters.search.trim();
-    if (trimmedSearch.length > 0) {
-      params.set("q", trimmedSearch);
-    }
-    if (typeof filters.categoryId === "number") {
-      params.set("categoryId", String(filters.categoryId));
-    }
-    if (typeof filters.contentSourceId === "number") {
-      params.set("sourceId", String(filters.contentSourceId));
-    }
-    if (filters.tagIds.length > 0) {
-      params.set("tagIds", filters.tagIds.join(","));
-    }
-    if (filters.origin) {
-      params.set("origin", filters.origin);
-    }
-    if (filters.includeDeleted) {
-      params.set("showDeleted", "true");
-    }
-    if (filters.sort && filters.sort !== "-created_at") {
-      params.set("sort", filters.sort);
-    }
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `/reviews?${query}` : "/reviews";
 }
