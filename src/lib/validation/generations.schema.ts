@@ -5,14 +5,23 @@ export const MAX_SANITIZED_TEXT_LENGTH = 10000;
 export const TEMPERATURE_MIN = 0;
 export const TEMPERATURE_MAX = 2;
 
-const temperatureSchema = z
+export const temperatureSchema = z
   .number({
     invalid_type_error: "Temperature must be a number",
     required_error: "Temperature is required",
   })
   .min(TEMPERATURE_MIN, `Temperature cannot be lower than ${TEMPERATURE_MIN}`)
-  .max(TEMPERATURE_MAX, `Temperature cannot be higher than ${TEMPERATURE_MAX}`)
-  .transform((value) => Math.round(value * 100) / 100);
+  .max(TEMPERATURE_MAX, `Temperature cannot be higher than ${TEMPERATURE_MAX}`);
+
+export const temperatureSchemaWithRounding = temperatureSchema.transform((value) => Math.round(value * 100) / 100);
+
+export const modelSchema = z
+  .string({
+    invalid_type_error: "Model must be a string",
+  })
+  .min(1, "Model cannot be empty");
+
+export const requiredModelSchema = modelSchema.describe("Model is required");
 
 /**
  * Validates the payload required to start an AI generation task.
@@ -35,7 +44,7 @@ export const createGenerationSchema = z.object({
       `Sanitized input text must be at least ${MIN_SANITIZED_TEXT_LENGTH} characters long`
     )
     .max(MAX_SANITIZED_TEXT_LENGTH, `Sanitized input text can contain at most ${MAX_SANITIZED_TEXT_LENGTH} characters`),
-  temperature: temperatureSchema.optional(),
+  temperature: temperatureSchemaWithRounding.optional(),
 });
 
 export type CreateGenerationInput = z.infer<typeof createGenerationSchema>;

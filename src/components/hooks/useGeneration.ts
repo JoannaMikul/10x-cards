@@ -185,7 +185,7 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
 
           if (
             response.status === 409 &&
-            errorData.error.message.includes("active generation request is already in progress")
+            errorData.error.message.includes("An active generation request is already in progress")
           ) {
             await checkActiveGeneration();
             return;

@@ -2,7 +2,6 @@ import React from "react";
 import { useGeneration } from "../hooks/useGeneration";
 import { GeneratorForm } from "./GeneratorForm";
 import { GenerationStatusPanel } from "./GenerationStatusPanel";
-import type { CreateGenerationCommand } from "../../types";
 
 interface ModelOption {
   label: string;
@@ -15,12 +14,7 @@ interface GeneratorPageProps {
 }
 
 export function GeneratorPage({ availableModels, defaultModel }: GeneratorPageProps) {
-  const { generation, isLoading, isPolling, error, startGeneration, cancelGeneration, clearError } = useGeneration();
-
-  const handleFormSubmit = async (data: CreateGenerationCommand) => {
-    clearError();
-    await startGeneration(data);
-  };
+  const { generation, isPolling, error, startGeneration, cancelGeneration, clearError } = useGeneration();
 
   const handleCancel = async () => {
     if (generation?.id) {
@@ -48,8 +42,7 @@ export function GeneratorPage({ availableModels, defaultModel }: GeneratorPagePr
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="space-y-6">
           <GeneratorForm
-            onSubmit={handleFormSubmit}
-            isLoading={isLoading}
+            onSubmit={startGeneration}
             currentGenerationStatus={generation?.status}
             availableModels={availableModels}
             defaultModel={defaultModel}

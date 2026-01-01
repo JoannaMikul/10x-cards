@@ -1,24 +1,21 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import {
+  generatorFormSchema,
+  DEFAULT_GENERATOR_FORM_DATA,
+  type GeneratorFormData,
+} from "../../lib/validation/generator-form.schema";
 import { MAX_SANITIZED_TEXT_LENGTH } from "../../lib/validation/generations.schema";
 import { useTextValidation } from "../hooks/useTextValidation";
-import type { CreateGenerationCommand } from "../../types";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "../ui/card";
 import { FieldGroup, Field } from "../ui/field";
+import { FormAlertError } from "../ui/form-error";
 import { TextAreaWithCounter } from "./TextAreaWithCounter";
 import { ModelSelector } from "./ModelSelector";
 import { TemperatureSlider } from "./TemperatureSlider";
 import { SubmitButton } from "./SubmitButton";
-
-const formSchema = z.object({
-  raw_input_text: z.string().min(1, "Text is required"),
-  model: z.string().min(1, "Model is required"),
-  temperature: z.number().min(0).max(2),
-});
-
-type FormData = z.infer<typeof formSchema>;
 
 interface ModelOption {
   label: string;
@@ -26,8 +23,7 @@ interface ModelOption {
 }
 
 interface GeneratorFormProps {
-  onSubmit: (data: CreateGenerationCommand) => void;
-  isLoading: boolean;
+  onSubmit: (data: { model: string; sanitized_input_text: string; temperature?: number }) => Promise<void>;
   currentGenerationStatus?: string | null;
   availableModels: readonly ModelOption[];
   defaultModel: string;
@@ -35,19 +31,19 @@ interface GeneratorFormProps {
 
 export function GeneratorForm({
   onSubmit,
-  isLoading,
   currentGenerationStatus,
   availableModels,
   defaultModel,
 }: GeneratorFormProps) {
   const { sanitizeAndValidate, isValidLength } = useTextValidation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<{ message: string } | null>(null);
 
-  const methods = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+  const methods = useForm<GeneratorFormData>({
+    resolver: zodResolver(generatorFormSchema),
     defaultValues: {
-      raw_input_text: "",
+      ...DEFAULT_GENERATOR_FORM_DATA,
       model: defaultModel,
-      temperature: 0.7,
     },
   });
 
@@ -59,20 +55,29 @@ export function GeneratorForm({
 
   const rawInputText = watch("raw_input_text");
 
-  const handleFormSubmit = (data: FormData) => {
-    const { sanitized, isValid: textValid } = sanitizeAndValidate(data.raw_input_text);
+  const handleFormSubmit = async (data: GeneratorFormData) => {
+    setIsLoading(true);
+    setError(null);
 
-    if (!textValid) {
-      return;
+    try {
+      const { sanitized, isValid: textValid } = sanitizeAndValidate(data.raw_input_text);
+
+      if (!textValid) {
+        return;
+      }
+
+      await onSubmit({
+        model: data.model,
+        sanitized_input_text: sanitized,
+        temperature: data.temperature,
+      });
+    } catch (err) {
+      setError({
+        message: err instanceof Error ? err.message : "An unexpected error occurred",
+      });
+    } finally {
+      setIsLoading(false);
     }
-
-    const command: CreateGenerationCommand = {
-      model: data.model,
-      sanitized_input_text: sanitized,
-      temperature: data.temperature === null ? undefined : data.temperature,
-    };
-
-    onSubmit(command);
   };
 
   const hasFormErrors = Object.keys(errors).length > 0;
@@ -104,6 +109,8 @@ export function GeneratorForm({
               <ModelSelector options={availableModels} />
               <TemperatureSlider min={0} max={2} step={0.1} />
             </FieldGroup>
+
+            <FormAlertError error={error} data-testid="generation-error-alert" />
           </form>
         </CardContent>
         <CardFooter>

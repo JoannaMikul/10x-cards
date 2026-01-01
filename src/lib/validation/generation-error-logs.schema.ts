@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { modelSchema } from "./generations.schema";
 
 export const DEFAULT_GENERATION_ERROR_LOGS_LIMIT = 20;
 export const MAX_GENERATION_ERROR_LOGS_LIMIT = 100;
@@ -10,12 +11,7 @@ export const generationErrorLogsQuerySchema = z.object({
     })
     .uuid("User ID must be a valid UUID")
     .optional(),
-  model: z
-    .string({
-      invalid_type_error: "Model must be a string",
-    })
-    .min(1, "Model cannot be empty")
-    .optional(),
+  model: modelSchema.optional(),
   from: z
     .string({
       invalid_type_error: "From date must be a string",
