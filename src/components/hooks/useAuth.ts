@@ -17,10 +17,15 @@ export interface UpdatePasswordFormData {
   token?: string;
 }
 
+export interface ResetPasswordFormData {
+  email: string;
+}
+
 export interface UseAuthReturn {
   login: (data: LoginFormData) => Promise<{ user: AuthUser }>;
   register: (data: RegisterFormData) => Promise<{ user: AuthUser }>;
   updatePassword: (data: UpdatePasswordFormData) => Promise<{ user?: AuthUser }>;
+  resetPassword: (data: ResetPasswordFormData) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
   error: AuthError | null;
@@ -145,6 +150,35 @@ export function useAuth(): UseAuthReturn {
     }
   };
 
+  const resetPassword = async (data: ResetPasswordFormData): Promise<void> => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "An error occurred while sending password reset instructions");
+      }
+    } catch (err) {
+      const authError: AuthError = {
+        message: err instanceof Error ? err.message : "An unexpected error occurred. Please try again later.",
+        status: err instanceof Error && "status" in err ? (err as { status?: number }).status : undefined,
+      };
+      setError(authError);
+      throw authError;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const logout = async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
@@ -172,6 +206,7 @@ export function useAuth(): UseAuthReturn {
     login,
     register,
     updatePassword,
+    resetPassword,
     logout,
     isLoading,
     error,

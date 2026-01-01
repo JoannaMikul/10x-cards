@@ -42,7 +42,16 @@ export function UpdatePasswordForm() {
     handleSubmit,
     formState: { errors },
     register,
+    watch,
   } = methods;
+
+  // Clear errors when password field changes
+  const watchedPassword = watch("password");
+  React.useEffect(() => {
+    if (watchedPassword && error) {
+      clearError();
+    }
+  }, [watchedPassword, error, clearError]);
 
   const handleFormSubmit = async (data: UpdatePasswordFormData) => {
     clearError();

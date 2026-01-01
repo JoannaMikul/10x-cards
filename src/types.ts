@@ -485,6 +485,10 @@ export interface UpdatePasswordFormData {
   password: string;
 }
 
+export interface ResetPasswordFormData {
+  email: string;
+}
+
 export interface ResetPasswordCommand {
   email: string;
 }

@@ -1,27 +1,31 @@
 import React, { useState } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { CardFooter } from "../ui/card";
-import { FieldGroup, Field } from "../ui/field";
+import { FieldGroup } from "../ui/field";
 import { Input } from "../ui/input";
-import { Label } from "../ui/label";
 import { Button } from "../ui/button";
-import { Alert, AlertDescription } from "../ui/alert";
 import { Loader2, CheckCircle } from "lucide-react";
 import { AuthLayoutCard } from "./AuthLayoutCard";
+import { FormField } from "../ui/form-field";
+import { FormAlertError } from "../ui/form-error";
 import { resetPasswordSchema } from "../../lib/validation/auth.schema";
-
-type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
+import type { ResetPasswordFormData } from "../../types";
+import { useAuth } from "../hooks/useAuth";
+import { toast } from "sonner";
 
 export function ResetPasswordForm() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { resetPassword, isLoading, error, clearError } = useAuth();
   const [success, setSuccess] = useState(false);
+
+  // Clear success state when component mounts (user navigated to this page)
+  React.useEffect(() => {
+    setSuccess(false);
+  }, []);
 
   const methods = useForm<ResetPasswordFormData>({
     resolver: zodResolver(resetPasswordSchema),
-    mode: "all",
+    mode: "onSubmit",
     defaultValues: {
       email: "",
     },
@@ -29,41 +33,36 @@ export function ResetPasswordForm() {
 
   const {
     handleSubmit,
-    formState: { errors, isValid },
+    formState: { errors },
     register,
     reset,
+    watch,
   } = methods;
 
+  // Clear success state when user starts typing a new email
+  const watchedEmail = watch("email");
+  React.useEffect(() => {
+    if (watchedEmail && success) {
+      setSuccess(false);
+    }
+  }, [watchedEmail, success]);
+
   const handleFormSubmit = async (data: ResetPasswordFormData) => {
-    setIsLoading(true);
-    setError(null);
+    clearError();
     setSuccess(false);
 
     try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        setError(errorData.error || "An error occurred while sending password reset instructions");
-        return;
-      }
-
+      await resetPassword(data);
       setSuccess(true);
       reset(); // Clear form after success
+
+      toast.success("Password reset instructions sent!", {
+        description: "Check your email for instructions to reset your password.",
+      });
     } catch {
-      setError("An unexpected error occurred. Please try again later.");
-    } finally {
-      setIsLoading(false);
+      // Error is already handled by useAuth hook
     }
   };
-
-  const isFormValid = isValid && !isLoading;
 
   return (
     <AuthLayoutCard
@@ -71,48 +70,60 @@ export function ResetPasswordForm() {
       description="Enter your email address and we'll send you password reset instructions."
     >
       <FormProvider {...methods}>
-        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4" data-testid="reset-password-form">
           <FieldGroup>
-            <Field>
-              <Label htmlFor="email">Email address</Label>
+            <FormField
+              label="Email address"
+              htmlFor="email"
+              error={errors.email}
+              hint="Enter the email address associated with your account"
+              required
+              data-testid="email-field"
+            >
               <Input
                 id="email"
                 type="email"
                 placeholder="your@email.com"
                 {...register("email")}
-                disabled={isLoading || success}
+                disabled={isLoading}
+                data-testid="email-input"
               />
-              {!errors.email && (
-                <p className="text-xs text-gray-500 mt-0.5">Enter the email address associated with your account</p>
-              )}
-              {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email.message}</p>}
-            </Field>
+            </FormField>
           </FieldGroup>
 
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          <FormAlertError error={error} data-testid="reset-password-error-alert" />
 
           {success && (
-            <Alert>
-              <CheckCircle className="h-4 w-4" />
-              <AlertDescription>
-                If an account exists, we&apos;ve sent password reset instructions to the provided email address.
-              </AlertDescription>
-            </Alert>
+            <div className="bg-green-50 border border-green-200 rounded-md p-4">
+              <div className="flex">
+                <CheckCircle className="h-5 w-5 text-green-400" />
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-green-800">Password reset instructions sent!</p>
+                  <p className="text-sm text-green-700 mt-1">
+                    If an account exists, we&apos;ve sent password reset instructions to the provided email address.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setSuccess(false)}
+                    className="text-sm text-green-600 hover:text-green-800 underline mt-2"
+                    data-testid="try-again-button"
+                  >
+                    Didn&apos;t receive the email? Try again
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
 
           <CardFooter className="px-0 pb-0 mt-6">
-            <Button type="submit" className="w-full" disabled={!isFormValid || success}>
+            <Button type="submit" className="w-full" disabled={isLoading} data-testid="send-instructions-button">
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {success ? "Instructions sent" : "Send instructions"}
             </Button>
           </CardFooter>
 
           <div className="text-center text-sm">
-            <a href="/auth/login" className="text-primary hover:underline">
+            <a href="/auth/login" className="text-primary hover:underline" data-testid="back-to-login-link">
               Back to sign in
             </a>
           </div>
