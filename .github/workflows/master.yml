@@ -1,0 +1,62 @@
+name: Test & Build Master
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create test environment file
+        run: touch .env.test
+
+      - name: Install Playwright browsers
+        run: npm run playwright:install
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run all tests
+        run: npm run test
+        env:
+          NODE_ENV: test
+          TEST_BASE_URL: http://localhost:3000
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production
+        run: npm run build
+        env:
+          NODE_ENV: production
