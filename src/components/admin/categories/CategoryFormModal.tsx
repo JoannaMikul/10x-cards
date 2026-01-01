@@ -8,8 +8,9 @@ import { Button } from "../../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../ui/dialog";
 import { Input } from "../../ui/input";
 import { Textarea } from "../../ui/textarea";
-import { FieldGroup, Field, FieldLabel, FieldDescription, FieldError } from "../../ui/field";
-import { FormError } from "../../common/FormError";
+import { FieldGroup } from "../../ui/field";
+import { FormField } from "../../ui/form-field";
+import { FormAlertError } from "../../ui/form-error";
 
 interface CategoryFormModalProps {
   open: boolean;
@@ -25,6 +26,15 @@ interface CategoryFormModalProps {
 
 type CategoryFormData = z.infer<typeof createCategoryBodySchema>;
 
+function createCategoryFormSchema(mode: CategoryFormMode, existingSlugs: string[]) {
+  return createCategoryBodySchema.extend({
+    slug: createCategoryBodySchema.shape.slug.refine(
+      (slug) => mode === "edit" || !existingSlugs.includes(slug),
+      "Slug is already taken"
+    ),
+  });
+}
+
 export function CategoryFormModal({
   open,
   mode,
@@ -34,14 +44,8 @@ export function CategoryFormModal({
   onClose,
   submitting,
   apiError,
-  fieldErrors = [],
 }: CategoryFormModalProps) {
-  const categoryFormSchema = createCategoryBodySchema.extend({
-    slug: createCategoryBodySchema.shape.slug.refine(
-      (slug) => mode === "edit" || !existingSlugs.includes(slug),
-      "Slug is already taken"
-    ),
-  });
+  const categoryFormSchema = createCategoryFormSchema(mode, existingSlugs);
 
   const methods = useForm<CategoryFormData>({
     resolver: zodResolver(categoryFormSchema),
@@ -66,6 +70,10 @@ export function CategoryFormModal({
   const watchedColor = watch("color");
   const isFormValid = isValid;
 
+  const handleColorChange = (value: string) => {
+    setValue("color", value, { shouldValidate: true, shouldDirty: true });
+  };
+
   useEffect(() => {
     if (open) {
       reset(
@@ -77,7 +85,7 @@ export function CategoryFormModal({
         }
       );
     }
-  }, [open, initialValues, reset, mode]);
+  }, [open, initialValues, reset]);
 
   const handleFormSubmit = (data: CategoryFormData) => {
     onSubmit(data as CategoryFormValues);
@@ -93,15 +101,6 @@ export function CategoryFormModal({
   const description =
     mode === "create" ? "Create a new category that will be available to all users." : "Modify an existing category.";
 
-  const allErrors = [
-    ...fieldErrors,
-    ...(apiError ? [apiError.error.message] : []),
-    ...(errors.name?.message ? [errors.name.message] : []),
-    ...(errors.slug?.message ? [errors.slug.message] : []),
-    ...(errors.description?.message ? [errors.description.message] : []),
-    ...(errors.color?.message ? [errors.color.message] : []),
-  ];
-
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]" showCloseButton={!submitting}>
@@ -111,12 +110,11 @@ export function CategoryFormModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
-          <FormError errors={allErrors} />
+          <FormAlertError error={apiError ? { message: apiError.error.message } : null} />
 
           <FormProvider {...methods}>
             <FieldGroup>
-              <Field data-invalid={!!errors.name}>
-                <FieldLabel htmlFor="category-name">Name *</FieldLabel>
+              <FormField label="Name" htmlFor="category-name" error={errors.name} hint="e.g., Programming" required>
                 <Input
                   id="category-name"
                   type="text"
@@ -125,11 +123,15 @@ export function CategoryFormModal({
                   placeholder="e.g., Programming"
                   {...register("name")}
                 />
-                {errors.name && <FieldError errors={[errors.name]} />}
-              </Field>
+              </FormField>
 
-              <Field data-invalid={!!errors.slug}>
-                <FieldLabel htmlFor="category-slug">Slug *</FieldLabel>
+              <FormField
+                label="Slug"
+                htmlFor="category-slug"
+                error={errors.slug}
+                hint="Lowercase letters, numbers, and hyphens. Used in URLs and filters."
+                required
+              >
                 <Input
                   id="category-slug"
                   type="text"
@@ -137,17 +139,17 @@ export function CategoryFormModal({
                   maxLength={50}
                   placeholder="e.g., programming"
                   {...register("slug", {
-                    onChange: (e) => {
-                      e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-");
-                    },
+                    setValueAs: (value: string) => value.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
                   })}
                 />
-                <FieldDescription>Lowercase letters, numbers, and hyphens. Used in URLs and filters.</FieldDescription>
-                {errors.slug && <FieldError errors={[errors.slug]} />}
-              </Field>
+              </FormField>
 
-              <Field data-invalid={!!errors.description}>
-                <FieldLabel htmlFor="category-description">Description</FieldLabel>
+              <FormField
+                label="Description"
+                htmlFor="category-description"
+                error={errors.description}
+                hint="Brief description of the category..."
+              >
                 <Textarea
                   id="category-description"
                   disabled={submitting}
@@ -156,11 +158,14 @@ export function CategoryFormModal({
                   rows={3}
                   {...register("description")}
                 />
-                {errors.description && <FieldError errors={[errors.description]} />}
-              </Field>
+              </FormField>
 
-              <Field data-invalid={!!errors.color}>
-                <FieldLabel htmlFor="category-color">Color</FieldLabel>
+              <FormField
+                label="Color"
+                htmlFor="category-color"
+                error={errors.color}
+                hint="Optional color in hex format (#RRGGBB)."
+              >
                 <div className="flex gap-2">
                   <Input
                     id="category-color"
@@ -168,7 +173,7 @@ export function CategoryFormModal({
                     disabled={submitting}
                     className="w-16 h-10 p-1 border rounded"
                     value={watchedColor || ""}
-                    onChange={(e) => setValue("color", e.target.value)}
+                    onChange={(e) => handleColorChange(e.target.value)}
                   />
                   <Input
                     id="category-color-text"
@@ -177,13 +182,13 @@ export function CategoryFormModal({
                     placeholder="#RRGGBB"
                     maxLength={7}
                     className="flex-1"
-                    value={watchedColor || ""}
-                    onChange={(e) => setValue("color", e.target.value)}
+                    {...register("color", {
+                      setValueAs: (value: string) => value || undefined,
+                    })}
+                    onChange={(e) => handleColorChange(e.target.value)}
                   />
                 </div>
-                <FieldDescription>Optional color in hex format (#RRGGBB).</FieldDescription>
-                {errors.color && <FieldError errors={[errors.color]} />}
-              </Field>
+              </FormField>
             </FieldGroup>
           </FormProvider>
 
