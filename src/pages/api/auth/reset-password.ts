@@ -31,7 +31,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
     const supabase = createSupabaseServerInstance({ cookies, headers: request.headers });
 
-    const { data, error } = await supabase.auth.resetPasswordForEmail(body.email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(body.email, {
       redirectTo: `${new URL(request.url).origin}/auth/callback`,
     });
 
