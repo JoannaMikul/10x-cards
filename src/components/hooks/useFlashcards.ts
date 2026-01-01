@@ -8,10 +8,10 @@ import type {
   FlashcardListResponse,
   FlashcardsFilters,
   FlashcardsViewState,
-  TagDTO,
   UpdateFlashcardCommand,
 } from "../../types";
 import { createDefaultFlashcardsFilters } from "../flashcards/constants";
+import { flashcardsApiClient, ApiClientError } from "../../lib/api";
 
 type FiltersUpdater = (prev: FlashcardsFilters) => FlashcardsFilters;
 
@@ -48,9 +48,6 @@ interface FetchOptions {
 }
 
 const FLASHCARDS_PAGE_LIMIT = 20;
-const LOGIN_PATH = "/auth/login";
-const ALLOWED_ORIGINS = new Set(["ai-full", "ai-edited", "manual"] as const);
-const NETWORK_ERROR_MESSAGE = "A network error occurred.";
 
 export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsReturn {
   const {
@@ -98,31 +95,7 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
       }));
 
       try {
-        const params = buildFlashcardsQuery(filters, cursor);
-        const response = await fetch(`/api/flashcards?${params.toString()}`, {
-          method: "GET",
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            redirectToLogin();
-            return;
-          }
-
-          const errorData = await parseApiError(response);
-          setListState((prev) => ({
-            ...prev,
-            loading: false,
-            error: errorData,
-          }));
-          toast.error("Failed to fetch flashcards", {
-            description: errorData.error.message,
-          });
-          return;
-        }
-
-        const data: FlashcardListResponse = await response.json();
+        const data: FlashcardListResponse = await flashcardsApiClient.list(filters, cursor, FLASHCARDS_PAGE_LIMIT);
 
         setListState((prev) => ({
           ...prev,
@@ -138,21 +111,16 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
           return;
         }
 
-        const fallbackError: ApiErrorResponse = {
-          error: {
-            code: "network_error",
-            message: error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE,
-          },
-        };
+        const apiError = error instanceof ApiClientError ? error.toApiErrorResponse() : createNetworkError(error);
 
         setListState((prev) => ({
           ...prev,
           loading: false,
-          error: fallbackError,
+          error: apiError,
         }));
 
-        toast.error("Network error", {
-          description: fallbackError.error.message,
+        toast.error("Failed to fetch flashcards", {
+          description: apiError.error.message,
         });
       }
     },
@@ -173,28 +141,7 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
   const createFlashcard = useCallback(
     async (payload: CreateFlashcardCommand) => {
       try {
-        const response = await fetch("/api/flashcards", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            redirectToLogin();
-            return;
-          }
-
-          const errorData = await parseApiError(response);
-          toast.error("Failed to create flashcard", {
-            description: errorData.error.message,
-          });
-          throw errorData;
-        }
-
-        const created: FlashcardDTO = await response.json();
+        const created = await flashcardsApiClient.create(payload);
 
         if (filters.sort === "-created_at") {
           setListState((prev) => ({
@@ -208,140 +155,43 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
 
         toast.success("Flashcard created");
       } catch (error) {
-        if (isApiError(error)) {
-          throw error;
-        }
-        const fallbackError: ApiErrorResponse = {
-          error: {
-            code: "network_error",
-            message: error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE,
-          },
-        };
+        const apiError = error instanceof ApiClientError ? error.toApiErrorResponse() : createNetworkError(error);
+
         toast.error("Failed to create flashcard", {
-          description: fallbackError.error.message,
+          description: apiError.error.message,
         });
-        throw fallbackError;
+
+        throw apiError;
       }
     },
     [fetchFlashcards, filters.sort]
   );
 
-  const updateFlashcard = useCallback(
-    async (id: string, payload: UpdateFlashcardCommand) => {
-      const { tag_ids, ...rest } = payload;
-      const basePayload = sanitizeBaseUpdatePayload(rest);
-      const shouldPatch = Object.keys(basePayload).length > 0;
+  const updateFlashcard = useCallback(async (id: string, payload: UpdateFlashcardCommand) => {
+    try {
+      const updatedCard = await flashcardsApiClient.update(id, payload);
 
-      try {
-        let updatedCard: FlashcardDTO | null = null;
+      setListState((prev) => ({
+        ...prev,
+        items: prev.items.map((item) => (item.id === id ? updatedCard : item)),
+      }));
 
-        if (shouldPatch) {
-          const response = await fetch(`/api/flashcards/${id}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(basePayload),
-          });
+      toast.success("Flashcard updated");
+    } catch (error) {
+      const apiError = error instanceof ApiClientError ? error.toApiErrorResponse() : createNetworkError(error);
 
-          if (!response.ok) {
-            if (response.status === 401) {
-              redirectToLogin();
-              return;
-            }
+      toast.error("Failed to update flashcard", {
+        description: apiError.error.message,
+      });
 
-            const errorData = await parseApiError(response);
-            toast.error("Failed to update flashcard", {
-              description: errorData.error.message,
-            });
-            throw errorData;
-          }
-
-          updatedCard = await response.json();
-        } else {
-          const snapshot = listStateRef.current.items.find((item) => item.id === id);
-          updatedCard = snapshot ? { ...snapshot } : null;
-        }
-
-        if (tag_ids !== undefined) {
-          const response = await fetch(`/api/flashcards/${id}/tags`, {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ tag_ids }),
-          });
-
-          if (!response.ok) {
-            if (response.status === 401) {
-              redirectToLogin();
-              return;
-            }
-
-            const errorData = await parseApiError(response);
-            toast.error("Failed to update flashcard tags", {
-              description: errorData.error.message,
-            });
-            throw errorData;
-          }
-
-          const updatedTags: TagDTO[] = await response.json();
-          if (updatedCard) {
-            updatedCard = { ...updatedCard, tags: updatedTags };
-          }
-        }
-
-        if (!updatedCard) {
-          await fetchFlashcards({ cursor: null, append: false, preserveItems: true });
-          toast.success("Flashcard updated");
-          return;
-        }
-
-        const nextCard = updatedCard;
-        setListState((prev) => ({
-          ...prev,
-          items: prev.items.map((item) => (item.id === id ? nextCard : item)),
-        }));
-
-        toast.success("Flashcard updated");
-      } catch (error) {
-        if (isApiError(error)) {
-          throw error;
-        }
-        const fallbackError: ApiErrorResponse = {
-          error: {
-            code: "network_error",
-            message: error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE,
-          },
-        };
-        toast.error("Failed to update flashcard", {
-          description: fallbackError.error.message,
-        });
-        throw fallbackError;
-      }
-    },
-    [fetchFlashcards]
-  );
+      throw apiError;
+    }
+  }, []);
 
   const deleteFlashcard = useCallback(
     async (id: string) => {
       try {
-        const response = await fetch(`/api/flashcards/${id}`, {
-          method: "DELETE",
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            redirectToLogin();
-            return;
-          }
-
-          const errorData = await parseApiError(response);
-          toast.error("Failed to delete flashcard", {
-            description: errorData.error.message,
-          });
-          throw errorData;
-        }
+        await flashcardsApiClient.deleteFlashcard(id);
 
         setListState((prev) => {
           const target = prev.items.find((item) => item.id === id);
@@ -358,19 +208,13 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
 
         toast.success("Flashcard deleted");
       } catch (error) {
-        if (isApiError(error)) {
-          throw error;
-        }
-        const fallbackError: ApiErrorResponse = {
-          error: {
-            code: "network_error",
-            message: error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE,
-          },
-        };
+        const apiError = error instanceof ApiClientError ? error.toApiErrorResponse() : createNetworkError(error);
+
         toast.error("Failed to delete flashcard", {
-          description: fallbackError.error.message,
+          description: apiError.error.message,
         });
-        throw fallbackError;
+
+        throw apiError;
       }
     },
     [filters.includeDeleted]
@@ -379,24 +223,7 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
   const restoreFlashcard = useCallback(
     async (id: string) => {
       try {
-        const response = await fetch(`/api/flashcards/${id}/restore`, {
-          method: "POST",
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            redirectToLogin();
-            return;
-          }
-
-          const errorData = await parseApiError(response);
-          toast.error("Failed to restore flashcard", {
-            description: errorData.error.message,
-          });
-          throw errorData;
-        }
-
-        const restored: FlashcardDTO = await response.json();
+        const restored = await flashcardsApiClient.restore(id);
 
         let listUpdated = false;
         setListState((prev) => {
@@ -423,19 +250,13 @@ export function useFlashcards(options?: UseFlashcardsOptions): UseFlashcardsRetu
 
         toast.success("Flashcard restored");
       } catch (error) {
-        if (isApiError(error)) {
-          throw error;
-        }
-        const fallbackError: ApiErrorResponse = {
-          error: {
-            code: "network_error",
-            message: error instanceof Error ? error.message : NETWORK_ERROR_MESSAGE,
-          },
-        };
+        const apiError = error instanceof ApiClientError ? error.toApiErrorResponse() : createNetworkError(error);
+
         toast.error("Failed to restore flashcard", {
-          description: fallbackError.error.message,
+          description: apiError.error.message,
         });
-        throw fallbackError;
+
+        throw apiError;
       }
     },
     [fetchFlashcards, filters.includeDeleted]
@@ -479,72 +300,13 @@ function cloneFilters(filters: FlashcardsFilters): FlashcardsFilters {
   };
 }
 
-function buildFlashcardsQuery(filters: FlashcardsFilters, cursor: string | null) {
-  const params = new URLSearchParams();
-  params.set("limit", String(FLASHCARDS_PAGE_LIMIT));
-
-  if (cursor) {
-    params.set("cursor", cursor);
-  }
-
-  const trimmedSearch = filters.search.trim().slice(0, 200);
-  if (trimmedSearch.length > 0) {
-    params.set("search", trimmedSearch);
-  }
-
-  if (typeof filters.categoryId === "number" && filters.categoryId > 0) {
-    params.set("category_id", String(filters.categoryId));
-  }
-
-  if (typeof filters.contentSourceId === "number" && filters.contentSourceId > 0) {
-    params.set("content_source_id", String(filters.contentSourceId));
-  }
-
-  filters.tagIds
-    .filter((tagId) => Number.isInteger(tagId) && tagId > 0)
-    .slice(0, 50)
-    .forEach((tagId) => params.append("tag_ids[]", String(tagId)));
-
-  if (filters.origin && ALLOWED_ORIGINS.has(filters.origin)) {
-    params.set("origin", filters.origin);
-  }
-
-  if (filters.sort) {
-    params.set("sort", filters.sort);
-  } else {
-    params.set("sort", "-created_at");
-  }
-
-  if (filters.includeDeleted) {
-    params.set("include_deleted", "true");
-  }
-
-  return params;
-}
-
-async function parseApiError(response: Response): Promise<ApiErrorResponse> {
-  try {
-    return await response.json();
-  } catch {
-    return {
-      error: {
-        code: "unknown_error",
-        message: `Request failed with status ${response.status}.`,
-      },
-    };
-  }
-}
-
-function redirectToLogin(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const currentPath = window.location.pathname + window.location.search;
-  const searchParams = new URLSearchParams();
-  searchParams.set("returnTo", currentPath || "/flashcards");
-
-  window.location.href = `${LOGIN_PATH}?${searchParams.toString()}`;
+function createNetworkError(error: unknown): ApiErrorResponse {
+  return {
+    error: {
+      code: "network_error",
+      message: error instanceof Error ? error.message : "An unknown error occurred",
+    },
+  };
 }
 
 function incrementAggregates(aggregates: FlashcardAggregatesDTO | undefined, origin?: FlashcardDTO["origin"]) {
@@ -578,22 +340,4 @@ function decrementAggregates(
     total: Math.max(0, aggregates.total - 1),
     by_origin: byOrigin,
   };
-}
-
-function isApiError(error: unknown): error is ApiErrorResponse {
-  return Boolean(error && typeof error === "object" && "error" in error);
-}
-
-type BaseUpdatePayload = Omit<UpdateFlashcardCommand, "tag_ids">;
-
-function sanitizeBaseUpdatePayload(payload: BaseUpdatePayload): Partial<BaseUpdatePayload> {
-  const next: Partial<Record<keyof BaseUpdatePayload, BaseUpdatePayload[keyof BaseUpdatePayload]>> = {};
-  (Object.keys(payload) as (keyof BaseUpdatePayload)[]).forEach((key) => {
-    const value = payload[key];
-    if (value === undefined) {
-      return;
-    }
-    next[key] = value;
-  });
-  return next as Partial<BaseUpdatePayload>;
 }

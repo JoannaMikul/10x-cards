@@ -317,6 +317,9 @@ test.describe.serial("Flashcards Management Workflow", () => {
         flashcardsPage.waitForFlashcardsUpdate(),
       ]);
 
+      // Wait a bit more for UI to fully update after reset
+      await flashcardsPage.page.waitForTimeout(500);
+
       const resetCount = await flashcardsPage.getFlashcardCount();
       expect(resetCount).toBe(initialCount);
 
@@ -536,6 +539,9 @@ test.describe.serial("Flashcards Management Workflow", () => {
         ),
         flashcardsPage.waitForFlashcardsUpdate(),
       ]);
+
+      // Wait a bit more for UI to fully update after reset
+      await flashcardsPage.page.waitForTimeout(500);
 
       const resetCount = await flashcardsPage.getFlashcardCount();
       expect(resetCount).toBe(initialCount);

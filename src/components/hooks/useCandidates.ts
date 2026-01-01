@@ -7,6 +7,7 @@ import type {
   UpdateGenerationCandidateCommand,
   AcceptGenerationCandidateCommand,
 } from "../../types";
+import { generationCandidatesApiClient, ApiClientError } from "../../lib/api";
 
 interface UseCandidatesReturn {
   candidates: GenerationCandidateDTO[];
@@ -38,42 +39,22 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
       setError(null);
 
       try {
-        const params = new URLSearchParams();
-        params.set("generation_id", generationId);
-        params.set("limit", "20");
-
-        if (cursor) {
-          params.set("cursor", cursor);
-        }
-
-        params.append("status[]", "proposed");
-        params.append("status[]", "accepted");
-        params.append("status[]", "rejected");
-
-        const response = await fetch(`/api/generation-candidates?${params}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          const errorData: ApiErrorResponse = await response.json();
-          throw new Error(errorData.error.message);
-        }
-
-        const data: GenerationCandidateListResponse = await response.json();
+        const data: GenerationCandidateListResponse = await generationCandidatesApiClient.list(generationId, cursor);
 
         setCandidates((prev) => (append ? [...prev, ...data.data] : data.data));
         setNextCursor(data.page.next_cursor);
         setHasMore(data.page.has_more);
       } catch (err) {
-        setError({
-          error: {
-            code: "fetch_error",
-            message: err instanceof Error ? err.message : "Failed to fetch candidates",
-          },
-        });
+        const apiError =
+          err instanceof ApiClientError
+            ? err.toApiErrorResponse()
+            : {
+                error: {
+                  code: "fetch_error",
+                  message: err instanceof Error ? err.message : "Failed to fetch candidates",
+                },
+              };
+        setError(apiError);
       } finally {
         setLoading(false);
       }
@@ -89,28 +70,14 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
 
   const updateCandidate = useCallback(async (id: string, command: UpdateGenerationCandidateCommand) => {
     try {
-      const response = await fetch(`/api/generation-candidates/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(command),
-      });
-
-      if (!response.ok) {
-        const errorData: ApiErrorResponse = await response.json();
-        throw new Error(errorData.error.message);
-      }
-
-      const data = await response.json();
-      const updatedCandidate: GenerationCandidateDTO = data.candidate;
+      const updatedCandidate = await generationCandidatesApiClient.update(id, command);
 
       setCandidates((prev) => prev.map((candidate) => (candidate.id === id ? updatedCandidate : candidate)));
       toast.success("Candidate updated", {
         description: "Flashcard candidate has been successfully updated.",
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to update candidate";
+      const message = err instanceof ApiClientError ? err.message : "Failed to update candidate";
       setError({
         error: {
           code: "update_error",
@@ -126,31 +93,18 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
 
   const acceptCandidate = useCallback(async (id: string, command?: AcceptGenerationCandidateCommand) => {
     try {
-      const response = await fetch(`/api/generation-candidates/${id}/accept`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(command || {}),
-      });
-
-      if (!response.ok) {
-        const errorData: ApiErrorResponse = await response.json();
-        throw new Error(errorData.error.message);
-      }
-
-      const data = await response.json();
+      const response = await generationCandidatesApiClient.accept(id, command);
 
       setCandidates((prev) =>
         prev.map((candidate) =>
-          candidate.id === id ? { ...candidate, status: "accepted" as const, accepted_card_id: data.id } : candidate
+          candidate.id === id ? { ...candidate, status: "accepted" as const, accepted_card_id: response.id } : candidate
         )
       );
       toast.success("Candidate accepted", {
         description: "Flashcard candidate has been accepted and converted to a flashcard.",
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to accept candidate";
+      const message = err instanceof ApiClientError ? err.message : "Failed to accept candidate";
       setError({
         error: {
           code: "accept_error",
@@ -166,18 +120,7 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
 
   const rejectCandidate = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/generation-candidates/${id}/reject`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
-      });
-
-      if (!response.ok) {
-        const errorData: ApiErrorResponse = await response.json();
-        throw new Error(errorData.error.message);
-      }
+      await generationCandidatesApiClient.reject(id);
 
       setCandidates((prev) =>
         prev.map((candidate) => (candidate.id === id ? { ...candidate, status: "rejected" as const } : candidate))
@@ -186,7 +129,7 @@ export function useCandidates(generationId?: string): UseCandidatesReturn {
         description: "Flashcard candidate has been rejected.",
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to reject candidate";
+      const message = err instanceof ApiClientError ? err.message : "Failed to reject candidate";
       setError({
         error: {
           code: "reject_error",

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { GenerationDTO, ApiErrorResponse, CandidatesSummary } from "../../types";
+import type { GenerationDTO, ApiErrorResponse, CandidatesSummary, CreateGenerationCommand } from "../../types";
+import { generationsApiClient, ApiClientError } from "../../lib/api";
 
 interface UseGenerationOptions {
   pollingInterval?: number;
@@ -11,7 +12,7 @@ interface UseGenerationReturn {
   isLoading: boolean;
   isPolling: boolean;
   error: ApiErrorResponse | null;
-  startGeneration: (data: { model: string; sanitized_input_text: string; temperature?: number }) => Promise<void>;
+  startGeneration: (data: CreateGenerationCommand) => Promise<void>;
   cancelGeneration: () => Promise<void>;
   clearError: () => void;
   resetGeneration: () => void;
@@ -61,19 +62,7 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
   const pollGenerationStatus = useCallback(
     async (id: string) => {
       try {
-        const response = await fetch(`/api/generations/${id}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          const errorData: ApiErrorResponse = await response.json();
-          throw new Error(errorData.error.message);
-        }
-
-        const data = (await response.json()) as { generation: GenerationDTO; candidates_summary: CandidatesSummary };
+        const data = await generationsApiClient.getById(id);
         const { generation: updatedGeneration, candidates_summary } = data;
 
         setGeneration(updatedGeneration);
@@ -90,12 +79,16 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
         }
       } catch (err) {
         console.error("Error polling generation status:", err);
-        setError({
-          error: {
-            code: "polling_error",
-            message: err instanceof Error ? err.message : "Failed to poll generation status",
-          },
-        });
+        const apiError =
+          err instanceof ApiClientError
+            ? err.toApiErrorResponse()
+            : {
+                error: {
+                  code: "polling_error",
+                  message: err instanceof Error ? err.message : "Failed to poll generation status",
+                },
+              };
+        setError(apiError);
         setIsPolling(false);
       }
     },
@@ -123,34 +116,22 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
 
       if (activeGenerationId) {
         try {
-          const response = await fetch(`/api/generations/${activeGenerationId}`, {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
+          const data = await generationsApiClient.getById(activeGenerationId);
+          const { generation: updatedGeneration, candidates_summary } = data;
 
-          if (response.ok) {
-            const data = (await response.json()) as {
-              generation: GenerationDTO;
-              candidates_summary: CandidatesSummary;
-            };
-            const { generation: updatedGeneration, candidates_summary } = data;
-
-            if (["pending", "running"].includes(updatedGeneration.status)) {
-              setGeneration(updatedGeneration);
-              setCandidatesSummary(candidates_summary);
-              generationIdRef.current = activeGenerationId;
-              setIsPolling(true);
-              pollingIntervalRef.current = setTimeout(() => {
-                if (activeGenerationId) {
-                  pollGenerationStatus(activeGenerationId);
-                }
-              }, pollingInterval);
-              return;
-            } else {
-              safeLocalStorage.removeItem("activeGenerationId");
-            }
+          if (["pending", "running"].includes(updatedGeneration.status)) {
+            setGeneration(updatedGeneration);
+            setCandidatesSummary(candidates_summary);
+            generationIdRef.current = activeGenerationId;
+            setIsPolling(true);
+            pollingIntervalRef.current = setTimeout(() => {
+              if (activeGenerationId) {
+                pollGenerationStatus(activeGenerationId);
+              }
+            }, pollingInterval);
+            return;
+          } else {
+            safeLocalStorage.removeItem("activeGenerationId");
           }
         } catch (err) {
           console.warn("Failed to check stored generation status:", err);
@@ -167,34 +148,12 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const startGeneration = useCallback(
-    async (data: { model: string; sanitized_input_text: string; temperature?: number }) => {
+    async (data: CreateGenerationCommand) => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const response = await fetch("/api/generations", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        });
-
-        if (!response.ok) {
-          const errorData: ApiErrorResponse = await response.json();
-
-          if (
-            response.status === 409 &&
-            errorData.error.message.includes("An active generation request is already in progress")
-          ) {
-            await checkActiveGeneration();
-            return;
-          }
-
-          throw new Error(errorData.error.message);
-        }
-
-        const result = await response.json();
+        const result = await generationsApiClient.create(data);
         const { id, status, enqueued_at } = result;
 
         const initialGeneration: GenerationDTO = {
@@ -220,12 +179,7 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
         safeLocalStorage.setItem("activeGenerationId", id);
 
         try {
-          await fetch("/api/generations/process", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
+          await generationsApiClient.process();
         } catch (err) {
           console.warn("Failed to trigger generation processing:", err);
         }
@@ -234,12 +188,23 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
         pollingIntervalRef.current = setTimeout(() => pollGenerationStatus(id), pollingInterval);
       } catch (err) {
         console.error("Error starting generation:", err);
-        setError({
-          error: {
-            code: "start_generation_error",
-            message: err instanceof Error ? err.message : "Failed to start generation",
-          },
-        });
+
+        // Handle 409 conflict - active generation already exists
+        if (err instanceof ApiClientError && err.statusCode === 409) {
+          await checkActiveGeneration();
+          return;
+        }
+
+        const apiError =
+          err instanceof ApiClientError
+            ? err.toApiErrorResponse()
+            : {
+                error: {
+                  code: "start_generation_error",
+                  message: err instanceof Error ? err.message : "Failed to start generation",
+                },
+              };
+        setError(apiError);
       } finally {
         setIsLoading(false);
       }
@@ -254,18 +219,7 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
     setError(null);
 
     try {
-      const response = await fetch(`/api/generations/${generationIdRef.current}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ status: "cancelled" }),
-      });
-
-      if (!response.ok) {
-        const errorData: ApiErrorResponse = await response.json();
-        throw new Error(errorData.error.message);
-      }
+      await generationsApiClient.update(generationIdRef.current, { status: "cancelled" });
 
       if (pollingIntervalRef.current) {
         clearTimeout(pollingIntervalRef.current);
@@ -277,12 +231,16 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
       safeLocalStorage.removeItem("activeGenerationId");
     } catch (err) {
       console.error("Error cancelling generation:", err);
-      setError({
-        error: {
-          code: "cancel_generation_error",
-          message: err instanceof Error ? err.message : "Failed to cancel generation",
-        },
-      });
+      const apiError =
+        err instanceof ApiClientError
+          ? err.toApiErrorResponse()
+          : {
+              error: {
+                code: "cancel_generation_error",
+                message: err instanceof Error ? err.message : "Failed to cancel generation",
+              },
+            };
+      setError(apiError);
     } finally {
       setIsLoading(false);
     }
