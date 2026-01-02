@@ -6,7 +6,7 @@ import { env } from "process";
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
-import node from "@astrojs/node";
+import cloudflare from "@astrojs/cloudflare";
 
 // Load environment variables based on NODE_ENV
 if (env.NODE_ENV === "test") {
@@ -27,7 +27,9 @@ export default defineConfig({
     plugins: [tailwindcss()],
     envPrefix: ["SUPABASE_", "OPENROUTER_", "E2E_"],
   },
-  adapter: node({
-    mode: "standalone",
+  adapter: cloudflare({
+    platformProxy: {
+      enabled: true,
+    },
   }),
 });

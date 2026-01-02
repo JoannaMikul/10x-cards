@@ -1,0 +1,26 @@
+# Wrangler configuration for Cloudflare Pages
+# This file is optional but recommended for better control over deployment
+
+name = "10x-cards-production"
+compatibility_date = "2025-01-02"
+
+# Pages configuration
+pages_build_output_dir = "dist"
+
+# KV namespace bindings (optional, for future use)
+# [[kv_namespaces]]
+# binding = "SESSION"
+# id = "your-kv-namespace-id"
+
+# Environment variables (set in Cloudflare Dashboard instead)
+# [vars]
+# NODE_ENV = "production"
+
+# Build configuration
+[build]
+command = "npm run build"
+
+# Development configuration
+[dev]
+port = 3000
+

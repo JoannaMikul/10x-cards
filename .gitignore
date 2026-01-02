@@ -41,3 +41,8 @@ videos/
 
 # coverage
 coverage/
+
+# wrangler
+.wrangler/
+.dev.vars
+wrangler.toml.local
