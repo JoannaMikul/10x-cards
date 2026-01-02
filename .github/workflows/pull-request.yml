@@ -1,0 +1,224 @@
+name: Pull Request CI
+
+on:
+  pull_request:
+    branches:
+      - master
+    types: [opened, synchronize, reopened]
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+  unit-test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm run test:unit:coverage
+
+      - name: Upload unit test coverage
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: unit-test-coverage
+          path: coverage/
+          retention-days: 7
+
+  e2e-test:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    environment: integration
+    env:
+      TEST_BASE_URL: ${{ vars.TEST_BASE_URL }}
+      PUBLIC_SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
+      PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENROUTER_DEFAULT_MODE: ${{ vars.OPENROUTER_DEFAULT_MODE }}
+      E2E_USERNAME_ID: ${{ vars.E2E_USERNAME_ID }}
+      E2E_USERNAME: ${{ vars.E2E_USERNAME }}
+      E2E_PASSWORD: ${{ vars.E2E_PASSWORD }}
+      NODE_ENV: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npm run playwright:install
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload E2E test report
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+  status-comment:
+    name: Post Status Comment
+    runs-on: ubuntu-latest
+    needs: [lint, unit-test, e2e-test]
+    if: always()
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Download unit test coverage
+        uses: actions/download-artifact@v6
+        if: needs.unit-test.result != 'skipped'
+        continue-on-error: true
+        with:
+          name: unit-test-coverage
+          path: coverage/
+
+      - name: Download E2E test report
+        uses: actions/download-artifact@v6
+        if: needs.e2e-test.result != 'skipped'
+        continue-on-error: true
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+      - name: Download E2E test results
+        uses: actions/download-artifact@v6
+        if: needs.e2e-test.result != 'skipped'
+        continue-on-error: true
+        with:
+          name: test-results
+          path: test-results/
+
+      - name: Parse coverage data
+        id: coverage
+        if: needs.unit-test.result != 'skipped'
+        continue-on-error: true
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            COVERAGE=$(cat coverage/coverage-summary.json | jq -r '.total.lines.pct')
+            echo "percentage=$COVERAGE" >> $GITHUB_OUTPUT
+          else
+            echo "percentage=N/A" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create status comment
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const lintStatus = '${{ needs.lint.result }}';
+            const unitTestStatus = '${{ needs.unit-test.result }}';
+            const e2eTestStatus = '${{ needs.e2e-test.result }}';
+            const coverage = '${{ steps.coverage.outputs.percentage }}';
+
+            const statusIcon = (status) => {
+              if (status === 'success') return '✅';
+              if (status === 'failure') return '❌';
+              if (status === 'cancelled') return '⚠️';
+              return '⏭️';
+            };
+
+            const allPassed = lintStatus === 'success' && 
+                            unitTestStatus === 'success' && 
+                            e2eTestStatus === 'success';
+
+            const title = allPassed 
+              ? '✅ **CI Pipeline Passed Successfully!**'
+              : '❌ **CI Pipeline Failed**';
+
+            let body = `${title}\n\n`;
+            body += `## Test Results\n\n`;
+            body += `${statusIcon(lintStatus)} **Linting**: ${lintStatus}\n`;
+            body += `${statusIcon(unitTestStatus)} **Unit Tests**: ${unitTestStatus}`;
+
+            if (coverage !== 'N/A' && coverage !== '') {
+              body += ` (Coverage: ${coverage}%)\n`;
+            } else {
+              body += '\n';
+            }
+
+            body += `${statusIcon(e2eTestStatus)} **E2E Tests**: ${e2eTestStatus}\n\n`;
+
+            if (!allPassed) {
+              body += '## 📋 Next Steps\n\n';
+              if (lintStatus === 'failure') {
+                body += '- Fix linting errors by running `npm run lint` locally\n';
+              }
+              if (unitTestStatus === 'failure') {
+                body += '- Check unit test failures in the artifacts\n';
+              }
+              if (e2eTestStatus === 'failure') {
+                body += '- Review E2E test failures in the Playwright report artifact\n';
+              }
+              body += '\n';
+            }
+
+            body += '## 📊 Artifacts\n\n';
+            if (unitTestStatus !== 'skipped') {
+              body += '- [Unit Test Coverage Report](../actions/runs/${{ github.run_id }})\n';
+            }
+            if (e2eTestStatus !== 'skipped') {
+              body += '- [E2E Test Report](../actions/runs/${{ github.run_id }})\n';
+            }
+
+            if (allPassed) {
+              body += '\n🎉 **All checks have passed. This PR is ready for review!**';
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
