@@ -317,11 +317,13 @@ test.describe.serial("Flashcards Management Workflow", () => {
         flashcardsPage.waitForFlashcardsUpdate(),
       ]);
 
-      // Wait a bit more for UI to fully update after reset
-      await flashcardsPage.page.waitForTimeout(500);
-
-      const resetCount = await flashcardsPage.getFlashcardCount();
-      expect(resetCount).toBe(initialCount);
+      // Wait for all flashcards to be loaded after reset
+      await expect
+        .poll(async () => await flashcardsPage.getFlashcardCount(), {
+          timeout: 10000,
+          message: "All flashcards should be visible after resetting filters",
+        })
+        .toBe(initialCount);
 
       await cleanupTestFlashcards(testUserId);
     });
@@ -540,11 +542,13 @@ test.describe.serial("Flashcards Management Workflow", () => {
         flashcardsPage.waitForFlashcardsUpdate(),
       ]);
 
-      // Wait a bit more for UI to fully update after reset
-      await flashcardsPage.page.waitForTimeout(500);
-
-      const resetCount = await flashcardsPage.getFlashcardCount();
-      expect(resetCount).toBe(initialCount);
+      // Wait for all flashcards to be loaded after reset
+      await expect
+        .poll(async () => await flashcardsPage.getFlashcardCount(), {
+          timeout: 10000,
+          message: "All flashcards should be visible after resetting filters",
+        })
+        .toBe(initialCount);
 
       await cleanupTestFlashcards(testUserId);
     });
