@@ -85,7 +85,6 @@ export class OpenRouterService {
   public readonly baseUrl: string;
 
   private readonly apiKey: string;
-  private readonly httpClient: typeof fetch;
 
   constructor(private readonly config: OpenRouterServiceConfig) {
     if (!config.apiKey) {
@@ -96,7 +95,6 @@ export class OpenRouterService {
     this.baseUrl = config.baseUrl ?? "https://openrouter.ai/api/v1/chat/completions";
     this.defaultModel = config.defaultModel;
     this.defaultParams = config.defaultParams ?? { temperature: 0.2 };
-    this.httpClient = config.httpClient ?? fetch;
   }
 
   public async completeChat(options: {
@@ -181,7 +179,7 @@ export class OpenRouterService {
     const headers = this._buildHeaders();
 
     try {
-      const response = await this.httpClient(this.baseUrl, {
+      const response = await fetch(this.baseUrl, {
         method: "POST",
         headers,
         body: JSON.stringify(requestBody),

@@ -140,7 +140,7 @@ export class BaseApiClient {
     }
 
     try {
-      const response = await globalThis.fetch(url, {
+      const response = await fetch(url, {
         ...fetchOptions,
         headers,
         signal: controller.signal,
