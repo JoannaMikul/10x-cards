@@ -27,10 +27,12 @@ export function AuthStatus({ currentUser }: AuthStatusProps) {
       if (response.ok) {
         window.location.href = "/";
       } else {
+        // eslint-disable-next-line no-console
         console.error("Logout failed");
         setIsLoggingOut(false);
       }
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error("Logout error:", error);
       setIsLoggingOut(false);
     }

@@ -27,12 +27,14 @@ async function checkAdminStatus(supabase: SupabaseClient): Promise<boolean> {
     const { data, error } = await supabase.rpc("is_admin");
 
     if (error) {
+      // eslint-disable-next-line no-console
       console.error("Failed to verify admin privileges:", error.message);
       return false;
     }
 
     return data === true;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Error checking admin status:", error);
     return false;
   }

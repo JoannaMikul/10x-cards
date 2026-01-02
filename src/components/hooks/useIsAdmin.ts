@@ -18,10 +18,12 @@ export function useIsAdmin(): { isAdmin: boolean | null; loading: boolean } {
           const data = await response.json();
           setIsAdmin(data.isAdmin);
         } else {
+          // eslint-disable-next-line no-console
           console.error("[useIsAdmin] Failed to check admin status", response.status);
           setIsAdmin(false);
         }
       } catch (error) {
+        // eslint-disable-next-line no-console
         console.error("[useIsAdmin] Unexpected error", error);
         setIsAdmin(false);
       } finally {

@@ -78,6 +78,7 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
           pollingIntervalRef.current = setTimeout(() => pollGenerationStatus(id), pollingInterval);
         }
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("Error polling generation status:", err);
         const apiError =
           err instanceof ApiClientError
@@ -134,11 +135,13 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
             safeLocalStorage.removeItem("activeGenerationId");
           }
         } catch (err) {
+          // eslint-disable-next-line no-console
           console.warn("Failed to check stored generation status:", err);
           safeLocalStorage.removeItem("activeGenerationId");
         }
       }
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error("Error checking for active generation:", err);
     }
   }, [pollGenerationStatus, pollingInterval]);
@@ -181,12 +184,14 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
         try {
           await generationsApiClient.process();
         } catch (err) {
+          // eslint-disable-next-line no-console
           console.warn("Failed to trigger generation processing:", err);
         }
 
         setIsPolling(true);
         pollingIntervalRef.current = setTimeout(() => pollGenerationStatus(id), pollingInterval);
       } catch (err) {
+        // eslint-disable-next-line no-console
         console.error("Error starting generation:", err);
 
         // Handle 409 conflict - active generation already exists
@@ -230,6 +235,7 @@ export function useGeneration(options: UseGenerationOptions = {}): UseGeneration
       setGeneration((prev) => (prev ? { ...prev, status: "cancelled" } : null));
       safeLocalStorage.removeItem("activeGenerationId");
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error("Error cancelling generation:", err);
       const apiError =
         err instanceof ApiClientError

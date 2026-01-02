@@ -33,6 +33,7 @@ let errorMessage: string | undefined;
 try {
   initialConfig = await prepareReviewSession(supabase, userId, params);
 } catch (error) {
+  // eslint-disable-next-line no-console
   console.error("[reviews] Failed to load review configuration", error);
   errorMessage =
     error instanceof Error ? error.message : "An unexpected error occurred while loading your review session.";
