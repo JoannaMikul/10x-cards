@@ -53,7 +53,7 @@ jobs:
       SUPABASE_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENROUTER_DEFAULT_MODE: ${{ vars.OPENROUTER_DEFAULT_MODE }}
+      OPENROUTER_DEFAULT_MODEL: ${{ vars.OPENROUTER_DEFAULT_MODEL }}
       NODE_ENV: production
     steps:
       - name: Checkout code
@@ -96,7 +96,7 @@ jobs:
       SUPABASE_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENROUTER_DEFAULT_MODE: ${{ vars.OPENROUTER_DEFAULT_MODE }}
+      OPENROUTER_DEFAULT_MODEL: ${{ vars.OPENROUTER_DEFAULT_MODEL }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

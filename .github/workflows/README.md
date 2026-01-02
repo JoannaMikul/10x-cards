@@ -57,7 +57,7 @@ Zbudowanie aplikacji dla produkcji.
 
 **Wymagane zmienne GitHub (Settings → Secrets and variables → Actions → Variables):**
 
-- `OPENROUTER_DEFAULT_MODE`
+- `OPENROUTER_DEFAULT_MODEL`
 - `NODE_ENV=production` (wartość stała w workflow)
 
 #### 4. deploy

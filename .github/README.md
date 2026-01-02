@@ -45,7 +45,7 @@ Konfiguracja jest przechowywana w Environment `integration`:
 **Environment Variables** (Settings → Environments → integration → Environment variables):
 
 - `TEST_BASE_URL` - URL środowiska testowego (np. `http://localhost:3000`)
-- `OPENROUTER_DEFAULT_MODE` - Domyślny tryb OpenRouter dla testów
+- `OPENROUTER_DEFAULT_MODEL` - Domyślny tryb OpenRouter dla testów
 - `E2E_USERNAME_ID` - ID użytkownika testowego w bazie danych
 - `E2E_USERNAME` - Login użytkownika testowego (email)
 - `E2E_PASSWORD` - Hasło użytkownika testowego
@@ -86,7 +86,7 @@ W ustawieniach repozytorium GitHub należy:
 
 2. **Dodać Environment Variables** (Settings → Environments → integration → Environment variables):
    - `TEST_BASE_URL`
-   - `OPENROUTER_DEFAULT_MODE`
+   - `OPENROUTER_DEFAULT_MODEL`
    - `E2E_USERNAME_ID`
    - `E2E_USERNAME`
    - `E2E_PASSWORD`
