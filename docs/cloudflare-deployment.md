@@ -26,7 +26,7 @@ Następujące sekrety muszą być skonfigurowane w GitHub Repository Settings �
 Następujące zmienne muszą być skonfigurowane w GitHub Repository Settings → Secrets and variables → Actions → Variables:
 
 - `CLOUDFLARE_PROJECT_NAME` - Nazwa projektu w Cloudflare Pages
-- `OPENROUTER_DEFAULT_MODE` - Domyślny tryb OpenRouter (np. "auto")
+- `OPENROUTER_DEFAULT_MODEL` - Domyślny model OpenRouter (np. "mistralai/devstral-2512:free")
 
 ### Cloudflare Pages - Zmienne środowiskowe
 
@@ -38,7 +38,7 @@ Po pierwszym deploymencie, w Cloudflare Pages Dashboard należy skonfigurować n
 - `SUPABASE_KEY` - Klucz publiczny (anon) Supabase
 - `SUPABASE_SERVICE_ROLE_KEY` - Klucz service role Supabase
 - `OPENROUTER_API_KEY` - Klucz API do OpenRouter.ai
-- `OPENROUTER_DEFAULT_MODE` - Domyślny tryb OpenRouter
+- `OPENROUTER_DEFAULT_MODEL` - Domyślny model OpenRouter
 - `NODE_ENV` - `production`
 
 ## Jak uzyskać Cloudflare API Token
@@ -110,7 +110,7 @@ Adapter ten umożliwia:
 
      ```
      CLOUDFLARE_PROJECT_NAME=<nazwa-projektu-w-cloudflare>
-     OPENROUTER_DEFAULT_MODE=auto
+     OPENROUTER_DEFAULT_MODEL=mistralai/devstral-2512:free
      ```
 
      **CLOUDFLARE_PROJECT_NAME** - to dokładnie ta sama nazwa, którą nadałeś projektowi w Cloudflare Pages Dashboard (np. `10x-cards`, `my-project-name`). Znajdziesz ją w URL: `https://dash.cloudflare.com/{account-id}/pages/view/{project-name}`
@@ -136,7 +136,7 @@ Adapter ten umożliwia:
      SUPABASE_KEY=<klucz-anon-supabase>
      SUPABASE_SERVICE_ROLE_KEY=<klucz-service-role-supabase>
      OPENROUTER_API_KEY=<klucz-api-openrouter>
-     OPENROUTER_DEFAULT_MODE=auto
+     OPENROUTER_DEFAULT_MODEL=mistralai/devstral-2512:free
      NODE_ENV=production
      ```
 
