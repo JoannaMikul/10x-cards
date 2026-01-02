@@ -14,8 +14,12 @@ pages_build_output_dir = "dist"
 # id = "your-kv-namespace-id"
 
 # Environment variables (set in Cloudflare Dashboard instead)
-# [vars]
-# NODE_ENV = "production"
+[vars]
+NODE_ENV = "production"
+OPENROUTER_DEFAULT_MODEL = "mistralai/devstral-2512:free"
+
+# Secrets (encrypted variables - managed via Dashboard only)
+# These are configured separately as Secrets in Cloudflare Dashboard
 
 # Development configuration
 [dev]
