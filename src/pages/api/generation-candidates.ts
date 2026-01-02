@@ -5,6 +5,7 @@ import { supabaseClient } from "../../db/supabase.client.ts";
 import { CANDIDATE_ERROR_CODES, buildErrorResponse, mapCandidateDbError } from "../../lib/errors.ts";
 import { listGenerationCandidates } from "../../lib/services/generation-candidates.service.ts";
 import { getGenerationById } from "../../lib/services/generations.service.ts";
+import { processPendingGenerations } from "../../lib/services/generation-processor.service.ts";
 import {
   InvalidCandidateCursorError,
   buildGenerationCandidatesQuery,
@@ -81,10 +82,7 @@ export const GET: APIRoute = async ({ locals, url }) => {
 
       if (!candidates || candidates.length === 0) {
         try {
-          await fetch("/api/generations/process", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-          });
+          await processPendingGenerations(supabase);
         } catch {
           // Ignore reprocessing errors
         }
