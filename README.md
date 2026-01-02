@@ -1,4 +1,4 @@
-# 10x-cards
+# 🥳 10x-cards
 
 10x-cards is a web app that lets IT professionals quickly create and review flashcards for tech and language learning, using AI or manual input, with smart tracking and spaced repetition.
 
