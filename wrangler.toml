@@ -13,7 +13,7 @@ pages_build_output_dir = "dist"
 # binding = "SESSION"
 # id = "your-kv-namespace-id"
 
-# Environment variables (set in Cloudflare Dashboard instead)
+# Environment variables
 [vars]
 NODE_ENV = "production"
 OPENROUTER_DEFAULT_MODEL = "mistralai/devstral-2512:free"

@@ -31,9 +31,12 @@ export default defineConfig({
     plugins: [tailwindcss()],
     envPrefix: ["SUPABASE_", "OPENROUTER_", "E2E_"],
     resolve: {
-      alias: {
-        "react-dom/server": "react-dom/server.edge",
-      },
+      alias:
+        env.NODE_ENV === "production"
+          ? {
+              "react-dom/server": "react-dom/server.edge",
+            }
+          : {},
     },
   },
 });
