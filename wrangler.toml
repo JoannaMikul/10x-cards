@@ -16,10 +16,6 @@ pages_build_output_dir = "dist"
 # [vars]
 # NODE_ENV = "production"
 
-# Build configuration
-[build]
-command = "npm run build"
-
 # Development configuration
 [dev]
 port = 3000

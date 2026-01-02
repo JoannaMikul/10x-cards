@@ -47,6 +47,7 @@ jobs:
     name: Build Application
     runs-on: ubuntu-latest
     needs: [lint, unit-test]
+    environment: production
     env:
       SUPABASE_URL: ${{ secrets.PUBLIC_SUPABASE_URL }}
       SUPABASE_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
@@ -66,6 +67,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Create environment file
+        run: |
+          echo "SUPABASE_URL=${{ secrets.PUBLIC_SUPABASE_URL }}" > .env.production
+          echo "SUPABASE_KEY=${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}" >> .env.production
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.production
+          echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> .env.production
+          echo "OPENROUTER_DEFAULT_MODE=${{ vars.OPENROUTER_DEFAULT_MODE }}" >> .env.production
 
       - name: Build application
         run: npm run build
@@ -98,9 +107,45 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Verify deployment configuration
+        run: |
+          echo "Checking required secrets and variables..."
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then echo "❌ CLOUDFLARE_API_TOKEN is not set"; exit 1; fi
+          if [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then echo "❌ CLOUDFLARE_ACCOUNT_ID is not set"; exit 1; fi
+          if [ -z "$CLOUDFLARE_PROJECT_NAME" ]; then echo "❌ CLOUDFLARE_PROJECT_NAME is not set"; exit 1; fi
+          echo "✅ All required variables are set"
+          echo "Project name: $CLOUDFLARE_PROJECT_NAME"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PROJECT_NAME: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+
+      - name: Install Wrangler CLI
+        run: npm install -g wrangler@3.107.3
+
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "🚀 Starting deployment..."
+          echo "Project name: ${{ vars.CLOUDFLARE_PROJECT_NAME }}"
+          echo "Wrangler version: $(wrangler --version)"
+          echo "API Token present: $(if [ -n "$CLOUDFLARE_API_TOKEN" ]; then echo '✅ Yes'; else echo '❌ No'; fi)"
+          echo "Account ID present: $(if [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then echo '✅ Yes'; else echo '❌ No'; fi)"
+
+          # Run wrangler deployment
+          wrangler pages deploy dist --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
+
+          # Show wrangler logs if deployment failed
+          WRANGLER_LOG_DIR="/home/runner/.config/.wrangler/logs"
+          if [ -d "$WRANGLER_LOG_DIR" ]; then
+            echo "📋 Wrangler logs:"
+            find "$WRANGLER_LOG_DIR" -name "*.log" -exec tail -50 {} \;
+          fi
+
+      - name: Log deployment details
+        if: always()
+        run: |
+          echo "Final deployment URL: ${{ steps.deploy.outputs.deployment-url }}"
