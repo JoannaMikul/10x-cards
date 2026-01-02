@@ -1,9 +1,9 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import ReviewsPage from "../components/reviews/ReviewsPage.tsx";
+import ReviewsPage from "../components/reviews/ReviewsPage";
 import type { ReviewSessionConfig } from "../types";
-import { prepareReviewSession } from "../lib/services/review-sessions.service.ts";
-import { supabaseClient } from "../db/supabase.client.ts";
+import { prepareReviewSession } from "../lib/services/review-sessions.service";
+import { supabaseClient } from "../db/supabase.client";
 
 const supabase = Astro.locals.supabase ?? supabaseClient;
 const userId = Astro.locals.user?.id ?? null;

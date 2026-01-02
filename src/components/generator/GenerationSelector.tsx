@@ -131,43 +131,57 @@ export function GenerationSelector({ onSelectGeneration, emptyFallback }: Genera
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {generations.map((generation) => (
-          <div
-            key={generation.id}
-            className="border rounded-lg p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-            onClick={() => onSelectGeneration(generation.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelectGeneration(generation.id);
+        {generations.map((generation) => {
+          const isDisabled = generation.status === "failed";
+          return (
+            <div
+              key={generation.id}
+              className={`border rounded-lg p-4 transition-colors ${
+                isDisabled ? "opacity-60 cursor-not-allowed" : "hover:bg-muted/50 cursor-pointer"
+              }`}
+              onClick={isDisabled ? undefined : () => onSelectGeneration(generation.id)}
+              onKeyDown={
+                isDisabled
+                  ? undefined
+                  : (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelectGeneration(generation.id);
+                      }
+                    }
               }
-            }}
-            tabIndex={0}
-            role="button"
-            aria-label={`Select generation ${generation.model} created ${formatDate(generation.created_at)}`}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {getStatusIcon(generation.status)}
-                <span className="font-medium text-sm">
-                  {generation.model} {generation.temperature && `(temp: ${generation.temperature})`}
-                </span>
+              tabIndex={isDisabled ? -1 : 0}
+              role={isDisabled ? undefined : "button"}
+              aria-label={
+                isDisabled
+                  ? `Failed generation ${generation.model} created ${formatDate(generation.created_at)}`
+                  : `Select generation ${generation.model} created ${formatDate(generation.created_at)}`
+              }
+              aria-disabled={isDisabled}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {getStatusIcon(generation.status)}
+                  <span className="font-medium text-sm">
+                    {generation.model} {generation.temperature && `(temp: ${generation.temperature})`}
+                  </span>
+                </div>
+                {getStatusBadge(generation.status)}
               </div>
-              {getStatusBadge(generation.status)}
+
+              <p className="text-sm text-muted-foreground mb-2">{truncateText(generation.sanitized_input_text)}</p>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Created: {formatDate(generation.created_at)}</span>
+                <span>{generation.sanitized_input_length} chars</span>
+              </div>
+
+              {generation.error_message && (
+                <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">Error: {generation.error_message}</div>
+              )}
             </div>
-
-            <p className="text-sm text-muted-foreground mb-2">{truncateText(generation.sanitized_input_text)}</p>
-
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Created: {formatDate(generation.created_at)}</span>
-              <span>{generation.sanitized_input_length} chars</span>
-            </div>
-
-            {generation.error_message && (
-              <div className="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">Error: {generation.error_message}</div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );

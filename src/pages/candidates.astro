@@ -1,8 +1,8 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { CandidatesPage } from "../components/candidates/CandidatesPage.tsx";
+import { CandidatesPage } from "../components/candidates/CandidatesPage";
 import type { TagDTO } from "../types";
-import { supabaseClient } from "../db/supabase.client.ts";
+import { supabaseClient } from "../db/supabase.client";
 
 const supabase = Astro.locals.supabase ?? supabaseClient;
 

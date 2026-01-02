@@ -1,8 +1,8 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import { FlashcardsPage } from "../components/flashcards/FlashcardsPage.tsx";
+import { FlashcardsPage } from "../components/flashcards/FlashcardsPage";
 import type { CategoryDTO, SourceDTO, TagDTO } from "../types";
-import { supabaseClient } from "../db/supabase.client.ts";
+import { supabaseClient } from "../db/supabase.client";
 
 const supabase = Astro.locals.supabase ?? supabaseClient;
 const userId = Astro.locals.user?.id ?? null;
