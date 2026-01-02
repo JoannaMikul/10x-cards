@@ -1,12 +1,12 @@
-// @ts-check
 import { defineConfig } from "astro/config";
 import { config } from "dotenv";
 import { env } from "process";
 
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
-import tailwindcss from "@tailwindcss/vite";
+import node from "@astrojs/node";
 import cloudflare from "@astrojs/cloudflare";
+import tailwindcss from "@tailwindcss/vite";
 
 // Load environment variables based on NODE_ENV
 if (env.NODE_ENV === "test") {
@@ -18,18 +18,22 @@ if (env.NODE_ENV === "test") {
 // https://astro.build/config
 export default defineConfig({
   output: "server",
-  integrations: [react(), sitemap()],
-  server: { port: 3000 },
-  experimental: {
-    chromeDevtoolsWorkspace: true,
+
+  integrations: [react({}), sitemap()],
+
+  adapter: env.NODE_ENV === "production" ? cloudflare() : node({ mode: "standalone" }),
+
+  server: {
+    port: 3000,
   },
+
   vite: {
     plugins: [tailwindcss()],
     envPrefix: ["SUPABASE_", "OPENROUTER_", "E2E_"],
-  },
-  adapter: cloudflare({
-    platformProxy: {
-      enabled: true,
+    resolve: {
+      alias: {
+        "react-dom/server": "react-dom/server.edge",
+      },
     },
-  }),
+  },
 });
