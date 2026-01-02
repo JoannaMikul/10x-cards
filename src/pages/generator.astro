@@ -11,7 +11,7 @@ const BASE_MODELS = [
 ];
 
 const AVAILABLE_MODELS = (() => {
-  const defaultModel = import.meta.env.OPENROUTER_DEFAULT_MODEL;
+  const defaultModel = process.env.OPENROUTER_DEFAULT_MODEL;
   if (!defaultModel) return BASE_MODELS;
 
   const existingModel = BASE_MODELS.find((model) => model.value === defaultModel);
@@ -20,7 +20,7 @@ const AVAILABLE_MODELS = (() => {
   return [{ label: `${defaultModel} (Default)`, value: defaultModel }, ...BASE_MODELS];
 })();
 
-const defaultModel = import.meta.env.OPENROUTER_DEFAULT_MODEL || AVAILABLE_MODELS[0].value;
+const defaultModel = process.env.OPENROUTER_DEFAULT_MODEL || AVAILABLE_MODELS[0].value;
 ---
 
 <Layout title="Generator AI - 10x-cards">
