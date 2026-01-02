@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { config } from "dotenv";
 import { supabaseServiceClient } from "../../src/db/supabase.client";
 

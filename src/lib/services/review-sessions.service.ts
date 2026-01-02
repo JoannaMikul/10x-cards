@@ -207,6 +207,7 @@ export async function createReviewSession(
     return { logged: reviews.length };
   } catch (error) {
     // Log error for debugging (in production you'd use a proper logging service)
+    // eslint-disable-next-line no-console
     console.error("Failed to create review session:", error);
     throw error;
   }
