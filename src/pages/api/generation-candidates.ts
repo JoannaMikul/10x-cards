@@ -1,18 +1,18 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../db/supabase.client.ts";
-import { CANDIDATE_ERROR_CODES, buildErrorResponse, mapCandidateDbError } from "../../lib/errors.ts";
-import { listGenerationCandidates } from "../../lib/services/generation-candidates.service.ts";
-import { getGenerationById } from "../../lib/services/generations.service.ts";
-import { processPendingGenerations } from "../../lib/services/generation-processor.service.ts";
+import { supabaseClient } from "../../db/supabase.client";
+import { CANDIDATE_ERROR_CODES, buildErrorResponse, mapCandidateDbError } from "../../lib/errors";
+import { listGenerationCandidates } from "../../lib/services/generation-candidates.service";
+import { getGenerationById } from "../../lib/services/generations.service";
+import { processPendingGenerations } from "../../lib/services/generation-processor.service";
 import {
   InvalidCandidateCursorError,
   buildGenerationCandidatesQuery,
   generationCandidatesQuerySchema,
   type GenerationCandidatesQuery,
-} from "../../lib/validation/generation-candidates.schema.ts";
-import { encodeBase64 } from "../../lib/utils/base64.ts";
+} from "../../lib/validation/generation-candidates.schema";
+import { encodeBase64 } from "../../lib/utils/base64";
 import type { GenerationCandidateListResponse } from "../../types";
 
 export const prerender = false;
