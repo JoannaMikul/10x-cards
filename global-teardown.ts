@@ -8,8 +8,7 @@ config({ path: ".env.test" });
 /**
  * Global teardown function for E2E tests
  * Cleans up test data from Supabase database created by the test user
- * TODO: Refactor to use authenticated client with RLS when environment variables
- * are properly passed to global teardown process
+ * Uses service client with admin privileges to bypass RLS policies for cleanup
  */
 async function globalTeardown() {
   console.log("🧹 GLOBAL TEARDOWN STARTED - E2E test cleanup...");

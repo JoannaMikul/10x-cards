@@ -7,6 +7,12 @@ import {
   generateTestFlashcard,
 } from "./helpers/flashcard-test-helpers";
 
+function generateUniqueTestId(testName: string): string {
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(7);
+  return `${testName}-${timestamp}-${randomId}`;
+}
+
 test.describe.serial("Flashcards Management Workflow", () => {
   let loginPage: LoginPage;
   let flashcardsPage: FlashcardsPage;
@@ -163,7 +169,8 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
   test("should handle flashcard search functionality", async () => {
     const testUserId = getTestUserId();
-    await createTestFlashcards(3, testUserId, "display-info-test");
+    const testId = generateUniqueTestId("search");
+    await createTestFlashcards(3, testUserId, testId);
 
     await loginWithValidCredentials();
 
@@ -213,7 +220,8 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
   test("should handle confirm dialog cancellation", async () => {
     const testUserId = getTestUserId();
-    await createTestFlashcards(1, testUserId, "confirm-dialog-test");
+    const testId = generateUniqueTestId("confirm-dialog");
+    await createTestFlashcards(1, testUserId, testId);
 
     await loginWithValidCredentials();
 
@@ -240,7 +248,8 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
   test("should display correct flashcard information", async () => {
     const testUserId = getTestUserId();
-    await createTestFlashcards(3, testUserId, "display-info-test");
+    const testId = generateUniqueTestId("display-info");
+    await createTestFlashcards(3, testUserId, testId);
 
     await loginWithValidCredentials();
 
@@ -283,13 +292,14 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
     test("should filter flashcards by category", async () => {
       const testUserId = getTestUserId();
+      const testId = generateUniqueTestId("filter-category");
 
       await cleanupTestFlashcards(testUserId);
 
-      await createTestFlashcards(3, testUserId, "filter-category-test", [
-        { front: "Category IT Card 1 - filter test", back: "Answer 1 for IT", categoryId: 1 }, // IT
-        { front: "Category IT Card 2 - filter test", back: "Answer 2 for IT", categoryId: 1 }, // IT
-        { front: "Category Language Card 1 - filter test", back: "Answer 3 for Language", categoryId: 2 }, // Language
+      await createTestFlashcards(3, testUserId, testId, [
+        { front: `Category IT Card 1 - ${testId}`, back: "Answer 1 for IT", categoryId: 1 }, // IT
+        { front: `Category IT Card 2 - ${testId}`, back: "Answer 2 for IT", categoryId: 1 }, // IT
+        { front: `Category Language Card 1 - ${testId}`, back: "Answer 3 for Language", categoryId: 2 }, // Language
       ]);
 
       await loginWithValidCredentials();
@@ -320,7 +330,7 @@ test.describe.serial("Flashcards Management Workflow", () => {
       // Wait for all flashcards to be loaded after reset
       await expect
         .poll(async () => await flashcardsPage.getFlashcardCount(), {
-          timeout: 10000,
+          timeout: 5000,
           message: "All flashcards should be visible after resetting filters",
         })
         .toBe(initialCount);
@@ -330,13 +340,14 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
     test("should filter flashcards by origin", async () => {
       const testUserId = getTestUserId();
+      const testId = generateUniqueTestId("filter-origin");
 
       await cleanupTestFlashcards(testUserId);
 
-      await createTestFlashcards(3, testUserId, "filter-origin-test", [
-        { front: "Manual Card", back: "Manual Answer", origin: "manual" },
-        { front: "AI Edited Card", back: "AI Edited Answer", origin: "ai-edited" },
-        { front: "AI Full Card", back: "AI Full Answer", origin: "ai-full" },
+      await createTestFlashcards(3, testUserId, testId, [
+        { front: `Manual Card - ${testId}`, back: "Manual Answer", origin: "manual" },
+        { front: `AI Edited Card - ${testId}`, back: "AI Edited Answer", origin: "ai-edited" },
+        { front: `AI Full Card - ${testId}`, back: "AI Full Answer", origin: "ai-full" },
       ]);
 
       await loginWithValidCredentials();
@@ -380,13 +391,14 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
     test("should handle tag filtering", async () => {
       const testUserId = getTestUserId();
+      const testId = generateUniqueTestId("filter-tags");
 
       await cleanupTestFlashcards(testUserId);
 
-      await createTestFlashcards(3, testUserId, "filter-tags-test", [
-        { front: "JavaScript Card", back: "JS Answer", tags: ["JavaScript"] },
-        { front: "React Card", back: "React Answer", tags: ["React"] },
-        { front: "CSS Card", back: "CSS Answer", tags: ["CSS"] },
+      await createTestFlashcards(3, testUserId, testId, [
+        { front: `JavaScript Card - ${testId}`, back: "JS Answer", tags: ["JavaScript"] },
+        { front: `React Card - ${testId}`, back: "React Answer", tags: ["React"] },
+        { front: `CSS Card - ${testId}`, back: "CSS Answer", tags: ["CSS"] },
       ]);
 
       await loginWithValidCredentials();
@@ -430,10 +442,11 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
     test("should handle sort order changes", async () => {
       const testUserId = getTestUserId();
+      const testId = generateUniqueTestId("sort");
 
       await cleanupTestFlashcards(testUserId);
 
-      await createTestFlashcards(3, testUserId, "sort-test");
+      await createTestFlashcards(3, testUserId, testId);
 
       await loginWithValidCredentials();
 
@@ -474,40 +487,41 @@ test.describe.serial("Flashcards Management Workflow", () => {
 
     test("should reset all filters correctly", async () => {
       const testUserId = getTestUserId();
+      const testId = generateUniqueTestId("reset-filters");
 
       await cleanupTestFlashcards(testUserId);
 
-      await createTestFlashcards(5, testUserId, "reset-filters-test", [
+      await createTestFlashcards(5, testUserId, testId, [
         {
-          front: "Reset Test Card 1 - JS",
+          front: `Reset Test Card 1 - JS - ${testId}`,
           back: "Answer 1 for reset test",
           categoryId: 1,
           origin: "manual",
           tags: ["JavaScript"],
         },
         {
-          front: "Reset Test Card 2 - Language",
+          front: `Reset Test Card 2 - Language - ${testId}`,
           back: "Answer 2 for reset test",
           categoryId: 2,
           origin: "ai-edited",
           tags: ["English"],
         },
         {
-          front: "Reset Test Card 3 - React",
+          front: `Reset Test Card 3 - React - ${testId}`,
           back: "Answer 3 for reset test",
           categoryId: 1,
           origin: "ai-full",
           tags: ["React"],
         },
         {
-          front: "Reset Test Card 4 - CSS",
+          front: `Reset Test Card 4 - CSS - ${testId}`,
           back: "Answer 4 for reset test",
           categoryId: 2,
           origin: "manual",
           tags: ["CSS"],
         },
         {
-          front: "Reset Test Card 5 - TypeScript",
+          front: `Reset Test Card 5 - TypeScript - ${testId}`,
           back: "Answer 5 for reset test",
           categoryId: 1,
           origin: "ai-edited",
@@ -545,7 +559,7 @@ test.describe.serial("Flashcards Management Workflow", () => {
       // Wait for all flashcards to be loaded after reset
       await expect
         .poll(async () => await flashcardsPage.getFlashcardCount(), {
-          timeout: 10000,
+          timeout: 5000,
           message: "All flashcards should be visible after resetting filters",
         })
         .toBe(initialCount);
