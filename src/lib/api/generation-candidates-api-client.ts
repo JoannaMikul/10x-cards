@@ -78,5 +78,4 @@ export class GenerationCandidatesApiClient extends BaseApiClient {
   }
 }
 
-// Export singleton instance
 export const generationCandidatesApiClient = new GenerationCandidatesApiClient();

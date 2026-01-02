@@ -51,5 +51,4 @@ export class GenerationsApiClient extends BaseApiClient {
   }
 }
 
-// Export singleton instance
 export const generationsApiClient = new GenerationsApiClient();
