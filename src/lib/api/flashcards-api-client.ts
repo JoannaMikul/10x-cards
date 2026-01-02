@@ -148,5 +148,4 @@ export class FlashcardsApiClient extends BaseApiClient {
   }
 }
 
-// Export singleton instance
 export const flashcardsApiClient = new FlashcardsApiClient();

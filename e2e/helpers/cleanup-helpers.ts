@@ -2,7 +2,6 @@
 import { config } from "dotenv";
 import { supabaseServiceClient } from "../../src/db/supabase.client";
 
-// Load test environment variables
 config({ path: ".env.test" });
 
 /**
