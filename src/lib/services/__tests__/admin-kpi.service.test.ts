@@ -48,7 +48,7 @@ describe("fetchAdminKpi", () => {
 
       const result = await fetchAdminKpi(params);
 
-      expect(fetchSpy).toHaveBeenCalledWith(`${mockOrigin}/api/admin/kpi?range=7d&group_by=day`, { method: "GET" });
+      expect(fetchSpy).toHaveBeenCalledWith("/api/admin/kpi?range=7d&group_by=day", { method: "GET" });
       expect(result).toEqual(mockResponse);
       expect(result.ai_acceptance_rate).toBe(0.75);
       expect(result.ai_share).toBe(0.6);
@@ -80,7 +80,7 @@ describe("fetchAdminKpi", () => {
 
       const result = await fetchAdminKpi(params);
 
-      expect(fetchSpy).toHaveBeenCalledWith(`${mockOrigin}/api/admin/kpi?range=30d&group_by=day`, { method: "GET" });
+      expect(fetchSpy).toHaveBeenCalledWith("/api/admin/kpi?range=30d&group_by=day", { method: "GET" });
       expect(result).toEqual(mockResponse);
       expect(result.ai_acceptance_rate).toBe(0.82);
       expect(result.ai_share).toBe(0.78);
@@ -112,10 +112,9 @@ describe("fetchAdminKpi", () => {
 
       const result = await fetchAdminKpi(params);
 
-      expect(fetchSpy).toHaveBeenCalledWith(
-        `${mockOrigin}/api/admin/kpi?range=custom&group_by=day&from=2024-01-01&to=2024-01-31`,
-        { method: "GET" }
-      );
+      expect(fetchSpy).toHaveBeenCalledWith("/api/admin/kpi?range=custom&group_by=day&from=2024-01-01&to=2024-01-31", {
+        method: "GET",
+      });
       expect(result).toEqual(mockResponse);
       expect(result.ai_acceptance_rate).toBe(0.68);
     });
@@ -144,7 +143,7 @@ describe("fetchAdminKpi", () => {
 
       const result = await fetchAdminKpi(params);
 
-      expect(fetchSpy).toHaveBeenCalledWith(`${mockOrigin}/api/admin/kpi?range=custom&group_by=day&from=2024-01-01`, {
+      expect(fetchSpy).toHaveBeenCalledWith("/api/admin/kpi?range=custom&group_by=day&from=2024-01-01", {
         method: "GET",
       });
       expect(result).toEqual(mockResponse);
@@ -175,7 +174,7 @@ describe("fetchAdminKpi", () => {
 
       const result = await fetchAdminKpi(params);
 
-      expect(fetchSpy).toHaveBeenCalledWith(`${mockOrigin}/api/admin/kpi?range=custom&group_by=day&to=2024-01-31`, {
+      expect(fetchSpy).toHaveBeenCalledWith("/api/admin/kpi?range=custom&group_by=day&to=2024-01-31", {
         method: "GET",
       });
       expect(result).toEqual(mockResponse);

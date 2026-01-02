@@ -8,16 +8,17 @@ import type { AdminKpiQueryParams } from "../analytics-kpi.types";
  * @throws {status: number, body: ApiErrorResponse} when API returns error
  */
 export async function fetchAdminKpi(params: AdminKpiQueryParams): Promise<AnalyticsKpiResponse> {
-  const url = new URL("/api/admin/kpi", window.location.origin);
-  url.searchParams.set("range", params.range);
-  url.searchParams.set("group_by", params.group_by);
+  const searchParams = new URLSearchParams();
+  searchParams.set("range", params.range);
+  searchParams.set("group_by", params.group_by);
 
   if (params.range === "custom") {
-    if (params.from) url.searchParams.set("from", params.from);
-    if (params.to) url.searchParams.set("to", params.to);
+    if (params.from) searchParams.set("from", params.from);
+    if (params.to) searchParams.set("to", params.to);
   }
 
-  const res = await fetch(url.toString(), { method: "GET" });
+  const urlString = `/api/admin/kpi?${searchParams.toString()}`;
+  const res = await globalThis.fetch(urlString, { method: "GET" });
 
   const json = await res.json();
 

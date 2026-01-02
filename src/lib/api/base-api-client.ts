@@ -140,7 +140,7 @@ export class BaseApiClient {
     }
 
     try {
-      const response = await fetch(url, {
+      const response = await globalThis.fetch(url, {
         ...fetchOptions,
         headers,
         signal: controller.signal,
@@ -232,15 +232,18 @@ export class BaseApiClient {
     path: string,
     params?: URLSearchParams | Record<string, string | number | boolean | string[]>
   ): string {
-    const url = new URL(path, window.location.origin);
-    url.pathname = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+    // Use relative URL construction to avoid window.location.origin issues
+    let urlString = `${this.baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 
     if (params) {
       const searchParams = params instanceof URLSearchParams ? params : this.objectToSearchParams(params);
-      url.search = searchParams.toString();
+      const queryString = searchParams.toString();
+      if (queryString) {
+        urlString += `?${queryString}`;
+      }
     }
 
-    return url.toString();
+    return urlString;
   }
 
   /**

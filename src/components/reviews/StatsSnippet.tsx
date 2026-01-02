@@ -26,12 +26,13 @@ export function StatsSnippet({ cardId }: StatsSnippetProps) {
       }
 
       try {
-        const url = new URL("/api/review-stats", window.location.origin);
-        url.searchParams.set("card_id", cardId);
-        url.searchParams.set("limit", "1");
+        const searchParams = new URLSearchParams();
+        searchParams.set("card_id", cardId);
+        searchParams.set("limit", "1");
         // Note: URLSearchParams automatically converts to strings, but Zod will handle the conversion
 
-        const response = await fetch(url.toString());
+        const urlString = `/api/review-stats?${searchParams.toString()}`;
+        const response = await globalThis.fetch(urlString);
 
         if (!response.ok) {
           const errorData = (await response.json()) as ApiErrorResponse;
