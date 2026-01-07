@@ -56,7 +56,11 @@ export function useAuth(): UseAuthReturn {
         if (response.status === 401) {
           throw new Error("Invalid email or password");
         } else {
-          throw new Error(errorData.error || "An error occurred during login");
+          const errorMessage =
+            typeof errorData.error === "string"
+              ? errorData.error
+              : errorData.error?.message || "An error occurred during login";
+          throw new Error(errorMessage);
         }
       }
 
@@ -95,7 +99,11 @@ export function useAuth(): UseAuthReturn {
         if (response.status === 409) {
           throw new Error("Email address is already registered");
         } else if (response.status === 400) {
-          throw new Error(errorData.error || "An error occurred during registration");
+          const errorMessage =
+            typeof errorData.error === "string"
+              ? errorData.error
+              : errorData.error?.message || "An error occurred during registration";
+          throw new Error(errorMessage);
         } else {
           throw new Error("An error occurred during registration");
         }
@@ -165,7 +173,11 @@ export function useAuth(): UseAuthReturn {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "An error occurred while sending password reset instructions");
+        const errorMessage =
+          typeof errorData.error === "string"
+            ? errorData.error
+            : errorData.error?.message || "An error occurred while sending password reset instructions";
+        throw new Error(errorMessage);
       }
     } catch (err) {
       const authError: AuthError = {
