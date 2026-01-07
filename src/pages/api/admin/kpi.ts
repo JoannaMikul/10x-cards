@@ -1,12 +1,12 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../../db/supabase.client.ts";
-import { ANALYTICS_ERROR_CODES, buildErrorResponse } from "../../../lib/errors.ts";
-import { createAnalyticsService } from "../../../lib/services/analytics.service.ts";
+import { supabaseClient } from "../../../db/supabase.client";
+import { ANALYTICS_ERROR_CODES, buildErrorResponse } from "../../../lib/errors";
+import { createAnalyticsService } from "../../../lib/services/analytics.service";
 import type { AnalyticsKpiResponse } from "../../../types";
-import { adminKpiQuerySchema, customRangeValidationSchema } from "../../../lib/validation/admin-kpi.schema.ts";
-import type { AdminKpiQuery } from "../../../lib/validation/admin-kpi.schema.ts";
+import { adminKpiQuerySchema, customRangeValidationSchema } from "../../../lib/validation/admin-kpi.schema";
+import type { AdminKpiQuery } from "../../../lib/validation/admin-kpi.schema";
 
 export const prerender = false;
 

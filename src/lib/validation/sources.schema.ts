@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { decodeBase64 } from "../utils/base64.ts";
+import { decodeBase64 } from "../utils/base64";
 
 export const SOURCE_LIMIT_DEFAULT = 20;
 export const SOURCE_LIMIT_MIN = 1;

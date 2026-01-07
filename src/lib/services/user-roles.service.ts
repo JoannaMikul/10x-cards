@@ -1,7 +1,7 @@
-import type { Tables } from "../../db/database.types.ts";
-import type { SupabaseClient } from "../../db/supabase.client.ts";
+import type { Tables } from "../../db/database.types";
+import type { SupabaseClient } from "../../db/supabase.client";
 import type { CreateUserRoleCommand, UserRoleDTO, UserRoleListResponse } from "../../types";
-import type { UserRolesErrorCode } from "../errors.ts";
+import type { UserRolesErrorCode } from "../errors";
 
 export class UserRoleServiceError extends Error {
   readonly code: UserRolesErrorCode;

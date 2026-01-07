@@ -1,19 +1,19 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient } from "../../../db/supabase.client.ts";
+import { DEFAULT_USER_ID, supabaseClient } from "../../../db/supabase.client";
 import {
   CANDIDATE_ERROR_CODES,
   buildErrorResponse,
   mapCandidateDbError,
   type CandidateErrorCode,
-} from "../../../lib/errors.ts";
-import { updateCandidateForOwner } from "../../../lib/services/generation-candidates.service.ts";
+} from "../../../lib/errors";
+import { updateCandidateForOwner } from "../../../lib/services/generation-candidates.service";
 import {
   getCandidateParamsSchema,
   updateGenerationCandidateSchema,
   type UpdateGenerationCandidateSchema,
-} from "../../../lib/validation/generation-candidates.schema.ts";
+} from "../../../lib/validation/generation-candidates.schema";
 import type { UpdateGenerationCandidateCommand } from "../../../types";
 import type { ZodIssue } from "zod";
 

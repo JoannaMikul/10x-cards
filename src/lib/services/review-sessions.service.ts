@@ -1,7 +1,7 @@
 import { supermemo } from "supermemo";
 
-import type { Json, Tables, Enums } from "../../db/database.types.ts";
-import type { SupabaseClient } from "../../db/supabase.client.ts";
+import type { Json, Tables, Enums } from "../../db/database.types";
+import type { SupabaseClient } from "../../db/supabase.client";
 import type {
   CreateReviewSessionCommand,
   ReviewEventListResponse,
@@ -10,8 +10,8 @@ import type {
   ReviewSessionConfig,
   FlashcardSelectionState,
 } from "../../types";
-import type { ReviewEventsQuery, ReviewStatsQuery } from "../validation/review-sessions.schema.ts";
-import { REVIEW_ERROR_CODES } from "../errors.ts";
+import type { ReviewEventsQuery, ReviewStatsQuery } from "../validation/review-sessions.schema";
+import { REVIEW_ERROR_CODES } from "../errors";
 
 type ReviewEventRow = Tables<"review_events">;
 type ReviewStatsRow = Tables<"review_stats">;

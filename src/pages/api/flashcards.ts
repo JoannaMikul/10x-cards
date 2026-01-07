@@ -1,22 +1,22 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import type { Json } from "../../db/database.types.ts";
-import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
+import type { Json } from "../../db/database.types";
+import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client";
 import {
   FLASHCARD_ERROR_CODES,
   buildErrorResponse,
   mapFlashcardDbError,
   type FlashcardErrorCode,
   type HttpErrorDescriptor,
-} from "../../lib/errors.ts";
-import { FlashcardReferenceError, createFlashcard, listFlashcards } from "../../lib/services/flashcards.service.ts";
+} from "../../lib/errors";
+import { FlashcardReferenceError, createFlashcard, listFlashcards } from "../../lib/services/flashcards.service";
 import {
   createFlashcardSchema,
   flashcardsQuerySchema,
   buildFlashcardsQuery,
   InvalidFlashcardsCursorError,
-} from "../../lib/validation/flashcards.schema.ts";
+} from "../../lib/validation/flashcards.schema";
 import type { CreateFlashcardCommand } from "../../types";
 
 export const prerender = false;

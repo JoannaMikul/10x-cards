@@ -1,14 +1,14 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import type { Json } from "../../../../../db/database.types.ts";
-import { FLASHCARD_ERROR_CODES, buildErrorResponse, mapFlashcardDbError } from "../../../../../lib/errors.ts";
+import type { Json } from "../../../../../db/database.types";
+import { FLASHCARD_ERROR_CODES, buildErrorResponse, mapFlashcardDbError } from "../../../../../lib/errors";
 import {
   FlashcardNotFoundError,
   FlashcardUnauthorizedError,
   restoreFlashcard,
-} from "../../../../../lib/services/flashcards.service.ts";
-import { flashcardIdParamSchema, parseFlashcardId } from "../../../../../lib/validation/flashcards.schema.ts";
+} from "../../../../../lib/services/flashcards.service";
+import { flashcardIdParamSchema, parseFlashcardId } from "../../../../../lib/validation/flashcards.schema";
 
 export const prerender = false;
 

@@ -1,10 +1,10 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../db/supabase.client.ts";
-import { REVIEW_ERROR_CODES, buildErrorResponse, mapReviewDbError } from "../../lib/errors.ts";
-import { getReviewStats } from "../../lib/services/review-sessions.service.ts";
-import { reviewStatsQuerySchema } from "../../lib/validation/review-sessions.schema.ts";
+import { supabaseClient } from "../../db/supabase.client";
+import { REVIEW_ERROR_CODES, buildErrorResponse, mapReviewDbError } from "../../lib/errors";
+import { getReviewStats } from "../../lib/services/review-sessions.service";
+import { reviewStatsQuerySchema } from "../../lib/validation/review-sessions.schema";
 import type { ReviewStatsListResponse } from "../../types";
 
 export const prerender = false;

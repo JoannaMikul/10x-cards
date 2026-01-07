@@ -1,11 +1,11 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient } from "../../../db/supabase.client.ts";
-import { CATEGORY_ERROR_CODES, buildErrorResponse, mapCategoryDbError } from "../../../lib/errors.ts";
-import { updateCategoryById, deleteCategoryById } from "../../../lib/services/categories.service.ts";
+import { DEFAULT_USER_ID, supabaseClient } from "../../../db/supabase.client";
+import { CATEGORY_ERROR_CODES, buildErrorResponse, mapCategoryDbError } from "../../../lib/errors";
+import { updateCategoryById, deleteCategoryById } from "../../../lib/services/categories.service";
 import type { UpdateCategoryCommand } from "../../../types";
-import { categoryIdParamSchema, updateCategoryBodySchema } from "../../../lib/validation/categories.schema.ts";
+import { categoryIdParamSchema, updateCategoryBodySchema } from "../../../lib/validation/categories.schema";
 
 export const prerender = false;
 

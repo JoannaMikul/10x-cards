@@ -1,4 +1,4 @@
-import { AUTH_ERROR_CODES, buildErrorResponse } from "../errors.ts";
+import { AUTH_ERROR_CODES, buildErrorResponse } from "../errors";
 
 export function getCurrentUser(context: {
   locals: { user?: { id: string; email: string } };

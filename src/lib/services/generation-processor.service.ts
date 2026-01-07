@@ -1,14 +1,14 @@
-import type { Tables } from "../../db/database.types.ts";
-import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { GenerationRecord } from "./generations.service.ts";
+import type { Tables } from "../../db/database.types";
+import type { SupabaseClient } from "../../db/supabase.client";
+import type { GenerationRecord } from "./generations.service";
 import {
   openRouterService,
   OpenRouterRateLimitError,
   OpenRouterServerError,
   OpenRouterNetworkError,
-} from "../openrouter-service.ts";
-import { flashcardsResponseFormat, type FlashcardsGenerationResult } from "../ai-schemas.ts";
-import { logGenerationError } from "./error-logs.service.ts";
+} from "../openrouter-service";
+import { flashcardsResponseFormat, type FlashcardsGenerationResult } from "../ai-schemas";
+import { logGenerationError } from "./error-logs.service";
 
 export interface ProcessGenerationResult {
   success: boolean;

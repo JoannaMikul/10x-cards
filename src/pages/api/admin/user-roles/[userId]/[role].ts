@@ -1,10 +1,10 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../../../../db/supabase.client.ts";
-import { USER_ROLES_ERROR_CODES, buildErrorResponse } from "../../../../../lib/errors.ts";
-import { deleteUserRole, UserRoleServiceError } from "../../../../../lib/services/user-roles.service.ts";
-import { userRolePathParamsSchema } from "../../../../../lib/validation/user-roles.schema.ts";
+import { supabaseClient } from "../../../../../db/supabase.client";
+import { USER_ROLES_ERROR_CODES, buildErrorResponse } from "../../../../../lib/errors";
+import { deleteUserRole, UserRoleServiceError } from "../../../../../lib/services/user-roles.service";
+import { userRolePathParamsSchema } from "../../../../../lib/validation/user-roles.schema";
 
 export const prerender = false;
 

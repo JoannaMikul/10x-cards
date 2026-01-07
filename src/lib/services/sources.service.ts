@@ -1,8 +1,8 @@
-import type { Tables } from "../../db/database.types.ts";
-import type { SupabaseClient } from "../../db/supabase.client.ts";
+import type { Tables } from "../../db/database.types";
+import type { SupabaseClient } from "../../db/supabase.client";
 import type { SourceDTO } from "../../types";
-import type { SourcesQuery } from "../validation/sources.schema.ts";
-import { escapeIlikePattern } from "../utils/search.ts";
+import type { SourcesQuery } from "../validation/sources.schema";
+import { escapeIlikePattern } from "../utils/search";
 
 type SourceRow = Tables<"sources">;
 type SourceSelect = Pick<
