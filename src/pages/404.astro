@@ -1,0 +1,36 @@
+---
+import ErrorLayout from "../components/common/ErrorLayout.astro";
+import { ErrorPage } from "../components/common/ErrorPage";
+import type { ErrorPageViewModel } from "../components/common/error-types";
+
+const viewModel: ErrorPageViewModel = {
+  title: "Page Not Found",
+  description:
+    "It looks like the page you're looking for doesn't exist or has been moved. Check the URL or use the buttons below to navigate.",
+  image: {
+    src: "/404_not_found.png",
+    alt: "Illustration showing navigation error - lost astronaut",
+  },
+  links: [
+    {
+      label: "Home",
+      href: "/",
+      variant: "default",
+    },
+    {
+      label: "Flashcard Generator",
+      href: "/generator",
+      variant: "outline",
+    },
+    {
+      label: "Your Flashcards",
+      href: "/flashcards",
+      variant: "secondary",
+    },
+  ],
+};
+---
+
+<ErrorLayout title="Page Not Found – 10x-cards">
+  <ErrorPage client:load vm={viewModel} />
+</ErrorLayout>

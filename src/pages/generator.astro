@@ -3,11 +3,12 @@ import Layout from "../layouts/Layout.astro";
 import { GeneratorPage } from "../components/generator/GeneratorPage";
 
 const BASE_MODELS = [
-  { label: "Xiaomi Mimo V2 Flash", value: "xiaomi/mimo-v2-flash:free" },
-  { label: "Kwai Pilot Kat Coder Pro", value: "kwaipilot/kat-coder-pro:free" },
-  { label: "Google Gemma 3 27B IT", value: "google/gemma-3-27b-it:free" },
-  { label: "Claude 3.5 Sonnet", value: "anthropic/claude-3.5-sonnet" },
-  { label: "Grok Code Fast 1", value: "x-ai/grok-code-fast-1" },
+  { label: "Gemini 2.5 Flash", value: "google/gemini-2.5-flash" },
+  { label: "DeepSeek V3.2", value: "deepseek/deepseek-v3.2" },
+  { label: "Xiaomi Mimo V2 Flash (free)", value: "xiaomi/mimo-v2-flash:free" },
+  { label: "Claude 4.5 Sonnet", value: "anthropic/claude-sonnet-4.5" },
+  { label: "Grok Fast 4.1", value: "x-ai/grok-4.1-fast" },
+  { label: "GPT 4.1 Mini", value: "openai/gpt-4.1-mini" },
 ];
 
 const AVAILABLE_MODELS = (() => {

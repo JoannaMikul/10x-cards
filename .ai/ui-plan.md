@@ -138,18 +138,12 @@
   - Obsługuje: US‑013
   - Powiązane endpointy API: `GET /api/admin/generation-errors`.
 
-- **Nazwa widoku**: 403 Forbidden
-  - **Ścieżka widoku**: `/403`
-  - **Główny cel**: Jasny komunikat o braku uprawnień i powrót do strony głównej.
-  - **Kluczowe informacje do wyświetlenia**: Opis błędu, linki nawigacyjne.
-  - **Kluczowe komponenty widoku**: `ErrorLayout`, `Button`.
-  - **UX, dostępność i względy bezpieczeństwa**: Nie ujawnia szczegółów dostępu; przyjazny powrót; focus na tytule.
-
 - **Nazwa widoku**: 404 Not Found
   - **Ścieżka widoku**: `/404`
   - **Główny cel**: Komunikat o nieistniejącej stronie z nawigacją powrotną.
   - **Kluczowe informacje do wyświetlenia**: Tytuł, opis, link do kluczowych widoków.
   - **Kluczowe komponenty widoku**: `ErrorLayout`, `Button`.
+  - **Zasoby wizualne**: Ilustracja `/public/404_not_found.png` prezentująca błąd w przyjazny sposób.
   - **UX, dostępność i względy bezpieczeństwa**: Focus na nagłówku; bez kodów technicznych.
 
 ## 3. Mapa podróży użytkownika

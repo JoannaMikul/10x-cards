@@ -417,7 +417,7 @@ if (!apiKey) {
 
 export const openRouterService = new OpenRouterService({
   apiKey,
-  defaultModel: import.meta.env.OPENROUTER_DEFAULT_MODEL ?? "openai/gpt-3.5-turbo",
+  defaultModel: import.meta.env.OPENROUTER_DEFAULT_MODEL ?? "openai/gpt-4.1-mini",
   defaultParams: {
     temperature: Number(import.meta.env.OPENROUTER_TEMPERATURE ?? 0.3),
     max_tokens: Number(import.meta.env.OPENROUTER_MAX_TOKENS ?? 2048),

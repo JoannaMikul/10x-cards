@@ -1,8 +1,9 @@
 import { defineMiddleware } from "astro:middleware";
 
-import { createSupabaseServerInstance, type SupabaseClient } from "../db/supabase.client.ts";
+import { createSupabaseServerInstance, type SupabaseClient } from "../db/supabase.client";
 
 const PUBLIC_PATHS = [
+  "/404",
   "/auth/login",
   "/auth/register",
   "/auth/reset-password",
@@ -15,7 +16,17 @@ const PUBLIC_PATHS = [
   "/api/auth/logout",
 ];
 
-const ADMIN_PATHS = ["/admin", "/admin/"];
+const PROTECTED_PREFIXES = [
+  "/admin",
+  "/api/admin",
+  "/api", // Most API routes are protected by default unless in PUBLIC_PATHS
+  "/generator",
+  "/flashcards",
+  "/candidates",
+  "/reviews",
+];
+
+const PROTECTED_EXACT_PATHS = ["/"];
 
 /**
  * Checks if the current user has admin privileges.
@@ -60,16 +71,21 @@ export const onRequest = defineMiddleware(async ({ locals, cookies, url, request
       id: user.id,
     };
     locals.supabase = supabase;
-  } else if (!PUBLIC_PATHS.includes(url.pathname)) {
-    return redirect("/auth/login");
+  } else {
+    // If user is not logged in, check if the path is protected
+    const isProtected =
+      PROTECTED_EXACT_PATHS.includes(url.pathname) ||
+      PROTECTED_PREFIXES.some((prefix) => url.pathname.startsWith(prefix));
+
+    // Only redirect to login if the path is explicitly protected and not public
+    // This allows unknown paths to fall through to 404
+    if (isProtected && !PUBLIC_PATHS.includes(url.pathname)) {
+      return redirect("/auth/login");
+    }
   }
 
   // Check admin privileges for admin paths and API endpoints
-  if (
-    url.pathname.startsWith("/admin/") ||
-    url.pathname.startsWith("/api/admin/") ||
-    ADMIN_PATHS.includes(url.pathname)
-  ) {
+  if (url.pathname.startsWith("/admin/") || url.pathname.startsWith("/api/admin/") || url.pathname === "/admin") {
     if (!user) {
       return redirect("/auth/login");
     }

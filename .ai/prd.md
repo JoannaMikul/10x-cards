@@ -173,7 +173,7 @@ Implementacja:
 - **Strona**: `/admin/admins` w `src/pages/admin/admins.astro`
 - **Hook zarządzania stanem**: `useAdminUsers` w `src/components/admin/admins/useAdminUsers.ts`
 
-❌ ID: US-013
+✅ ID: US-013
 Tytuł: Diagnostyka błędów generowania (admin)
 Opis: Jako administrator chcę przeglądać logi błędów generowania, aby monitorować jakość systemu AI i diagnozować problemy.
 Kryteria akceptacji:
@@ -182,6 +182,22 @@ Kryteria akceptacji:
 - Każdy log zawiera informacje o błędzie, używanym modelu, hashu tekstu źródłowego i czasie wystąpienia.
 - Logi są dostępne tylko dla administratorów z odpowiednią autoryzacją.
 - Interfejs pozwala na eksport logów do dalszej analizy.
+
+✅ ID: US-014
+Tytuł: Obsługa błędów nawigacji (404 Not Found)
+Opis: Jako użytkownik chcę otrzymać pomocną informację i opcje nawigacji, gdy trafię na nieistniejącą stronę, aby móc kontynuować korzystanie z aplikacji.
+Kryteria akceptacji:
+
+- Strona 404 wyświetla się automatycznie przy próbie dostępu do nieistniejących ścieżek.
+- Komunikat zawiera tytuł i opis wyjaśniający sytuację w przyjazny sposób.
+- Dostępne są linki do kluczowych widoków aplikacji (strona główna, generator, lista fiszek).
+- Interfejs jest dostępny z focusem na nagłówku i obsługą nawigacji klawiszowej.
+- Strona nie zawiera kodów błędów technicznych ani innych informacji mogących dezorientować użytkownika.
+
+Implementacja:
+
+- **Frontend**: Komponenty w folderze `src/components/common/` (ErrorLayout, ErrorPage)
+- **Strona**: `/404` w `src/pages/404.astro`
 
 ## 6. Metryki sukcesu
 
