@@ -1,14 +1,14 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../../db/supabase.client.ts";
-import { GENERATION_ERROR_LOGS_ERROR_CODES, buildErrorResponse } from "../../../lib/errors.ts";
-import { getGenerationErrorLogs } from "../../../lib/services/error-logs.service.ts";
-import type { GenerationErrorLogListResponse } from "../../../types.ts";
+import { supabaseClient } from "../../../db/supabase.client";
+import { GENERATION_ERROR_LOGS_ERROR_CODES, buildErrorResponse } from "../../../lib/errors";
+import { getGenerationErrorLogs } from "../../../lib/services/error-logs.service";
+import type { GenerationErrorLogListResponse } from "../../../types";
 import {
   buildGenerationErrorLogsQuery,
   generationErrorLogsQuerySchema,
-} from "../../../lib/validation/generation-error-logs.schema.ts";
+} from "../../../lib/validation/generation-error-logs.schema";
 
 export const prerender = false;
 

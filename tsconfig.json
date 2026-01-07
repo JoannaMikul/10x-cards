@@ -2,6 +2,7 @@
   "include": [".astro/types.d.ts", "**/*"],
   "exclude": ["dist"],
   "compilerOptions": {
+    "target": "es6",
     "strict": true,
     "noEmit": true,
     "allowJs": true,

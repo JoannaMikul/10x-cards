@@ -1,5 +1,5 @@
-import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { TablesInsert, Enums, Tables } from "../../db/database.types.ts";
+import type { SupabaseClient } from "../../db/supabase.client";
+import type { TablesInsert, Enums, Tables } from "../../db/database.types";
 import type { CreateGenerationCommand } from "../../types";
 
 const CONTROL_CHAR_REGEX = /\p{Cc}/gu;

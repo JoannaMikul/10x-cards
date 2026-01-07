@@ -1,6 +1,6 @@
 import type { APIRoute } from "astro";
-import { supabaseClient } from "../../../db/supabase.client.ts";
-import { processPendingGenerations } from "../../../lib/services/generation-processor.service.ts";
+import { supabaseClient } from "../../../db/supabase.client";
+import { processPendingGenerations } from "../../../lib/services/generation-processor.service";
 
 export const prerender = false;
 

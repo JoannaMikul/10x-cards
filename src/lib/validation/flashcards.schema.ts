@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Enums, Json } from "../../db/database.types";
-import { decodeBase64 } from "../utils/base64.ts";
+import { decodeBase64 } from "../utils/base64";
 
 const CARD_ORIGINS = ["ai-full", "ai-edited", "manual"] as const satisfies readonly Enums<"card_origin">[];
 

@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 
-import { createSupabaseServerInstance } from "../../../db/supabase.client.ts";
-import { AUTH_ERROR_CODES } from "../../../lib/errors.ts";
+import { createSupabaseServerInstance } from "../../../db/supabase.client";
+import { AUTH_ERROR_CODES } from "../../../lib/errors";
 
 export const prerender = false;
 

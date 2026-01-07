@@ -1,6 +1,6 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import type { Json } from "../db/database.types.ts";
+import type { Json } from "../db/database.types";
 import type { ApiErrorResponse } from "../types";
 
 export const GENERATION_ERROR_CODES = {

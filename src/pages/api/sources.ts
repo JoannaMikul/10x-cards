@@ -1,16 +1,12 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
-import { SOURCE_ERROR_CODES, buildErrorResponse, type SourceErrorCode } from "../../lib/errors.ts";
-import { listSources } from "../../lib/services/sources.service.ts";
-import type { SourcesQuery } from "../../lib/validation/sources.schema.ts";
-import {
-  InvalidSourceCursorError,
-  buildSourcesQuery,
-  sourcesQuerySchema,
-} from "../../lib/validation/sources.schema.ts";
-import { encodeBase64 } from "../../lib/utils/base64.ts";
+import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client";
+import { SOURCE_ERROR_CODES, buildErrorResponse, type SourceErrorCode } from "../../lib/errors";
+import { listSources } from "../../lib/services/sources.service";
+import type { SourcesQuery } from "../../lib/validation/sources.schema";
+import { InvalidSourceCursorError, buildSourcesQuery, sourcesQuerySchema } from "../../lib/validation/sources.schema";
+import { encodeBase64 } from "../../lib/utils/base64";
 import type { SourceListResponse } from "../../types";
 
 export const prerender = false;

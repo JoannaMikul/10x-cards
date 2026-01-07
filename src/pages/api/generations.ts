@@ -2,25 +2,25 @@ import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
 
-import type { Enums } from "../../db/database.types.ts";
-import { supabaseClient } from "../../db/supabase.client.ts";
-import type { SupabaseClient } from "../../db/supabase.client.ts";
+import type { Enums } from "../../db/database.types";
+import { supabaseClient } from "../../db/supabase.client";
+import type { SupabaseClient } from "../../db/supabase.client";
 import {
   GENERATION_ERROR_CODES,
   buildErrorResponse,
   mapGenerationDbError,
   type GenerationErrorCode,
   type HttpErrorDescriptor,
-} from "../../lib/errors.ts";
-import { logGenerationError } from "../../lib/services/error-logs.service.ts";
-import { sanitizeSourceText, startGeneration } from "../../lib/services/generations.service.ts";
+} from "../../lib/errors";
+import { logGenerationError } from "../../lib/services/error-logs.service";
+import { sanitizeSourceText, startGeneration } from "../../lib/services/generations.service";
 import {
   MAX_SANITIZED_TEXT_LENGTH,
   MIN_SANITIZED_TEXT_LENGTH,
   createGenerationSchema,
-} from "../../lib/validation/generations.schema.ts";
+} from "../../lib/validation/generations.schema";
 import type { CreateGenerationCommand } from "../../types";
-import { projectGeneration } from "../../lib/services/generation-projection.service.ts";
+import { projectGeneration } from "../../lib/services/generation-projection.service";
 
 export const prerender = false;
 

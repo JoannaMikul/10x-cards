@@ -1,4 +1,4 @@
-import type { Enums } from "../../../db/database.types.ts";
+import type { Enums } from "../../../db/database.types";
 import type { ApiErrorResponse, CreateGenerationCommand } from "../../../types";
 import type { GenerationErrorCode } from "../../errors";
 

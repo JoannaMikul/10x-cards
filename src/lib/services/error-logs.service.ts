@@ -1,7 +1,7 @@
-import type { SupabaseClient } from "../../db/supabase.client.ts";
-import type { Tables, TablesInsert } from "../../db/database.types.ts";
+import type { SupabaseClient } from "../../db/supabase.client";
+import type { Tables, TablesInsert } from "../../db/database.types";
 import type { GenerationErrorLogDTO } from "../../types";
-import type { GenerationErrorLogsQuery } from "../validation/generation-error-logs.schema.ts";
+import type { GenerationErrorLogsQuery } from "../validation/generation-error-logs.schema";
 
 type GenerationErrorLogInsert = TablesInsert<"generation_error_logs">;
 

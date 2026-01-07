@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { decodeBase64 } from "../utils/base64.ts";
+import { decodeBase64 } from "../utils/base64";
 
 export const CANDIDATE_LIMIT_DEFAULT = 20;
 export const CANDIDATE_LIMIT_MIN = 1;

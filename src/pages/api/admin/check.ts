@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { ANALYTICS_ERROR_CODES, buildErrorResponse } from "../../../lib/errors.ts";
+import { ANALYTICS_ERROR_CODES, buildErrorResponse } from "../../../lib/errors";
 
 export const prerender = false;
 

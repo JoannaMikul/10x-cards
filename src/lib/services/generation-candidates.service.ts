@@ -1,7 +1,7 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import type { Tables } from "../../db/database.types.ts";
-import type { SupabaseClient } from "../../db/supabase.client.ts";
+import type { Tables } from "../../db/database.types";
+import type { SupabaseClient } from "../../db/supabase.client";
 import type {
   AcceptGenerationCandidateCommand,
   FlashcardDTO,
@@ -9,7 +9,7 @@ import type {
   TagDTO,
   UpdateGenerationCandidateCommand,
 } from "../../types";
-import type { GenerationCandidatesQuery } from "../validation/generation-candidates.schema.ts";
+import type { GenerationCandidatesQuery } from "../validation/generation-candidates.schema";
 type GenerationCandidateRow = Tables<"generation_candidates">;
 type GenerationCandidateProjection = Pick<
   GenerationCandidateRow,
