@@ -1,6 +1,6 @@
-import type { SupabaseClient } from "../../db/supabase.client.ts";
+import type { SupabaseClient } from "../../db/supabase.client";
 import type { AnalyticsKpiResponse, AnalyticsTotalsDTO, AnalyticsTrendPointDTO } from "../../types";
-import type { AdminKpiQuery } from "../validation/admin-kpi.schema.ts";
+import type { AdminKpiQuery } from "../validation/admin-kpi.schema";
 
 /**
  * Analytics service for calculating KPI metrics for admin dashboard.

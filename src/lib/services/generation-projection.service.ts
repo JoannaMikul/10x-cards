@@ -1,4 +1,4 @@
-import type { GenerationRecord } from "./generations.service.ts";
+import type { GenerationRecord } from "./generations.service";
 
 type GenerationResponseShape = Pick<
   GenerationRecord,

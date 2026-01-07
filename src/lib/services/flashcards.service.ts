@@ -1,7 +1,7 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import type { Json, Tables, TablesInsert, TablesUpdate, Enums } from "../../db/database.types.ts";
-import type { SupabaseClient } from "../../db/supabase.client.ts";
+import type { Json, Tables, TablesInsert, TablesUpdate, Enums } from "../../db/database.types";
+import type { SupabaseClient } from "../../db/supabase.client";
 
 type SupabaseQueryBuilder = ReturnType<SupabaseClient["from"]>;
 import type {
@@ -13,9 +13,9 @@ import type {
   ReviewStatsSnapshotDTO,
   SetFlashcardTagsCommand,
 } from "../../types";
-import { FLASHCARD_ERROR_CODES } from "../errors.ts";
-import type { FlashcardsQuery } from "../validation/flashcards.schema.ts";
-import { encodeBase64 } from "../utils/base64.ts";
+import { FLASHCARD_ERROR_CODES } from "../errors";
+import type { FlashcardsQuery } from "../validation/flashcards.schema";
+import { encodeBase64 } from "../utils/base64";
 
 type FlashcardReferenceErrorCode =
   | typeof FLASHCARD_ERROR_CODES.CATEGORY_NOT_FOUND

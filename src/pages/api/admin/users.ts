@@ -1,8 +1,8 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError, User } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../../db/supabase.client.ts";
-import { USER_ROLES_ERROR_CODES, buildErrorResponse } from "../../../lib/errors.ts";
+import { supabaseClient } from "../../../db/supabase.client";
+import { USER_ROLES_ERROR_CODES, buildErrorResponse } from "../../../lib/errors";
 import type { UserListResponse } from "../../../types";
 
 export const prerender = false;

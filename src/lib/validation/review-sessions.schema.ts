@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Enums, Json } from "../../db/database.types.ts";
+import type { Enums, Json } from "../../db/database.types";
 
 const REVIEW_OUTCOMES = ["fail", "hard", "good", "easy", "again"] as const satisfies readonly Enums<"review_outcome">[];
 

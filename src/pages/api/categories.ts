@@ -1,17 +1,17 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
-import { CATEGORY_ERROR_CODES, buildErrorResponse, mapCategoryDbError } from "../../lib/errors.ts";
-import { createCategory, listCategories } from "../../lib/services/categories.service.ts";
-import type { CategoriesQuery } from "../../lib/validation/categories.schema.ts";
+import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client";
+import { CATEGORY_ERROR_CODES, buildErrorResponse, mapCategoryDbError } from "../../lib/errors";
+import { createCategory, listCategories } from "../../lib/services/categories.service";
+import type { CategoriesQuery } from "../../lib/validation/categories.schema";
 import {
   InvalidCategoryCursorError,
   buildCategoriesQuery,
   categoriesQuerySchema,
   createCategoryBodySchema,
-} from "../../lib/validation/categories.schema.ts";
-import { encodeBase64 } from "../../lib/utils/base64.ts";
+} from "../../lib/validation/categories.schema";
+import { encodeBase64 } from "../../lib/utils/base64";
 import type { CategoryListResponse, CreateCategoryCommand } from "../../types";
 
 export const prerender = false;

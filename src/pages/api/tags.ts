@@ -1,12 +1,12 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
-import { TAG_ERROR_CODES, buildErrorResponse, type TagErrorCode } from "../../lib/errors.ts";
-import { listTags } from "../../lib/services/tags.service.ts";
-import type { TagsQuery } from "../../lib/validation/tags.schema.ts";
-import { InvalidTagCursorError, buildTagsQuery, tagsQuerySchema } from "../../lib/validation/tags.schema.ts";
-import { encodeBase64 } from "../../lib/utils/base64.ts";
+import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client";
+import { TAG_ERROR_CODES, buildErrorResponse, type TagErrorCode } from "../../lib/errors";
+import { listTags } from "../../lib/services/tags.service";
+import type { TagsQuery } from "../../lib/validation/tags.schema";
+import { InvalidTagCursorError, buildTagsQuery, tagsQuerySchema } from "../../lib/validation/tags.schema";
+import { encodeBase64 } from "../../lib/utils/base64";
 import type { TagListResponse } from "../../types";
 
 export const prerender = false;

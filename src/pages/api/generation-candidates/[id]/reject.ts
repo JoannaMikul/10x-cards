@@ -1,21 +1,18 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../../../db/supabase.client.ts";
+import { supabaseClient } from "../../../../db/supabase.client";
 import {
   CANDIDATE_ERROR_CODES,
   buildErrorResponse,
   mapCandidateDbError,
   type CandidateErrorCode,
-} from "../../../../lib/errors.ts";
-import {
-  getCandidateForOwner,
-  rejectCandidateForOwner,
-} from "../../../../lib/services/generation-candidates.service.ts";
+} from "../../../../lib/errors";
+import { getCandidateForOwner, rejectCandidateForOwner } from "../../../../lib/services/generation-candidates.service";
 import {
   getCandidateParamsSchema,
   rejectGenerationCandidateSchema,
-} from "../../../../lib/validation/generation-candidates.schema.ts";
+} from "../../../../lib/validation/generation-candidates.schema";
 
 export const prerender = false;
 

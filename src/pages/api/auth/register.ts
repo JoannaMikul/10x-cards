@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
-import { createSupabaseServerInstance } from "../../../db/supabase.client.ts";
-import { AUTH_ERROR_CODES, type AuthErrorCode } from "../../../lib/errors.ts";
-import { registerApiSchema } from "../../../lib/validation/auth.schema.ts";
+import { createSupabaseServerInstance } from "../../../db/supabase.client";
+import { AUTH_ERROR_CODES, type AuthErrorCode } from "../../../lib/errors";
+import { registerApiSchema } from "../../../lib/validation/auth.schema";
 import type { RegisterCommand, CurrentUserDTO } from "../../../types";
 
 export const prerender = false;

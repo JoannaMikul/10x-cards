@@ -1,8 +1,8 @@
-import type { Tables } from "../../db/database.types.ts";
-import type { SupabaseClient } from "../../db/supabase.client.ts";
+import type { Tables } from "../../db/database.types";
+import type { SupabaseClient } from "../../db/supabase.client";
 import type { CategoryDTO, CreateCategoryCommand, UpdateCategoryCommand } from "../../types";
-import type { CategoriesQuery } from "../validation/categories.schema.ts";
-import { escapeIlikePattern } from "../utils/search.ts";
+import type { CategoriesQuery } from "../validation/categories.schema";
+import { escapeIlikePattern } from "../utils/search";
 
 type CategoryRow = Tables<"categories">;
 type CategorySelect = Pick<CategoryRow, "id" | "name" | "slug" | "description" | "color" | "created_at" | "updated_at">;

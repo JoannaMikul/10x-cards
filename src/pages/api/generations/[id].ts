@@ -1,27 +1,24 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabaseClient } from "../../../db/supabase.client.ts";
-import type { SupabaseClient } from "../../../db/supabase.client.ts";
+import { supabaseClient } from "../../../db/supabase.client";
+import type { SupabaseClient } from "../../../db/supabase.client";
 import {
   GENERATION_ERROR_CODES,
   buildErrorResponse,
   type GenerationErrorCode,
   type HttpErrorDescriptor,
-} from "../../../lib/errors.ts";
-import { logGenerationError } from "../../../lib/services/error-logs.service.ts";
+} from "../../../lib/errors";
+import { logGenerationError } from "../../../lib/services/error-logs.service";
 import {
   cancelGenerationIfActive,
   getCandidatesStatuses,
   getGenerationById,
   type GenerationCandidatesSummary,
   type GenerationRecord,
-} from "../../../lib/services/generations.service.ts";
-import {
-  projectGeneration,
-  type GenerationResponseShape,
-} from "../../../lib/services/generation-projection.service.ts";
-import { getGenerationParamsSchema, updateGenerationSchema } from "../../../lib/validation/generations.schema.ts";
+} from "../../../lib/services/generations.service";
+import { projectGeneration, type GenerationResponseShape } from "../../../lib/services/generation-projection.service";
+import { getGenerationParamsSchema, updateGenerationSchema } from "../../../lib/validation/generations.schema";
 
 export const prerender = false;
 

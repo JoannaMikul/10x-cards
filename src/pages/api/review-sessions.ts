@@ -1,17 +1,17 @@
 import type { APIRoute } from "astro";
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import type { Json } from "../../db/database.types.ts";
-import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client.ts";
+import type { Json } from "../../db/database.types";
+import { DEFAULT_USER_ID, supabaseClient } from "../../db/supabase.client";
 import {
   REVIEW_ERROR_CODES,
   buildErrorResponse,
   mapReviewDbError,
   type ReviewErrorCode,
   type HttpErrorDescriptor,
-} from "../../lib/errors.ts";
-import { createReviewSession, ReviewCardNotFoundError } from "../../lib/services/review-sessions.service.ts";
-import { createReviewSessionSchema } from "../../lib/validation/review-sessions.schema.ts";
+} from "../../lib/errors";
+import { createReviewSession, ReviewCardNotFoundError } from "../../lib/services/review-sessions.service";
+import { createReviewSessionSchema } from "../../lib/validation/review-sessions.schema";
 import type { CreateReviewSessionCommand } from "../../types";
 
 export const prerender = false;
