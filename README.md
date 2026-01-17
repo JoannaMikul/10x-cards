@@ -25,7 +25,7 @@
 
 ## Project description
 
-**10x-cards** is a web application designed to help IT professionals quickly create high-quality flashcards for learning technologies and foreign languages.
+**10x-cards** is a web application designed to help IT professionals quickly create high-quality flashcards for learning technologies and foreign languages. Detailed product requirements and specifications are available in the [PRD](.ai/prd.md).
 
 It offers two ways to create flashcards:
 
@@ -182,7 +182,7 @@ The Playwright configuration automatically loads variables from `.env.test` usin
 
 ## Project scope
 
-In scope for the MVP (per PRD):
+In scope for the MVP (see full [PRD](.ai/prd.md)):
 
 - Implementing automatic flashcard generation using AI based on user-provided text.
 - Providing a review flow for AI-generated suggestions with quick edit, accept, or discard options before saving.
@@ -192,7 +192,7 @@ In scope for the MVP (per PRD):
 - Setting up user registration and authentication to keep collections private and secure.
 - Building a simple dashboard that displays statistics on AI suggestion acceptance and the number of AI-generated flashcards.
 
-Out of scope for the MVP (per PRD):
+Out of scope for the MVP (see full [PRD](.ai/prd.md)):
 
 - No custom spaced repetition algorithm (an existing module is used).
 - No file imports other than plain text.
