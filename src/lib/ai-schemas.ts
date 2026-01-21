@@ -1,5 +1,29 @@
 import type { JsonSchemaResponseFormat } from "../types";
 
+/**
+ * Models that support strict JSON schema mode in OpenRouter.
+ * Other models will use non-strict mode for better compatibility.
+ */
+const MODELS_WITH_STRICT_SCHEMA_SUPPORT = [
+  "anthropic/claude-3.5-sonnet",
+  "anthropic/claude-3-opus",
+  "anthropic/claude-3-sonnet",
+  "anthropic/claude-sonnet-4.5",
+  "openai/gpt-4o",
+  "openai/gpt-4o-mini",
+  "openai/o1",
+  "openai/o1-mini",
+  "google/gemini-2.0-flash-exp",
+  "google/gemini-exp-1206",
+] as const;
+
+/**
+ * Check if a model supports strict JSON schema mode.
+ */
+export function supportsStrictJsonSchema(model: string): boolean {
+  return MODELS_WITH_STRICT_SCHEMA_SUPPORT.some((supportedModel) => model.includes(supportedModel));
+}
+
 export const flashcardsGenerationSchema = {
   type: "object",
   properties: {
@@ -124,41 +148,73 @@ export const flashcardsQualityAnalysisSchema = {
   additionalProperties: false,
 } as const;
 
-export const flashcardsResponseFormat: JsonSchemaResponseFormat = {
-  type: "json_schema",
-  json_schema: {
-    name: "flashcards_generation_result",
-    strict: true,
-    schema: flashcardsGenerationSchema,
-  },
-};
+/**
+ * Create response format for flashcards generation with appropriate strict mode.
+ * @param model - The model name to determine if strict mode is supported
+ */
+export function createFlashcardsResponseFormat(model: string): JsonSchemaResponseFormat {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "flashcards_generation_result",
+      strict: supportsStrictJsonSchema(model),
+      schema: flashcardsGenerationSchema,
+    },
+  };
+}
 
-export const flashcardsTranslationResponseFormat: JsonSchemaResponseFormat = {
-  type: "json_schema",
-  json_schema: {
-    name: "flashcards_translation_result",
-    strict: true,
-    schema: flashcardsTranslationSchema,
-  },
-};
+/**
+ * Create response format for flashcards translation with appropriate strict mode.
+ * @param model - The model name to determine if strict mode is supported
+ */
+export function createFlashcardsTranslationResponseFormat(model: string): JsonSchemaResponseFormat {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "flashcards_translation_result",
+      strict: supportsStrictJsonSchema(model),
+      schema: flashcardsTranslationSchema,
+    },
+  };
+}
 
-export const flashcardsEditingResponseFormat: JsonSchemaResponseFormat = {
-  type: "json_schema",
-  json_schema: {
-    name: "flashcards_editing_result",
-    strict: true,
-    schema: flashcardsEditingSchema,
-  },
-};
+/**
+ * Create response format for flashcards editing with appropriate strict mode.
+ * @param model - The model name to determine if strict mode is supported
+ */
+export function createFlashcardsEditingResponseFormat(model: string): JsonSchemaResponseFormat {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "flashcards_editing_result",
+      strict: supportsStrictJsonSchema(model),
+      schema: flashcardsEditingSchema,
+    },
+  };
+}
 
-export const flashcardsQualityAnalysisResponseFormat: JsonSchemaResponseFormat = {
-  type: "json_schema",
-  json_schema: {
-    name: "flashcards_quality_analysis_result",
-    strict: true,
-    schema: flashcardsQualityAnalysisSchema,
-  },
-};
+/**
+ * Create response format for flashcards quality analysis with appropriate strict mode.
+ * @param model - The model name to determine if strict mode is supported
+ */
+export function createFlashcardsQualityAnalysisResponseFormat(model: string): JsonSchemaResponseFormat {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "flashcards_quality_analysis_result",
+      strict: supportsStrictJsonSchema(model),
+      schema: flashcardsQualityAnalysisSchema,
+    },
+  };
+}
+
+// Backward compatibility - these now use non-strict mode by default
+export const flashcardsResponseFormat: JsonSchemaResponseFormat = createFlashcardsResponseFormat("");
+export const flashcardsTranslationResponseFormat: JsonSchemaResponseFormat =
+  createFlashcardsTranslationResponseFormat("");
+export const flashcardsEditingResponseFormat: JsonSchemaResponseFormat = createFlashcardsEditingResponseFormat("");
+export const flashcardsQualityAnalysisResponseFormat: JsonSchemaResponseFormat =
+  createFlashcardsQualityAnalysisResponseFormat("");
 
 export interface FlashcardsGenerationResult {
   cards: {

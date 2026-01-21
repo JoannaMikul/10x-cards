@@ -16,7 +16,7 @@ pages_build_output_dir = "dist"
 # Environment variables
 [vars]
 NODE_ENV = "production"
-OPENROUTER_DEFAULT_MODEL = "mistralai/devstral-2512:free"
+OPENROUTER_DEFAULT_MODEL = "anthropic/claude-sonnet-4.5"
 
 # Secrets (encrypted variables - managed via Dashboard only)
 # These are configured separately as Secrets in Cloudflare Dashboard

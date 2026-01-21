@@ -548,9 +548,19 @@ export interface FlashcardsGenerationResult {
   cards: FlashcardGenerationItem[];
 }
 
+export interface OpenRouterToolCall {
+  id?: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 export interface OpenRouterMessage {
   role: "system" | "user" | "assistant";
   content: string | object;
+  tool_calls?: OpenRouterToolCall[];
 }
 
 export interface OpenRouterChoice {

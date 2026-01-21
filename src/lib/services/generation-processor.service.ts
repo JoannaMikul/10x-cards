@@ -7,7 +7,7 @@ import {
   OpenRouterServerError,
   OpenRouterNetworkError,
 } from "../openrouter-service";
-import { flashcardsResponseFormat, type FlashcardsGenerationResult } from "../ai-schemas";
+import { createFlashcardsResponseFormat, type FlashcardsGenerationResult } from "../ai-schemas";
 import { logGenerationError } from "./error-logs.service";
 
 export interface ProcessGenerationResult {
@@ -40,6 +40,27 @@ interface ResilienceConfig {
   };
 }
 
+/**
+ * Large models that need extended timeout (e.g., 671B parameter models).
+ * These models generate responses slower, especially for structured outputs.
+ */
+const LARGE_MODELS_REQUIRING_EXTENDED_TIMEOUT = [
+  "deepseek/deepseek-v3",
+  "deepseek/deepseek-v3.2",
+  "deepseek/deepseek-r1",
+  "x-ai/grok-3",
+  "x-ai/grok-4",
+] as const;
+
+/**
+ * Get appropriate timeout for a model.
+ * Large models get 3 minutes, others get 1 minute.
+ */
+function getRequestTimeout(model: string): number {
+  const isLargeModel = LARGE_MODELS_REQUIRING_EXTENDED_TIMEOUT.some((largeModel) => model.includes(largeModel));
+  return isLargeModel ? 180000 : 60000; // 3 minutes for large models, 1 minute for others
+}
+
 const DEFAULT_RESILIENCE_CONFIG: ResilienceConfig = {
   retry: {
     maxAttempts: 3,
@@ -53,7 +74,7 @@ const DEFAULT_RESILIENCE_CONFIG: ResilienceConfig = {
     monitoringPeriodMs: 300000, // 5 minutes
   },
   timeout: {
-    requestTimeoutMs: 60000, // 1 minute per request
+    requestTimeoutMs: 60000, // 1 minute per request (default, can be overridden per model)
     totalTimeoutMs: 300000, // 5 minutes total
   },
 };
@@ -427,17 +448,18 @@ async function performResilientGeneration(
   generationId: string
 ): Promise<FlashcardsGenerationResult> {
   const config = DEFAULT_RESILIENCE_CONFIG;
+  const requestTimeout = getRequestTimeout(model);
 
   const generationOperation = async (): Promise<FlashcardsGenerationResult> => {
     return await withTimeout(
       openRouterService.completeStructuredChat<FlashcardsGenerationResult>({
         systemPrompt,
         userPrompt,
-        responseFormat: flashcardsResponseFormat,
+        responseFormat: createFlashcardsResponseFormat(model),
         model,
         params: { temperature },
       }),
-      config.timeout.requestTimeoutMs
+      requestTimeout
     );
   };
 
