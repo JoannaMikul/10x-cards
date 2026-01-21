@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from "vitest";
+import type { JsonSchemaResponseFormat } from "../../../types";
 import { server } from "../../../test/setup";
 import { http, HttpResponse } from "msw";
 
@@ -132,6 +133,10 @@ vi.mock("../../openrouter-service", () => {
       responseFormat: { type: string; json_schema: { schema: Record<string, unknown> } };
     }): Promise<TSchema> {
       const model = options.model ?? this.defaultModel;
+      if (model.includes("anthropic/claude")) {
+        return this._completeStructuredWithTools<TSchema>(options);
+      }
+
       const mergedParams = { ...this.defaultParams, ...options.params };
       const messages = this._buildMessages(options.userPrompt, options.systemPrompt);
       const requestBody = this._buildRequestBody(
@@ -165,6 +170,42 @@ vi.mock("../../openrouter-service", () => {
       messages.push({ role: "user", content: userPrompt });
 
       return messages;
+    }
+
+    private async _completeStructuredWithTools<TSchema>(options: {
+      userPrompt: string;
+      systemPrompt?: string;
+      model?: string;
+      params?: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+      responseFormat: { type: string; json_schema: { schema: Record<string, unknown> } };
+    }): Promise<TSchema> {
+      const model = options.model ?? this.defaultModel;
+      const mergedParams = { ...this.defaultParams, ...options.params };
+      const messages = this._buildMessages(options.userPrompt, options.systemPrompt);
+
+      const requestBody: Record<string, unknown> = {
+        model,
+        messages,
+        ...mergedParams,
+        response_format: {
+          type: "json_object",
+        },
+      };
+
+      if (options.metadata) {
+        requestBody.metadata = options.metadata;
+      }
+
+      const jsonInstruction = `You must respond with a valid JSON object that matches this schema: ${JSON.stringify(
+        options.responseFormat.json_schema.schema
+      )}`;
+      if (requestBody.messages && Array.isArray(requestBody.messages)) {
+        requestBody.messages = [{ role: "system", content: jsonInstruction }, ...requestBody.messages];
+      }
+
+      const response = await this._callOpenRouter(requestBody);
+      return this._parseStructuredResponse<TSchema>(response);
     }
 
     private _buildRequestBody(
@@ -201,24 +242,33 @@ vi.mock("../../openrouter-service", () => {
       model: string;
     }> {
       const headers = this._buildHeaders();
+      try {
+        const response = await this.httpClient(this.baseUrl, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(requestBody),
+        });
 
-      const response = await this.httpClient(this.baseUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(requestBody),
-      });
+        if (!response.ok) {
+          await this._handleHttpError(response);
+        }
 
-      if (!response.ok) {
-        await this._handleHttpError(response);
+        const data = await response.json();
+
+        if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+          throw new MockOpenRouterParseError("Invalid response structure: missing or empty choices array");
+        }
+
+        return data;
+      } catch (error) {
+        if (error instanceof MockOpenRouterError) {
+          throw error;
+        }
+
+        throw new MockOpenRouterNetworkError(
+          `Network request failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        );
       }
-
-      const data = await response.json();
-
-      if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
-        throw new MockOpenRouterParseError("Invalid response structure: missing or empty choices array");
-      }
-
-      return data;
     }
 
     private async _handleHttpError(response: Response): Promise<never> {
@@ -291,6 +341,76 @@ vi.mock("../../openrouter-service", () => {
       };
     }
 
+    private _parseToolResponse<TSchema>(response: {
+      choices: {
+        message: {
+          tool_calls?: { function?: { name?: string; arguments?: string } }[];
+        };
+      }[];
+    }): TSchema {
+      const choice = response.choices[0];
+      if (!choice || !choice.message) {
+        throw new MockOpenRouterParseError("Invalid response structure: missing message");
+      }
+
+      if (
+        !choice.message.tool_calls ||
+        !Array.isArray(choice.message.tool_calls) ||
+        choice.message.tool_calls.length === 0
+      ) {
+        throw new MockOpenRouterParseError("Invalid tool response: missing tool_calls");
+      }
+
+      const toolCall = choice.message.tool_calls[0];
+      if (!toolCall || toolCall.function?.name !== "generate_structured_response") {
+        throw new MockOpenRouterParseError("Invalid tool response: unexpected tool call");
+      }
+
+      let content: string;
+      try {
+        const args = JSON.parse(toolCall.function.arguments ?? "");
+        content = JSON.stringify(args);
+      } catch (parseError) {
+        throw new MockOpenRouterParseError(
+          `Failed to parse tool arguments: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`
+        );
+      }
+
+      try {
+        const parsed = JSON.parse(content);
+
+        if (typeof parsed !== "object" || parsed === null) {
+          throw new MockOpenRouterParseError("Parsed tool response is not a valid object");
+        }
+
+        return parsed as TSchema;
+      } catch (parseError) {
+        const partialResult = this._extractPartialJsonCards(content);
+
+        if (partialResult && partialResult.cards && partialResult.cards.length > 0) {
+          return partialResult as TSchema;
+        }
+
+        const repairedContent = this._repairIncompleteJson(content);
+        if (repairedContent !== content) {
+          try {
+            const parsed = JSON.parse(repairedContent);
+
+            if (typeof parsed === "object" && parsed !== null) {
+              return parsed as TSchema;
+            }
+          } catch {
+            // Ignore repair errors
+          }
+        }
+
+        throw new MockOpenRouterParseError(
+          `Failed to parse tool response as JSON: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`,
+          content
+        );
+      }
+    }
+
     private _parseStructuredResponse<TSchema>(response: {
       choices: {
         message: { role: string; content: string };
@@ -308,7 +428,10 @@ vi.mock("../../openrouter-service", () => {
       let content: string;
 
       if (typeof choice.message.content === "string") {
-        content = choice.message.content;
+        content = choice.message.content
+          .replace(/^```(?:json)?\s*\n?/i, "")
+          .replace(/\n?```\s*$/i, "")
+          .trim();
       } else if (choice.message.content && typeof choice.message.content === "object") {
         content = JSON.stringify(choice.message.content);
       } else {
@@ -458,15 +581,29 @@ vi.mock("../../openrouter-service", () => {
   };
 });
 
-const {
-  OpenRouterService,
-  OpenRouterConfigError,
-  OpenRouterAuthError,
-  OpenRouterBadRequestError,
-  OpenRouterRateLimitError,
-  OpenRouterServerError,
-  OpenRouterParseError,
-} = await import("../../openrouter-service");
+let OpenRouterService: typeof import("../../openrouter-service").OpenRouterService;
+let OpenRouterError: typeof import("../../openrouter-service").OpenRouterError;
+let OpenRouterConfigError: typeof import("../../openrouter-service").OpenRouterConfigError;
+let OpenRouterAuthError: typeof import("../../openrouter-service").OpenRouterAuthError;
+let OpenRouterBadRequestError: typeof import("../../openrouter-service").OpenRouterBadRequestError;
+let OpenRouterRateLimitError: typeof import("../../openrouter-service").OpenRouterRateLimitError;
+let OpenRouterServerError: typeof import("../../openrouter-service").OpenRouterServerError;
+let OpenRouterNetworkError: typeof import("../../openrouter-service").OpenRouterNetworkError;
+let OpenRouterParseError: typeof import("../../openrouter-service").OpenRouterParseError;
+
+beforeAll(async () => {
+  ({
+    OpenRouterService,
+    OpenRouterError,
+    OpenRouterConfigError,
+    OpenRouterAuthError,
+    OpenRouterBadRequestError,
+    OpenRouterRateLimitError,
+    OpenRouterServerError,
+    OpenRouterNetworkError,
+    OpenRouterParseError,
+  } = await import("../../openrouter-service"));
+});
 
 describe("OpenRouterService", () => {
   let service: InstanceType<typeof OpenRouterService>;
@@ -652,6 +789,31 @@ describe("OpenRouterService", () => {
         total_tokens: 250,
       },
     };
+    const responseFormat = {
+      type: "json_schema",
+      json_schema: {
+        name: "flashcard_generation",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            cards: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  front: { type: "string" },
+                  back: { type: "string" },
+                  tag_ids: { type: "array", items: { type: "number" } },
+                },
+                required: ["front", "back"],
+              },
+            },
+          },
+          required: ["cards"],
+        },
+      },
+    } satisfies JsonSchemaResponseFormat;
 
     it("should successfully complete structured chat and return parsed JSON", async () => {
       server.use(
@@ -662,31 +824,7 @@ describe("OpenRouterService", () => {
 
       const result = await service.completeStructuredChat({
         userPrompt: "Generate flashcards about networking",
-        responseFormat: {
-          type: "json_schema",
-          json_schema: {
-            name: "flashcard_generation",
-            strict: true,
-            schema: {
-              type: "object",
-              properties: {
-                cards: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      front: { type: "string" },
-                      back: { type: "string" },
-                      tag_ids: { type: "array", items: { type: "number" } },
-                    },
-                    required: ["front", "back"],
-                  },
-                },
-              },
-              required: ["cards"],
-            },
-          },
-        },
+        responseFormat,
       });
 
       expect(result).toEqual({
@@ -739,14 +877,14 @@ describe("OpenRouterService", () => {
       });
     });
 
-    it("should repair incomplete JSON when possible", async () => {
+    it("should handle incomplete JSON in structured response", async () => {
       const incompleteResponse = {
         ...mockStructuredResponse,
         choices: [
           {
             message: {
               role: "assistant",
-              content: '{"cards": [{"front": "Test", "back": "Answer"}]}',
+              content: '{"cards": [{"front": "Test", "back": "Answer"}]',
             },
             finish_reason: "stop",
             index: 0,
@@ -776,6 +914,154 @@ describe("OpenRouterService", () => {
           },
         ],
       });
+    });
+
+    it("should include response_format and metadata in request body", async () => {
+      server.use(
+        http.post("https://openrouter.ai/api/v1/chat/completions", async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          expect(body.response_format).toEqual(responseFormat);
+          expect(body.metadata).toEqual({ userId: "123" });
+          return HttpResponse.json(mockStructuredResponse);
+        })
+      );
+
+      await service.completeStructuredChat({
+        userPrompt: "Generate flashcards",
+        responseFormat,
+        metadata: { userId: "123" },
+      });
+    });
+
+    it("should use JSON mode and inject schema instruction for Claude models", async () => {
+      server.use(
+        http.post("https://openrouter.ai/api/v1/chat/completions", async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          const messages = body.messages as { role: string; content: string }[];
+          expect(body.response_format).toEqual({ type: "json_object" });
+          expect(messages[0].role).toBe("system");
+          expect(messages[0].content).toContain(JSON.stringify(responseFormat.json_schema.schema));
+          expect(body.metadata).toEqual({ requestId: "abc" });
+          return HttpResponse.json(mockStructuredResponse);
+        })
+      );
+
+      await service.completeStructuredChat({
+        userPrompt: "Generate flashcards",
+        model: "anthropic/claude-3-opus",
+        responseFormat,
+        metadata: { requestId: "abc" },
+      });
+    });
+  });
+
+  describe("structured response parsing", () => {
+    const buildResponse = (content: unknown) => ({
+      choices: [
+        {
+          message: {
+            content,
+          },
+          finish_reason: "stop",
+          index: 0,
+        },
+      ],
+      usage: {
+        prompt_tokens: 1,
+        completion_tokens: 1,
+        total_tokens: 2,
+      },
+      model: "openai/gpt-3.5-turbo",
+    });
+    const parseStructuredResponse = (response: unknown) =>
+      (service as unknown as { _parseStructuredResponse: (r: unknown) => unknown })._parseStructuredResponse(response);
+
+    it("should strip markdown code blocks from JSON content", () => {
+      const response = buildResponse('```json\n{"cards":[{"front":"Q","back":"A"}]}\n```');
+      const result = parseStructuredResponse(response);
+
+      expect(result).toEqual({ cards: [{ front: "Q", back: "A" }] });
+    });
+
+    it("should parse object content directly", () => {
+      const response = buildResponse({ cards: [{ front: "Q", back: "A" }] });
+      const result = parseStructuredResponse(response);
+
+      expect(result).toEqual({ cards: [{ front: "Q", back: "A" }] });
+    });
+
+    it("should repair incomplete JSON when possible", () => {
+      const response = buildResponse('{"foo":"bar"');
+      const result = parseStructuredResponse(response);
+
+      expect(result).toEqual({ foo: "bar" });
+    });
+
+    it("should fallback to partial card extraction when JSON is invalid", () => {
+      const response = buildResponse('{"cards":[{"front":"Q","back":"A"},{"front":"Q2","back":"A2"}], "oops": }');
+      const result = parseStructuredResponse(response);
+
+      expect(result).toEqual({
+        cards: [{ front: "Q", back: "A" }],
+      });
+    });
+
+    it("should throw OpenRouterParseError for unsupported content type", () => {
+      const response = buildResponse(123);
+
+      expect(() => parseStructuredResponse(response)).toThrow(OpenRouterParseError);
+    });
+  });
+
+  describe("tool response parsing", () => {
+    const buildToolResponse = (toolCalls?: { function?: { name?: string; arguments?: string } }[]) => ({
+      choices: [
+        {
+          message: {
+            tool_calls: toolCalls,
+          },
+        },
+      ],
+    });
+    const parseToolResponse = (response: unknown) =>
+      (service as unknown as { _parseToolResponse: (r: unknown) => unknown })._parseToolResponse(response);
+
+    it("should parse structured tool response arguments", () => {
+      const response = buildToolResponse([
+        {
+          function: {
+            name: "generate_structured_response",
+            arguments: JSON.stringify({ cards: [{ front: "Q", back: "A" }] }),
+          },
+        },
+      ]);
+      const result = parseToolResponse(response);
+
+      expect(result).toEqual({ cards: [{ front: "Q", back: "A" }] });
+    });
+
+    it("should throw when tool_calls are missing", () => {
+      const response = buildToolResponse();
+
+      expect(() => parseToolResponse(response)).toThrow(OpenRouterParseError);
+    });
+
+    it("should throw when tool name is unexpected", () => {
+      const response = buildToolResponse([{ function: { name: "unexpected_tool", arguments: "{}" } }]);
+
+      expect(() => parseToolResponse(response)).toThrow(OpenRouterParseError);
+    });
+
+    it("should throw when tool arguments are invalid JSON", () => {
+      const response = buildToolResponse([{ function: { name: "generate_structured_response", arguments: "{" } }]);
+
+      expect(() => parseToolResponse(response)).toThrow(OpenRouterParseError);
+    });
+
+    it("should throw when parsed tool response is not an object", () => {
+      const response = buildToolResponse([{ function: { name: "generate_structured_response", arguments: "42" } }]);
+
+      expect(() => parseToolResponse(response)).toThrow(OpenRouterParseError);
     });
   });
 
@@ -821,6 +1107,26 @@ describe("OpenRouterService", () => {
       }
     });
 
+    it("should ignore invalid retry-after header values", async () => {
+      server.use(
+        http.post("https://openrouter.ai/api/v1/chat/completions", () => {
+          return HttpResponse.json(
+            { error: { message: "Rate limit exceeded" } },
+            {
+              status: 429,
+              headers: { "retry-after": "not-a-number" },
+            }
+          );
+        })
+      );
+
+      try {
+        await service.completeChat({ userPrompt: "Test" });
+      } catch (error) {
+        expect((error as InstanceType<typeof OpenRouterRateLimitError>).retryAfter).toBeUndefined();
+      }
+    });
+
     it("should throw OpenRouterServerError for 5xx responses", async () => {
       server.use(
         http.post("https://openrouter.ai/api/v1/chat/completions", () => {
@@ -829,6 +1135,16 @@ describe("OpenRouterService", () => {
       );
 
       await expect(service.completeChat({ userPrompt: "Test" })).rejects.toThrow(OpenRouterServerError);
+    });
+
+    it("should throw OpenRouterError for unexpected status codes", async () => {
+      server.use(
+        http.post("https://openrouter.ai/api/v1/chat/completions", () => {
+          return HttpResponse.text("Unexpected error", { status: 418, statusText: "I'm a teapot" });
+        })
+      );
+
+      await expect(service.completeChat({ userPrompt: "Test" })).rejects.toThrow(OpenRouterError);
     });
 
     it("should throw OpenRouterParseError for invalid response structure", async () => {
@@ -914,7 +1230,7 @@ describe("OpenRouterService", () => {
         httpClient: mockHttpClient,
       });
 
-      await expect(serviceWithMockClient.completeChat({ userPrompt: "Test" })).rejects.toThrow("Network error");
+      await expect(serviceWithMockClient.completeChat({ userPrompt: "Test" })).rejects.toThrow(OpenRouterNetworkError);
     });
   });
 

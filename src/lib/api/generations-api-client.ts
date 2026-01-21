@@ -45,9 +45,13 @@ export class GenerationsApiClient extends BaseApiClient {
 
   /**
    * Trigger generation processing
+   * Note: Extended timeout to accommodate large models (e.g., DeepSeek V3.2)
+   * that may take up to 3 minutes to process
    */
   async process(): Promise<void> {
-    await this.post<null>("/generations/process");
+    await this.post<null>("/generations/process", undefined, {
+      timeout: 240000, // 4 minutes (longer than backend's 3-minute timeout for large models)
+    });
   }
 }
 

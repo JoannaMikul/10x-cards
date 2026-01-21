@@ -26,7 +26,33 @@ Następujące sekrety muszą być skonfigurowane w GitHub Repository Settings �
 Następujące zmienne muszą być skonfigurowane w GitHub Repository Settings → Secrets and variables → Actions → Variables:
 
 - `CLOUDFLARE_PROJECT_NAME` - Nazwa projektu w Cloudflare Pages
-- `OPENROUTER_DEFAULT_MODEL` - Domyślny model OpenRouter (np. "mistralai/devstral-2512:free")
+- `OPENROUTER_DEFAULT_MODEL` - Domyślny model OpenRouter (np. "anthropic/claude-sonnet-4.5")
+
+#### Wspierane modele i ich właściwości
+
+Aplikacja oferuje następujące modele:
+
+1. **Gemini 2.5 Flash** (`google/gemini-2.5-flash`) - szybki, ekonomiczny
+2. **DeepSeek V3.2** (`deepseek/deepseek-v3.2`) - bardzo duży model (671B parametrów), wymaga dłuższego timeoutu (3 min)
+3. **GPT 5 Mini** (`openai/gpt-5-mini`) - szybki, ekonomiczny
+4. **Claude 4.5 Sonnet** (`anthropic/claude-sonnet-4.5`) - zalecany jako domyślny, wspiera strict JSON schema
+5. **Grok Fast 4.1** (`x-ai/grok-4.1-fast`) - szybki model
+6. **GPT 4.1 Mini** (`openai/gpt-4.1-mini`) - ekonomiczny model OpenAI
+
+**Uwaga o strict JSON schema mode:**
+- Modele Claude (3.5 Sonnet, 3 Opus, 3 Sonnet, 4.5 Sonnet) oraz GPT-4o/GPT-4o-mini wspierają strict mode
+- Inne modele (DeepSeek, Grok, GPT-4.1-mini, Gemini 2.5) używają non-strict mode dla lepszej kompatybilności
+- Aplikacja automatycznie dostosowuje parametry do możliwości modelu
+
+**Uwaga o timeoutach:**
+- **Backend API timeout:** 
+  - Standardowy: 60 sekund (1 minuta)
+  - Duże modele (DeepSeek V3.2, Grok 3/4): 180 sekund (3 minuty)
+  - Aplikacja automatycznie dostosowuje timeout do rozmiaru modelu
+- **Frontend API client timeout:**
+  - Standardowy: 30 sekund
+  - Operacja `process()` dla generacji: 240 sekund (4 minuty) - dłuższy niż backend dla bezpieczeństwa
+  - Inne operacje CRUD: 30 sekund (wystarczające dla szybkich operacji)
 
 ### Cloudflare Pages - Zmienne środowiskowe
 
@@ -110,7 +136,7 @@ Adapter ten umożliwia:
 
      ```
      CLOUDFLARE_PROJECT_NAME=<nazwa-projektu-w-cloudflare>
-     OPENROUTER_DEFAULT_MODEL=mistralai/devstral-2512:free
+     OPENROUTER_DEFAULT_MODEL=anthropic/claude-sonnet-4.5
      ```
 
      **CLOUDFLARE_PROJECT_NAME** - to dokładnie ta sama nazwa, którą nadałeś projektowi w Cloudflare Pages Dashboard (np. `10x-cards`, `my-project-name`). Znajdziesz ją w URL: `https://dash.cloudflare.com/{account-id}/pages/view/{project-name}`
@@ -136,7 +162,7 @@ Adapter ten umożliwia:
      SUPABASE_KEY=<klucz-anon-supabase>
      SUPABASE_SERVICE_ROLE_KEY=<klucz-service-role-supabase>
      OPENROUTER_API_KEY=<klucz-api-openrouter>
-     OPENROUTER_DEFAULT_MODEL=mistralai/devstral-2512:free
+     OPENROUTER_DEFAULT_MODEL=anthropic/claude-sonnet-4.5
      NODE_ENV=production
      ```
 

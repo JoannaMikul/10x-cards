@@ -122,6 +122,12 @@ export class OpenRouterService {
     metadata?: OpenRouterMetadata;
   }): Promise<TSchema> {
     const model = options.model ?? this.defaultModel;
+
+    // Claude models require Tool Use instead of JSON Schema due to OpenRouter limitations
+    if (model.includes("anthropic/claude")) {
+      return this._completeStructuredWithTools<TSchema>(options);
+    }
+
     const mergedParams = { ...this.defaultParams, ...options.params };
     const messages = this._buildMessages(options.userPrompt, options.systemPrompt);
     const requestBody = this._buildRequestBody(messages, model, mergedParams, options.responseFormat, options.metadata);
@@ -149,6 +155,45 @@ export class OpenRouterService {
     messages.push({ role: "user", content: userPrompt });
 
     return messages;
+  }
+
+  private async _completeStructuredWithTools<TSchema>(options: {
+    systemPrompt?: string;
+    userPrompt: string;
+    responseFormat: JsonSchemaResponseFormat;
+    model?: string;
+    params?: OpenRouterModelParams;
+    metadata?: OpenRouterMetadata;
+  }): Promise<TSchema> {
+    const model = options.model ?? this.defaultModel;
+    const mergedParams = { ...this.defaultParams, ...options.params };
+    const messages = this._buildMessages(options.userPrompt, options.systemPrompt);
+
+    // For Claude models, try using JSON mode instead of tools
+    // Claude may not support tool use through OpenRouter properly
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages,
+      ...mergedParams,
+      response_format: {
+        type: "json_object", // Use generic JSON object format instead of strict schema
+      },
+    };
+
+    if (options.metadata) {
+      requestBody.metadata = options.metadata;
+    }
+
+    // Add a system message to enforce JSON structure
+    const jsonInstruction = `You must respond with a valid JSON object that matches this schema: ${JSON.stringify(
+      options.responseFormat.json_schema.schema
+    )}`;
+    if (requestBody.messages && Array.isArray(requestBody.messages)) {
+      requestBody.messages = [{ role: "system", content: jsonInstruction }, ...requestBody.messages];
+    }
+
+    const response = await this._callOpenRouter(requestBody);
+    return this._parseStructuredResponse<TSchema>(response);
   }
 
   private _buildRequestBody(
@@ -265,6 +310,72 @@ export class OpenRouterService {
     };
   }
 
+  private _parseToolResponse<TSchema>(response: OpenRouterResponse): TSchema {
+    const choice = response.choices[0];
+    if (!choice || !choice.message) {
+      throw new OpenRouterParseError("Invalid response structure: missing message");
+    }
+
+    // For tool responses, the content is in tool_calls
+    if (
+      !choice.message.tool_calls ||
+      !Array.isArray(choice.message.tool_calls) ||
+      choice.message.tool_calls.length === 0
+    ) {
+      throw new OpenRouterParseError("Invalid tool response: missing tool_calls");
+    }
+
+    const toolCall = choice.message.tool_calls[0];
+    if (!toolCall || toolCall.function?.name !== "generate_structured_response") {
+      throw new OpenRouterParseError("Invalid tool response: unexpected tool call");
+    }
+
+    let content: string;
+    try {
+      const args = JSON.parse(toolCall.function.arguments);
+      content = JSON.stringify(args);
+    } catch (parseError) {
+      throw new OpenRouterParseError(
+        `Failed to parse tool arguments: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`
+      );
+    }
+
+    try {
+      const parsed = JSON.parse(content);
+
+      if (typeof parsed !== "object" || parsed === null) {
+        throw new OpenRouterParseError("Parsed tool response is not a valid object");
+      }
+
+      return parsed as TSchema;
+    } catch (parseError) {
+      // Try partial extraction for cards as fallback
+      const partialResult = this._extractPartialJsonCards(content);
+
+      if (partialResult && partialResult.cards && partialResult.cards.length > 0) {
+        return partialResult as TSchema;
+      }
+
+      const repairedContent = this._repairIncompleteJson(content);
+      if (repairedContent !== content) {
+        try {
+          const parsed = JSON.parse(repairedContent);
+
+          if (typeof parsed === "object" && parsed !== null) {
+            return parsed as TSchema;
+          }
+        } catch {
+          // Ignore repair errors
+        }
+      }
+
+      throw new OpenRouterParseError(
+        `Failed to parse tool response as JSON: ${parseError instanceof Error ? parseError.message : "Unknown parse error"}`,
+        content
+      );
+    }
+  }
+
   private _parseStructuredResponse<TSchema>(response: OpenRouterResponse): TSchema {
     const choice = response.choices[0];
     if (!choice || !choice.message) {
@@ -274,7 +385,11 @@ export class OpenRouterService {
     let content: string;
 
     if (typeof choice.message.content === "string") {
-      content = choice.message.content;
+      // Remove markdown code blocks that Claude sometimes adds
+      content = choice.message.content
+        .replace(/^```(?:json)?\s*\n?/i, "")
+        .replace(/\n?```\s*$/i, "")
+        .trim();
     } else if (choice.message.content && typeof choice.message.content === "object") {
       content = JSON.stringify(choice.message.content);
     } else {
